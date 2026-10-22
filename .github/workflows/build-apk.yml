@@ -1,0 +1,60 @@
+name: Build Red's Ultimate RVC APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Red's Ultimate RVC
+        uses: actions/checkout@v4
+
+      - name: Checkout local RVC engine
+        uses: actions/checkout@v4
+        with:
+          repository: Sharl210/ultimate-rvc-mobile
+          ref: main
+          path: buildsrc
+
+      - name: Apply Red's branding
+        run: python3 tools/brand.py
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.35.2'
+          cache: true
+
+      - name: Flutter pub get
+        working-directory: buildsrc
+        run: flutter pub get
+
+      - name: Build ARM64 release APK
+        working-directory: buildsrc
+        run: flutter build apk --release --target-platform android-arm64
+
+      - name: Copy release APK
+        run: |
+          mkdir -p release
+          cp buildsrc/build/app/outputs/flutter-apk/app-release.apk "release/Red-Ultimate-RVC.apk"
+          sha256sum "release/Red-Ultimate-RVC.apk" > release/SHA256SUMS.txt
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Red-Ultimate-RVC-APK
+          path: release/*
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="v0.1.${{ github.run_number }}"
+          gh release create "$VERSION" "release/Red-Ultimate-RVC.apk" release/SHA256SUMS.txt             --title "Red's Ultimate RVC $VERSION"             --notes "Red's Ultimate RVC Android ARM64 build. Local RVC engine, branded for GiggleLootCoin."             --latest
