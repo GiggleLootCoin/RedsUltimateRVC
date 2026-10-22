@@ -15,9 +15,13 @@ if main.exists():
         "音高检测": "Pitch Detection",
         "参数解释": "RVC Controls",
         "mobile.index 转换教程": "Index Converter",
+        "primarySwatch: Colors.blue,": "primarySwatch: Colors.red,
+        brightness: Brightness.dark,
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.redAccent, brightness: Brightness.dark),",
     }
     for old, new in replacements.items():
         s = s.replace(old, new)
+    s = s.replace("backgroundColor: Colors.white", "backgroundColor: const Color(0xFF09090D)")
     main.write_text(s, encoding="utf-8")
 
 manifest = root / "android" / "app" / "src" / "main" / "AndroidManifest.xml"
