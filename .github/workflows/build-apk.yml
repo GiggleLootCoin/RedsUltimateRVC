@@ -22,6 +22,16 @@ jobs:
           ref: main
           path: buildsrc
 
+      - name: Recover bundled base models from the verified upstream release
+        run: |
+          mkdir -p buildsrc/assets/models
+          curl -L --fail --retry 3 -o upstream.apk https://github.com/Sharl210/ultimate-rvc-mobile/releases/download/v2.0.0/app-release.apk
+          unzip -q upstream.apk -d upstream_apk
+          find upstream_apk -type f -name 'hubert.onnx' -exec cp {} buildsrc/assets/models/hubert.onnx \;
+          find upstream_apk -type f -name 'rmvpe.onnx' -exec cp {} buildsrc/assets/models/rmvpe.onnx \;
+          test -s buildsrc/assets/models/hubert.onnx
+          test -s buildsrc/assets/models/rmvpe.onnx
+
       - name: Apply Red's branding
         run: python3 tools/brand.py
 
