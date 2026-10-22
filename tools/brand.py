@@ -36,7 +36,19 @@ replace_in(
     ],
 )
 
-\nsettings_gradle = root / "android" / "settings.gradle"\nreplace_in(\n    settings_gradle,\n    [('id "org.jetbrains.kotlin.android" version "1.8.10" apply false', 'id "org.jetbrains.kotlin.android" version "1.9.24" apply false')],\n)\n\nandroid_build = root / "android" / "build.gradle"\nreplace_in(\n    android_build,\n    [('classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.10"', 'classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.24"')],\n)\n\npubspec = root / "pubspec.yaml"
+settings_gradle = root / "android" / "settings.gradle"
+replace_in(
+    settings_gradle,
+    [('id "org.jetbrains.kotlin.android" version "1.8.10" apply false', 'id "org.jetbrains.kotlin.android" version "1.9.24" apply false')],
+)
+
+android_build = root / "android" / "build.gradle"
+replace_in(
+    android_build,
+    [('classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.10"', 'classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.24"')],
+)
+
+pubspec = root / "pubspec.yaml"
 replace_in(
     pubspec,
     [
@@ -48,9 +60,7 @@ replace_in(
 gradle_props = root / "android" / "gradle.properties"
 replace_in(
     gradle_props,
-    [\
-        ("org.gradle.java.home=/usr/lib/jvm/java-17-openjdk-amd64\n", ""),\
-    ],
+    [("org.gradle.java.home=/usr/lib/jvm/java-17-openjdk-amd64\n", "")],
 )
 
 icon_dir = root / "android" / "app" / "src" / "main" / "res" / "drawable"
