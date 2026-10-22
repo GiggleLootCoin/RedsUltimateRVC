@@ -39,16 +39,20 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: '3.35.2'
+          flutter-version: '3.24.5'
           cache: true
 
       - name: Flutter pub get
         working-directory: buildsrc
         run: flutter pub get
 
+      - name: Verify Android toolchain
+        working-directory: buildsrc
+        run: flutter doctor -v
+
       - name: Build ARM64 release APK
         working-directory: buildsrc
-        run: flutter build apk --release --target-platform android-arm64
+        run: flutter build apk --release --target-platform android-arm64 --verbose
 
       - name: Copy release APK
         run: |
@@ -67,4 +71,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION="v0.1.${{ github.run_number }}"
-          gh release create "$VERSION" "release/Red-Ultimate-RVC.apk" release/SHA256SUMS.txt             --title "Red's Ultimate RVC $VERSION"             --notes "Red's Ultimate RVC Android ARM64 build. Local RVC engine, branded for GiggleLootCoin."             --latest
+          gh release create "$VERSION" "release/Red-Ultimate-RVC.apk" release/SHA256SUMS.txt --title "Red's Ultimate RVC $VERSION" --notes "Red's Ultimate RVC Android ARM64 build. Local RVC engine, branded for GiggleLootCoin." --latest
