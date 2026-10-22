@@ -45,6 +45,12 @@ replace_in(
     ],
 )
 
+gradle_props = root / "android" / "gradle.properties"
+replace_in(
+    gradle_props,
+    [("org.gradle.java.home=/usr/lib/jvm/java-17-openjdk-amd64\n", "")],
+)
+
 icon_dir = root / "android" / "app" / "src" / "main" / "res" / "drawable"
 icon_dir.mkdir(parents=True, exist_ok=True)
 (icon_dir / "ic_red_logo.xml").write_text(
