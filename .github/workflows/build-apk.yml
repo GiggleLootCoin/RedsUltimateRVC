@@ -32,6 +32,9 @@ jobs:
           test -s buildsrc/assets/models/hubert.onnx
           test -s buildsrc/assets/models/rmvpe.onnx
 
+      - name: Install logo renderer
+        run: python3 -m pip install --quiet cairosvg
+
       - name: Apply Red's branding
         run: python3 tools/brand.py
 
