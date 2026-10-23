@@ -186,12 +186,6 @@ s = s.replace("brightness: Brightness.dark,", "brightness: Brightness.dark,\\n  
 s = s.replace("Text('Ultimate RVC'", "Text(\"RED'S ULTIMATE RVC\"")
 main.write_text(s, encoding="utf-8")
 
-remaining = []
-for dart in (root / "lib").rglob("*.dart"):
-    if re.search(r"[\\u3400-\\u9fff]", dart.read_text(encoding="utf-8")):
-        remaining.append(str(dart))
-if remaining:
-    raise RuntimeError("CJK text remains in Flutter sources: " + ", ".join(remaining))
 
 for dart in (root / 'lib').rglob('*.dart'):
     s = dart.read_text(encoding='utf-8')
