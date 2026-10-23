@@ -1,7 +1,15 @@
 import re
 from pathlib import Path
+import urllib.request
 
 root = Path("buildsrc")
+
+# Approved Red's Ultimate RVC artwork created for this project.
+LOGO_URL = "https://cdn.websitepublisher.ai/custom/wid25042/images/reds-ultimate-rvc-logo.svg"
+logo_svg = root / "assets" / "images" / "reds-ultimate-rvc-logo.svg"
+logo_svg.parent.mkdir(parents=True, exist_ok=True)
+urllib.request.urlretrieve(LOGO_URL, logo_svg)
+
 
 def replace_in(path, replacements):
     if not path.exists():
@@ -32,10 +40,24 @@ replace_in(
         ("音高检测", "Pitch Detection"),
         ("参数解释", "RVC Controls"),
         ("mobile.index 转换教程", "Index Converter"),
-        ("primarySwatch: Colors.blue,", "primarySwatch: Colors.red,"),
+        ("primarySwatch: Colors.blue,", "primarySwatch: Colors.red,
+        scaffoldBackgroundColor: const Color(0xFF08080C),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE50914), brightness: Brightness.dark),
+        drawerTheme: const DrawerThemeData(backgroundColor: Color(0xFF0A0A0D)),
+        navigationBarTheme: const NavigationBarThemeData(backgroundColor: Color(0xFF101014), indicatorColor: Color(0x55E50914)),
+"),
         ("backgroundColor: Colors.white", "backgroundColor: const Color(0xFF09090D)"),
     ],
 )
+
+# Render the exact approved SVG artwork into a launcher PNG.
+launcher_png = root / "android" / "app" / "src" / "main" / "res" / "drawable" / "reds_ultimate_rvc_logo.png"
+launcher_png.parent.mkdir(parents=True, exist_ok=True)
+try:
+    import cairosvg
+    cairosvg.svg2png(url=str(logo_svg), write_to=str(launcher_png), output_width=512, output_height=512)
+except Exception as exc:
+    raise RuntimeError(f"Could not render the approved Red's Ultimate RVC logo: {exc}")
 
 manifest = root / "android" / "app" / "src" / "main" / "AndroidManifest.xml"
 replace_in(
@@ -107,24 +129,6 @@ gradle_props = root / "android" / "gradle.properties"
 replace_in(
     gradle_props,
     [("org.gradle.java.home=/usr/lib/jvm/java-17-openjdk-amd64\n", "")],
-)
-
-icon_dir = root / "android" / "app" / "src" / "main" / "res" / "drawable"
-icon_dir.mkdir(parents=True, exist_ok=True)
-(icon_dir / "ic_red_logo.xml").write_text(
-    """<?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <path android:fillColor="#09090D" android:pathData="M0,0h108v108h-108z"/>
-    <path android:fillColor="#E00020" android:pathData="M18,20h72v8h-72zM23,28h62v42c0,17 -12,27 -31,27s-31,-10 -31,-27z"/>
-    <path android:fillColor="#09090D" android:pathData="M37,40h34v8h-34zM37,54h34v8h-34zM43,68h22v8h-22z"/>
-    <path android:fillColor="#E00020" android:pathData="M45,97c0,0 3,8 9,8s9,-8 9,-8z"/>
-</vector>
-""",
-    encoding="utf-8",
 )
 
 
