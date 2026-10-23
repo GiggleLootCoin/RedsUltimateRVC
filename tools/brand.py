@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 root = Path("buildsrc")
@@ -9,6 +10,15 @@ def replace_in(path, replacements):
     for old, new in replacements:
         text = text.replace(old, new)
     path.write_text(text, encoding="utf-8")
+
+def regex_replace(path, pattern, replacement):
+    if not path.exists():
+        return
+    text = path.read_text(encoding="utf-8")
+    updated, count = re.subn(pattern, replacement, text)
+    if count == 0:
+        raise RuntimeError(f"Required compatibility patch did not match: {path}")
+    path.write_text(updated, encoding="utf-8")
 
 replace_in(
     root / "lib" / "main.dart",
@@ -36,16 +46,23 @@ replace_in(
     ],
 )
 
+# Flutter 3.16+ reads the Kotlin Gradle Plugin version from settings.gradle.
+# Match the actual upstream plugin declaration rather than relying on one exact
+# whitespace/quote layout, and fail the build if the required patch is absent.
 settings_gradle = root / "android" / "settings.gradle"
-replace_in(
+regex_replace(
     settings_gradle,
-    [('id "org.jetbrains.kotlin.android" version "1.8.10" apply false', 'id "org.jetbrains.kotlin.android" version "1.9.24" apply false')],
+    r'(id\s+["\']org\.jetbrains\.kotlin\.android["\']\s+version\s+["\'])[^"\']+(["\']\s+apply\s+false)',
+    r'\g<1>1.9.24\2',
 )
 
+# Keep the legacy buildscript classpath aligned too. Some Gradle/plugin paths
+# still inspect it even though the plugin DSL in settings.gradle is primary.
 android_build = root / "android" / "build.gradle"
-replace_in(
+regex_replace(
     android_build,
-    [('classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.10"', 'classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.24"')],
+    r'(org\.jetbrains\.kotlin:kotlin-gradle-plugin:)[^"\']+',
+    r'\g<1>1.9.24',
 )
 
 pubspec = root / "pubspec.yaml"
