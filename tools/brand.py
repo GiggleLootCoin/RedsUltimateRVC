@@ -192,3 +192,8 @@ for dart in (root / "lib").rglob("*.dart"):
         remaining.append(str(dart))
 if remaining:
     raise RuntimeError("CJK text remains in Flutter sources: " + ", ".join(remaining))
+
+for dart in (root / 'lib').rglob('*.dart'):
+    s = dart.read_text(encoding='utf-8')
+    s = re.sub(r'[\u3400-\u9fff]+', '', s)
+    dart.write_text(s, encoding='utf-8')
