@@ -40,12 +40,7 @@ replace_in(
         ("音高检测", "Pitch Detection"),
         ("参数解释", "RVC Controls"),
         ("mobile.index 转换教程", "Index Converter"),
-        ("primarySwatch: Colors.blue,", "primarySwatch: Colors.red,
-        scaffoldBackgroundColor: const Color(0xFF08080C),
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE50914), brightness: Brightness.dark),
-        drawerTheme: const DrawerThemeData(backgroundColor: Color(0xFF0A0A0D)),
-        navigationBarTheme: const NavigationBarThemeData(backgroundColor: Color(0xFF101014), indicatorColor: Color(0x55E50914)),
-"),
+        ("primarySwatch: Colors.blue,", "primarySwatch: Colors.red,"),
         ("backgroundColor: Colors.white", "backgroundColor: const Color(0xFF09090D)"),
     ],
 )
