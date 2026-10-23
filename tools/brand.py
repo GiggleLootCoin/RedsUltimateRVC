@@ -59,7 +59,7 @@ replace_in(
     manifest,
     [
         ('android:label="Ultimate RVC Mobile"', 'android:label="Red\'s Ultimate RVC"'),
-        ('android:icon="@mipmap/ic_launcher"', 'android:icon="@drawable/ic_red_logo"'),
+        ('android:icon="@mipmap/ic_launcher"', 'android:icon="@drawable/reds_ultimate_rvc_logo"'),
     ],
 )
 
