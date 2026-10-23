@@ -91,6 +91,18 @@ replace_in(
     ],
 )
 
+# R8 fails on Flutter's optional Play Store deferred-component classes when
+# shrinking this standalone APK. Red's Ultimate RVC does not use deferred
+# Play Feature Delivery, so keep release shrinking off for a reliable APK.
+app_gradle = root / "android" / "app" / "build.gradle"
+replace_in(
+    app_gradle,
+    [
+        ("minifyEnabled true", "minifyEnabled false"),
+        ("shrinkResources true", "shrinkResources false"),
+    ],
+)
+
 gradle_props = root / "android" / "gradle.properties"
 replace_in(
     gradle_props,
