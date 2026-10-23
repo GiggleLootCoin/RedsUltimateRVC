@@ -46,23 +46,39 @@ replace_in(
     ],
 )
 
-# Flutter 3.16+ reads the Kotlin Gradle Plugin version from settings.gradle.
-# Match the actual upstream plugin declaration rather than relying on one exact
-# whitespace/quote layout, and fail the build if the required patch is absent.
+# The CI intentionally uses Flutter 3.24.5. Its Android template uses
+# Gradle 8.3, AGP 8.1.0 and Kotlin 1.8.22. The upstream RVC project is older
+# (Gradle 7.6.3 / AGP 7.3.0 / Kotlin 1.8.10), which causes Flutter's Android
+# dependency validation to reject the build. Keep all three versions aligned.
 settings_gradle = root / "android" / "settings.gradle"
 regex_replace(
     settings_gradle,
+    r'(id\s+["\']com\.android\.application["\']\s+version\s+["\'])[^"\']+(["\']\s+apply\s+false)',
+    r'\g<1>8.1.0\2',
+)
+regex_replace(
+    settings_gradle,
     r'(id\s+["\']org\.jetbrains\.kotlin\.android["\']\s+version\s+["\'])[^"\']+(["\']\s+apply\s+false)',
-    r'\g<1>1.9.24\2',
+    r'\g<1>1.8.22\2',
 )
 
-# Keep the legacy buildscript classpath aligned too. Some Gradle/plugin paths
-# still inspect it even though the plugin DSL in settings.gradle is primary.
 android_build = root / "android" / "build.gradle"
 regex_replace(
     android_build,
+    r'(com\.android\.tools\.build:gradle:)[^"\']+',
+    r'\g<1>8.1.0',
+)
+regex_replace(
+    android_build,
     r'(org\.jetbrains\.kotlin:kotlin-gradle-plugin:)[^"\']+',
-    r'\g<1>1.9.24',
+    r'\g<1>1.8.22',
+)
+
+wrapper = root / "android" / "gradle" / "wrapper" / "gradle-wrapper.properties"
+regex_replace(
+    wrapper,
+    r'(distributionUrl=.*gradle-)[^\\/]+(-all\.zip)',
+    r'\g<1>8.3\2',
 )
 
 pubspec = root / "pubspec.yaml"
