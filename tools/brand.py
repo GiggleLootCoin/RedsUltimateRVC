@@ -23,8 +23,8 @@ def regex_replace(path, pattern, replacement):
 replace_in(
     root / "lib" / "main.dart",
     [
-        ("Ultimate RVC Mobile", "Red's Ultimate RVC"),
-        ("Ultimate RVC", "Red's Ultimate RVC"),
+        ("Ultimate RVC Mobile", "Red\\'s Ultimate RVC"),
+        ("Ultimate RVC", "Red\\'s Ultimate RVC"),
         ("音频推理", "Audio Conversion"),
         ("实时推理", "Realtime"),
         ("变声器模式", "Voice Changer"),
@@ -87,6 +87,7 @@ replace_in(
     [
         ("name: ultimate_rvc_mobile", "name: reds_ultimate_rvc"),
         ("Cross-platform RVC voice conversion app", "Red's Ultimate RVC - local Android voice conversion"),
+        ("dev_dependencies:\n", "dependency_overrides:\n  win32: 5.5.5\n\ndev_dependencies:\n"),
     ],
 )
 
