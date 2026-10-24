@@ -57,7 +57,7 @@ jobs:
         working-directory: buildsrc
         run: |
           flutter analyze --no-fatal-infos
-          if grep -RIn --include='*.dart' -P '[\\x{3400}-\\x{9fff}]' lib; then
+          if grep -RIn --include='*.dart' -P '[\x{3400}-\x{9fff}]' lib; then
             echo "Untranslated CJK text remains in the branded UI."
             exit 1
           fi
