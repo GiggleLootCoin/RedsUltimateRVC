@@ -55,6 +55,95 @@ for dart in (root / "test").rglob("*.dart"):
     content = content.replace("package:ultimate_rvc_mobile/", "package:reds_ultimate_rvc/")
     dart.write_text(content, encoding="utf-8")
 
+
+# Make Android model/index selection practical on Samsung's document picker.
+# The upstream screen used FileType.any and then rejected everything except ONNX,
+# which made common .pth RVC models appear unusable. We explicitly expose the
+# formats the app can store, while clearly distinguishing inference-ready ONNX
+# from source .pth models.
+model_picker = root / "lib" / "screens" / "model_picker_screen.dart"
+mp = model_picker.read_text(encoding="utf-8")
+mp = mp.replace(
+"""      final result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: false,
+      );""",
+"""      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['onnx', 'pth', 'pt', 'zip'],
+        allowMultiple: false,
+        withData: false,
+      );""",
+1)
+mp = mp.replace(
+"""      final result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: false,
+      );""",
+"""      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['mobile.index', 'index'],
+        allowMultiple: false,
+        withData: false,
+      );""",
+1)
+mp = mp.replace(
+"""  bool _isSupportedModelFile(String filePath) {
+    final lowerPath = filePath.toLowerCase();
+    return lowerPath.endsWith('.onnx');
+  }""",
+"""  bool _isSupportedModelFile(String filePath) {
+    final lowerPath = filePath.toLowerCase();
+    return lowerPath.endsWith('.onnx') ||
+        lowerPath.endsWith('.pth') ||
+        lowerPath.endsWith('.pt') ||
+        lowerPath.endsWith('.zip');
+  }"""
+)
+mp = mp.replace(
+"""  bool _isSupportedIndexFile(String filePath) {
+    return filePath.toLowerCase().endsWith('.mobile.index');
+  }""",
+"""  bool _isSupportedIndexFile(String filePath) {
+    final lowerPath = filePath.toLowerCase();
+    return lowerPath.endsWith('.mobile.index') || lowerPath.endsWith('.index');
+  }"""
+)
+mp = mp.replace(
+"""                        '支持：.onnx 模型',
+""",
+"""                        '支持：.onnx（手机可直接转换） / .pth（可导入保存，需先转换）',
+"""
+)
+mp = mp.replace(
+"""                        '支持：mobile.index 索引',
+""",
+"""                        '支持：mobile.index / 标准 .index（标准 index 需要转换）',
+"""
+)
+mp = mp.replace(
+"""              ElevatedButton.icon(
+                onPressed: selectedModelPath != null ? onContinue : null,
+""",
+"""              ElevatedButton.icon(
+                onPressed: selectedModelPath != null &&
+                        selectedModelPath!.toLowerCase().endsWith('.onnx')
+                    ? onContinue
+                    : null,
+"""
+)
+model_picker.write_text(mp, encoding="utf-8")
+
+# Add a visible model capability explanation so a .pth file is not presented
+# as if it were already inference-ready.
+for dart in (root / "lib" / "screens").rglob("*.dart"):
+    content = dart.read_text(encoding="utf-8")
+    content = content.replace(
+        "Please select an .onnx model file.",
+        "Choose an .onnx model, or import a .pth model for storage/conversion."
+    )
+    dart.write_text(content, encoding="utf-8")
+
 # Render the exact approved SVG artwork into a launcher PNG.
 launcher_png = root / "android" / "app" / "src" / "main" / "res" / "drawable" / "reds_ultimate_rvc_logo.png"
 launcher_png.parent.mkdir(parents=True, exist_ok=True)
