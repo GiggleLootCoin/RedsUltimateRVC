@@ -19,7 +19,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Sharl210/ultimate-rvc-mobile
-          ref: main
+          ref: v2.0.0
           path: buildsrc
 
       - name: Recover bundled base models from the verified upstream release
@@ -52,6 +52,19 @@ jobs:
       - name: Verify Android toolchain
         working-directory: buildsrc
         run: flutter doctor -v
+
+      - name: Static validation
+        working-directory: buildsrc
+        run: |
+          flutter analyze --no-fatal-infos
+          if grep -RIn --include='*.dart' -P '[\\x{3400}-\\x{9fff}]' lib; then
+            echo "Untranslated CJK text remains in the branded UI."
+            exit 1
+          fi
+          grep -q "Red's Ultimate RVC" lib/main.dart
+          grep -q "assets/images/reds-ultimate-rvc-logo.svg" tools/brand.py
+          test -s assets/models/hubert.onnx
+          test -s assets/models/rmvpe.onnx
 
       - name: Build ARM64 release APK
         working-directory: buildsrc
