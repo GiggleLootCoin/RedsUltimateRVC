@@ -46,7 +46,7 @@ replace_in(
 
 # Brand the upstream drawer header with the approved artwork.
 s_drawer = main.read_text(encoding="utf-8") if 'main' in globals() else (root / "lib" / "main.dart").read_text(encoding="utf-8")
-s_drawer = s_drawer.replace("child: Text('Ultimate RVC', style: Theme.of(context).textTheme.headlineSmall),", "child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.end, children: [SizedBox(height: 74, child: SvgPicture.asset('assets/images/reds-ultimate-rvc-logo.svg', fit: BoxFit.contain, alignment: Alignment.centerLeft)), const SizedBox(height: 8), const Text(\\\"RED'S ULTIMATE RVC\\\", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)), const SizedBox(height: 4), const Text('Local Android voice conversion', style: TextStyle(color: Color(0xFFB8B8C2), fontSize: 12))]),")
+s_drawer = s_drawer.replace("child: Text('Ultimate RVC', style: Theme.of(context).textTheme.headlineSmall),", "child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.end, children: [SizedBox(height: 74, child: SvgPicture.asset('assets/images/reds-ultimate-rvc-logo.svg', fit: BoxFit.contain, alignment: Alignment.centerLeft)), const SizedBox(height: 8), const Text(\"RED'S ULTIMATE RVC\", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)), const SizedBox(height: 4), const Text('Local Android voice conversion', style: TextStyle(color: Color(0xFFB8B8C2), fontSize: 12))]),")
 (root / "lib" / "main.dart").write_text(s_drawer, encoding="utf-8")
 
 # Render the exact approved SVG artwork into a launcher PNG.
@@ -180,18 +180,18 @@ for dart in (root / "lib").rglob("*.dart"):
         q, body = m.group(1), m.group(2)
         body = re.sub(r"[\u3400-\u9fff]+", "", body).strip()
         return q + (body or "RVC") + q
-    s = re.sub(r"(['\"])([^'\"\\n]*[\u3400-\u9fff][^'\"\\n]*)\\1", clean, s)
+    s = re.sub(r"(['\"])([^'\"\n]*[\u3400-\u9fff][^'\"\n]*)\\1", clean, s)
     dart.write_text(s, encoding="utf-8")
 
 main = root / "lib" / "main.dart"
 s = main.read_text(encoding="utf-8")
 s = s.replace(
     "theme: ThemeData(",
-    "theme: ThemeData(\\n"
-    "        brightness: Brightness.dark,\\n"
-    "        scaffoldBackgroundColor: const Color(0xFF08080C),\\n"
-    "        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE00020), brightness: Brightness.dark),\\n"
-    "        appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF08080C), foregroundColor: Colors.white, elevation: 0, centerTitle: true),\\n"
+    "theme: ThemeData(\n"
+    "        brightness: Brightness.dark,\n"
+    "        scaffoldBackgroundColor: const Color(0xFF08080C),\n"
+    "        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE00020), brightness: Brightness.dark),\n"
+    "        appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF08080C), foregroundColor: Colors.white, elevation: 0, centerTitle: true),\n"
     "        cardTheme: CardTheme(color: Color(0xFF121218), surfaceTintColor: Colors.transparent, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(18)), side: BorderSide(color: Color(0xFF282831)))),"
 )
 s = s.replace("title: 'Ultimate RVC Mobile',", "title: \"Red's Ultimate RVC\",")
