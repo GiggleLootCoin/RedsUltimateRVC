@@ -201,5 +201,5 @@ main.write_text(s, encoding="utf-8")
 # Final sanity scrub: the branded build must never ship untranslated CJK text.
 for dart in (root / "lib").rglob("*.dart"):
     content = dart.read_text(encoding="utf-8")
-    content = re.sub(r"[\\u3400-\\u9fff]+", "", content)
+    content = re.sub(r"[\u3400-\u9fff]+", "", content)
     dart.write_text(content, encoding="utf-8")
