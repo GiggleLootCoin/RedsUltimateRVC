@@ -68,7 +68,7 @@ jobs:
             exit 1
           fi
           grep -q "Red.*Ultimate RVC" lib/main.dart
-          grep -q "assets/images/reds-ultimate-rvc-logo.svg" tools/brand.py
+          grep -q "assets/images/reds-ultimate-rvc-logo.svg" ../tools/brand.py
           test -s assets/models/hubert.onnx
           test -s assets/models/rmvpe.onnx
 
