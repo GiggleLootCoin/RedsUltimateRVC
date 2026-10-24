@@ -32,7 +32,6 @@ replace_in(
     root / "lib" / "main.dart",
     [
         ("Ultimate RVC Mobile", "Red\\'s Ultimate RVC"),
-        ("Ultimate RVC", "Red\\'s Ultimate RVC"),
         ("音频推理", "Audio Conversion"),
         ("实时推理", "Realtime"),
         ("变声器模式", "Voice Changer"),
@@ -181,8 +180,7 @@ for dart in (root / "lib").rglob("*.dart"):
 
 main = root / "lib" / "main.dart"
 s = main.read_text(encoding="utf-8")
-s = s.replace("brightness: Brightness.dark,", "brightness: Brightness.dark,\\n        scaffoldBackgroundColor: const Color(0xFF08080C),\\n        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE00020), brightness: Brightness.dark),\\n        appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF08080C), foregroundColor: Colors.white, elevation: 0, centerTitle: true),\\n        cardTheme: CardTheme(color: const Color(0xFF121218), surfaceTintColor: Colors.transparent, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(18)), side: BorderSide(color: Color(0xFF282831)))),")
-s = s.replace("Text('Ultimate RVC'", "Text(\"RED'S ULTIMATE RVC\"")
+s = s.replace("theme: ThemeData(", "theme: ThemeData(\\n        brightness: Brightness.dark,\\n        scaffoldBackgroundColor: const Color(0xFF08080C),\\n        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE00020), brightness: Brightness.dark),\\n        appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF08080C), foregroundColor: Colors.white, elevation: 0, centerTitle: true),\\n        cardTheme: CardTheme(color: Color(0xFF121218), surfaceTintColor: Colors.transparent, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(18)), side: BorderSide(color: Color(0xFF282831)))),") "brightness: Brightness.dark,\\n        scaffoldBackgroundColor: const Color(0xFF08080C),\\n        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE00020), brightness: Brightness.dark),\\n        appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF08080C), foregroundColor: Colors.white, elevation: 0, centerTitle: true),\\n        cardTheme: CardTheme(color: const Color(0xFF121218), surfaceTintColor: Colors.transparent, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(18)), side: BorderSide(color: Color(0xFF282831)))),")
 main.write_text(s, encoding="utf-8")
 
 
