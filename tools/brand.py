@@ -61,6 +61,81 @@ for dart in (root / "test").rglob("*.dart"):
 # which made common .pth RVC models appear unusable. We explicitly expose the
 # formats the app can store, while clearly distinguishing inference-ready ONNX
 # from source .pth models.
+# Restore only files that still exist. Android/Flutter temp paths can disappear
+# between launches; never reopen a stale cached selection.
+main_state = root / "lib" / "main.dart"
+main_text = main_state.read_text(encoding="utf-8")
+load_pattern = r'  Future<void> _loadSavedState\(\) async \{.*?\n  \}\n\n  Future<void> _saveState'
+load_replacement = '''  Future<void> _loadSavedState() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+
+    String? existingPath(String? path) {
+      if (path == null || path.isEmpty) return null;
+      return File(path).existsSync() ? path : null;
+    }
+
+    final songPath = existingPath(prefs.getString('selectedSongPath'));
+    final modelPath = existingPath(prefs.getString('selectedModelPath'));
+    final indexPath = existingPath(prefs.getString('selectedIndexPath'));
+    final outputPath = existingPath(prefs.getString('generatedOutputPath'));
+
+    if (songPath == null) {
+      await prefs.remove('selectedSongPath');
+      await prefs.remove('selectedSongDisplayName');
+    }
+    if (modelPath == null) {
+      await prefs.remove('selectedModelPath');
+      await prefs.remove('selectedModelDisplayName');
+    }
+    if (indexPath == null) {
+      await prefs.remove('selectedIndexPath');
+      await prefs.remove('selectedIndexDisplayName');
+    }
+    if (outputPath == null) {
+      await prefs.remove('generatedOutputPath');
+      await prefs.remove('generationDurationMs');
+    }
+
+    setState(() {
+      _selectedSongPath = songPath;
+      _selectedSongDisplayName = songPath == null ? null : (prefs.getString('selectedSongDisplayName') ?? File(songPath).uri.pathSegments.last);
+      _selectedModelPath = modelPath;
+      _selectedModelDisplayName = modelPath == null ? null : (prefs.getString('selectedModelDisplayName') ?? File(modelPath).uri.pathSegments.last);
+      _selectedIndexPath = indexPath;
+      _selectedIndexDisplayName = indexPath == null ? null : (prefs.getString('selectedIndexDisplayName') ?? File(indexPath).uri.pathSegments.last);
+      _generatedOutputPath = outputPath;
+      final generationDurationMs = outputPath == null ? null : prefs.getInt('generationDurationMs');
+      _generationDuration = generationDurationMs == null ? null : Duration(milliseconds: generationDurationMs);
+      _moduleIndex = prefs.getInt('moduleIndex') ?? 0;
+      _audioStepIndex = prefs.getInt('audioStepIndex') ?? 0;
+      if (_selectedSongPath == null) {
+        _audioStepIndex = 0;
+      } else if (_selectedModelPath == null && _audioStepIndex > 1) {
+        _audioStepIndex = 1;
+      } else if (_selectedModelPath != null && _generatedOutputPath == null && _audioStepIndex > 2) {
+        _audioStepIndex = 2;
+      } else if (_generatedOutputPath == null && _audioStepIndex == 3) {
+        _audioStepIndex = 2;
+      }
+    });
+    if (_audioPageController.hasClients) {
+      _audioPageController.jumpToPage(_audioStepIndex);
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _audioPageController.hasClients) {
+          _audioPageController.jumpToPage(_audioStepIndex);
+        }
+      });
+    }
+  }
+
+  Future<void> _saveState'''
+updated, count = re.subn(load_pattern, load_replacement, main_text, count=1, flags=re.S)
+if count != 1:
+    raise RuntimeError("Required stale-state recovery patch did not match main.dart")
+main_state.write_text(updated, encoding="utf-8")
+
 model_picker = root / "lib" / "screens" / "model_picker_screen.dart"
 mp = model_picker.read_text(encoding="utf-8")
 mp = mp.replace(
