@@ -49,6 +49,12 @@ s_drawer = main.read_text(encoding="utf-8") if 'main' in globals() else (root / 
 s_drawer = s_drawer.replace("child: Text('Ultimate RVC', style: Theme.of(context).textTheme.headlineSmall),", "child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.end, children: [SizedBox(height: 74, child: SvgPicture.asset('assets/images/reds-ultimate-rvc-logo.svg', fit: BoxFit.contain, alignment: Alignment.centerLeft)), const SizedBox(height: 8), const Text(\"RED'S ULTIMATE RVC\", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)), const SizedBox(height: 4), const Text('Local Android voice conversion', style: TextStyle(color: Color(0xFFB8B8C2), fontSize: 12))]),")
 (root / "lib" / "main.dart").write_text(s_drawer, encoding="utf-8")
 
+# Keep upstream test imports valid after renaming the Flutter package.
+for dart in (root / "test").rglob("*.dart"):
+    content = dart.read_text(encoding="utf-8")
+    content = content.replace("package:ultimate_rvc_mobile/", "package:reds_ultimate_rvc/")
+    dart.write_text(content, encoding="utf-8")
+
 # Render the exact approved SVG artwork into a launcher PNG.
 launcher_png = root / "android" / "app" / "src" / "main" / "res" / "drawable" / "reds_ultimate_rvc_logo.png"
 launcher_png.parent.mkdir(parents=True, exist_ok=True)
