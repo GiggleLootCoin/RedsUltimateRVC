@@ -180,11 +180,21 @@ for dart in (root / "lib").rglob("*.dart"):
 
 main = root / "lib" / "main.dart"
 s = main.read_text(encoding="utf-8")
-s = s.replace("theme: ThemeData(", "theme: ThemeData(\\n        brightness: Brightness.dark,\\n        scaffoldBackgroundColor: const Color(0xFF08080C),\\n        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE00020), brightness: Brightness.dark),\\n        appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF08080C), foregroundColor: Colors.white, elevation: 0, centerTitle: true),\\n        cardTheme: CardTheme(color: Color(0xFF121218), surfaceTintColor: Colors.transparent, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(18)), side: BorderSide(color: Color(0xFF282831)))),") "brightness: Brightness.dark,\\n        scaffoldBackgroundColor: const Color(0xFF08080C),\\n        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE00020), brightness: Brightness.dark),\\n        appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF08080C), foregroundColor: Colors.white, elevation: 0, centerTitle: true),\\n        cardTheme: CardTheme(color: const Color(0xFF121218), surfaceTintColor: Colors.transparent, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(18)), side: BorderSide(color: Color(0xFF282831)))),")
+s = s.replace(
+    "theme: ThemeData(",
+    "theme: ThemeData(\\n"
+    "        brightness: Brightness.dark,\\n"
+    "        scaffoldBackgroundColor: const Color(0xFF08080C),\\n"
+    "        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE00020), brightness: Brightness.dark),\\n"
+    "        appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF08080C), foregroundColor: Colors.white, elevation: 0, centerTitle: true),\\n"
+    "        cardTheme: CardTheme(color: Color(0xFF121218), surfaceTintColor: Colors.transparent, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(18)), side: BorderSide(color: Color(0xFF282831)))),"
+)
+s = s.replace("title: 'Ultimate RVC Mobile',", "title: \"Red's Ultimate RVC\",")
 main.write_text(s, encoding="utf-8")
 
 
-for dart in (root / 'lib').rglob('*.dart'):
-    s = dart.read_text(encoding='utf-8')
-    s = re.sub(r'[\u3400-\u9fff]+', '', s)
-    dart.write_text(s, encoding='utf-8')
+# Final sanity scrub: the branded build must never ship untranslated CJK text.
+for dart in (root / "lib").rglob("*.dart"):
+    content = dart.read_text(encoding="utf-8")
+    content = re.sub(r"[\\u3400-\\u9fff]+", "", content)
+    dart.write_text(content, encoding="utf-8")
