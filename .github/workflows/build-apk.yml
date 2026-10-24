@@ -58,12 +58,12 @@ jobs:
         run: |
           test -s assets/models/hubert.onnx
           test -s assets/models/rmvpe.onnx
-          grep -q "allowedExtensions: ['onnx']" lib/screens/model_picker_screen.dart
-          grep -q "allowedExtensions: ['mobile.index']" lib/screens/model_picker_screen.dart
+          grep -Fq "allowedExtensions: ['onnx']" lib/screens/model_picker_screen.dart
+          grep -Fq "allowedExtensions: ['mobile.index']" lib/screens/model_picker_screen.dart
           grep -q "endsWith('.onnx')" lib/screens/model_picker_screen.dart
           grep -q "Red.*Ultimate RVC" lib/main.dart
-          ! grep -q "allowedExtensions: ['onnx', 'pth'" lib/screens/model_picker_screen.dart
-          ! grep -q "allowedExtensions: ['mobile.index', 'index']" lib/screens/model_picker_screen.dart
+          ! grep -Fq "allowedExtensions: ['onnx', 'pth'" lib/screens/model_picker_screen.dart
+          ! grep -Fq "allowedExtensions: ['mobile.index', 'index']" lib/screens/model_picker_screen.dart
 
       - name: Build ARM64 release APK
         working-directory: buildsrc
