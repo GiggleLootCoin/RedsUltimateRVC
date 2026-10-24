@@ -178,9 +178,9 @@ for dart in (root / "lib").rglob("*.dart"):
         s = s.replace(a, b)
     def clean(m):
         q, body = m.group(1), m.group(2)
-        body = re.sub(r"[\\u3400-\\u9fff]+", "", body).strip()
+        body = re.sub(r"[\u3400-\u9fff]+", "", body).strip()
         return q + (body or "RVC") + q
-    s = re.sub(r"(['\"])([^'\"\\n]*[\\u3400-\\u9fff][^'\"\\n]*)\\1", clean, s)
+    s = re.sub(r"(['\"])([^'\"\\n]*[\u3400-\u9fff][^'\"\\n]*)\\1", clean, s)
     dart.write_text(s, encoding="utf-8")
 
 main = root / "lib" / "main.dart"
