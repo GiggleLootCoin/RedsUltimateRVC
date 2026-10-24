@@ -45,7 +45,7 @@ replace_in(
 )
 
 # Brand the upstream drawer header with the approved artwork.
-s_drawer = main.read_text(encoding="utf-8") if 'main' in globals() else (root / "lib" / "main.dart").read_text(encoding="utf-8")
+s_drawer = (root / "lib" / "main.dart").read_text(encoding="utf-8")
 s_drawer = s_drawer.replace("child: Text('Ultimate RVC', style: Theme.of(context).textTheme.headlineSmall),", "child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.end, children: [SizedBox(height: 74, child: SvgPicture.asset('assets/images/reds-ultimate-rvc-logo.svg', fit: BoxFit.contain, alignment: Alignment.centerLeft)), const SizedBox(height: 8), const Text(\"RED'S ULTIMATE RVC\", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)), const SizedBox(height: 4), const Text('Local Android voice conversion', style: TextStyle(color: Color(0xFFB8B8C2), fontSize: 12))]),")
 (root / "lib" / "main.dart").write_text(s_drawer, encoding="utf-8")
 
@@ -70,7 +70,7 @@ mp = mp.replace(
       );""",
 """      final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['onnx', 'pth', 'pt', 'zip'],
+        allowedExtensions: ['onnx'],
         allowMultiple: false,
         withData: false,
       );""",
@@ -82,7 +82,7 @@ mp = mp.replace(
       );""",
 """      final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['mobile.index', 'index'],
+        allowedExtensions: ['mobile.index'],
         allowMultiple: false,
         withData: false,
       );""",
@@ -94,10 +94,7 @@ mp = mp.replace(
   }""",
 """  bool _isSupportedModelFile(String filePath) {
     final lowerPath = filePath.toLowerCase();
-    return lowerPath.endsWith('.onnx') ||
-        lowerPath.endsWith('.pth') ||
-        lowerPath.endsWith('.pt') ||
-        lowerPath.endsWith('.zip');
+    return lowerPath.endsWith('.onnx');
   }"""
 )
 mp = mp.replace(
@@ -106,19 +103,19 @@ mp = mp.replace(
   }""",
 """  bool _isSupportedIndexFile(String filePath) {
     final lowerPath = filePath.toLowerCase();
-    return lowerPath.endsWith('.mobile.index') || lowerPath.endsWith('.index');
+    return lowerPath.endsWith('.mobile.index');
   }"""
 )
 mp = mp.replace(
 """                        '支持：.onnx 模型',
 """,
-"""                        '支持：.onnx（手机可直接转换） / .pth（可导入保存，需先转换）',
+"""                        'Supported: .onnx voice models (required for mobile inference)',
 """
 )
 mp = mp.replace(
 """                        '支持：mobile.index 索引',
 """,
-"""                        '支持：mobile.index / 标准 .index（标准 index 需要转换）',
+"""                        'Supported: mobile.index (convert standard .index first)',
 """
 )
 mp = mp.replace(
@@ -140,7 +137,7 @@ for dart in (root / "lib" / "screens").rglob("*.dart"):
     content = dart.read_text(encoding="utf-8")
     content = content.replace(
         "Please select an .onnx model file.",
-        "Choose an .onnx model, or import a .pth model for storage/conversion."
+        "Choose an .onnx voice model. RVC .pth models must be converted to .onnx before mobile use."
     )
     dart.write_text(content, encoding="utf-8")
 
