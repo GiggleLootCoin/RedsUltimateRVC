@@ -69,6 +69,10 @@ jobs:
           fi
           grep -q "Red.*Ultimate RVC" lib/main.dart
           grep -q "assets/images/reds-ultimate-rvc-logo.svg" ../tools/brand.py
+          grep -q "allowedExtensions: ['onnx', 'pth', 'pt', 'zip']" lib/screens/model_picker_screen.dart
+          grep -q "allowedExtensions: ['mobile.index', 'index']" lib/screens/model_picker_screen.dart
+          grep -q "endsWith('.pth')" lib/screens/model_picker_screen.dart
+          grep -q "endsWith('.onnx')" lib/screens/model_picker_screen.dart
           test -s assets/models/hubert.onnx
           test -s assets/models/rmvpe.onnx
 
