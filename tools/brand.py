@@ -204,6 +204,167 @@ mp = mp.replace(
                     : null,
 """
 )
+model_picker.write_text(r'''import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/rvc_bridge.dart';
+
+class ModelPickerScreen extends StatefulWidget {
+  final Function(String) onModelSelected;
+  final VoidCallback? onModelCleared;
+  final Function(String?) onIndexSelected;
+  final VoidCallback onContinue;
+  final String? selectedModelPath;
+  final String? selectedModelDisplayName;
+  final String? selectedIndexPath;
+  final String? selectedIndexDisplayName;
+  final String? selectedSongPath;
+  final String? selectedSongDisplayName;
+
+  const ModelPickerScreen({
+    required this.onModelSelected, this.onModelCleared, required this.onIndexSelected,
+    required this.onContinue, this.selectedModelPath, this.selectedModelDisplayName,
+    this.selectedIndexPath, this.selectedIndexDisplayName, this.selectedSongPath, this.selectedSongDisplayName,
+  });
+
+  @override State<ModelPickerScreen> createState() => _ModelPickerScreenState();
+}
+
+class _ModelPickerScreenState extends State<ModelPickerScreen> {
+  final RVCBridge _bridge = RVCBridge();
+  final List<String> _library = <String>[];
+  bool _busy = false;
+
+  bool _isRuntimeModel(String p) => p.toLowerCase().endsWith('.onnx');
+
+  Future<void> _loadLibrary() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getStringList('rvc_model_library') ?? <String>[];
+    if (mounted) setState(() { _library..clear()..addAll(saved); });
+  }
+
+  Future<void> _saveLibrary() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('rvc_model_library', _library);
+  }
+
+  Future<void> _pickModel() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['onnx', 'pth', 'pt', 'zip'],
+        allowMultiple: false,
+        withData: false,
+      );
+      final source = result?.files.single.path;
+      if (source == null) return;
+      final imported = await _bridge.importPickedFile(kind: 'model', sourcePath: source);
+      final path = imported.path;
+      if (!_library.contains(path)) _library.insert(0, path);
+      await _saveLibrary();
+      if (!mounted) return;
+      if (_isRuntimeModel(path)) {
+        widget.onModelSelected(path);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ONNX model imported and ready for mobile inference.')));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Source model imported. PTH/PT/ZIP files are stored but are not directly runnable by the Android ONNX engine.')));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Model import failed: ' + e.toString())));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _pickIndex() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['index', 'mobile.index'],
+        allowMultiple: false,
+        withData: false,
+      );
+      final source = result?.files.single.path;
+      if (source == null) return;
+      final imported = await _bridge.importPickedFile(kind: 'index', sourcePath: source);
+      widget.onIndexSelected(imported.path);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(
+        source.toLowerCase().endsWith('.mobile.index')
+          ? 'mobile.index imported.'
+          : 'Standard .index imported. Convert it before mobile inference.'
+      )));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Index import failed: ' + e.toString())));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override void initState() { super.initState(); _loadLibrary(); }
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = widget.selectedModelPath;
+    return Scaffold(
+      appBar: AppBar(title: const Text("RED'S ULTIMATE RVC"), centerTitle: true),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
+        children: [
+          _section(Icons.graphic_eq, 'VOICE MODEL',
+            selected == null ? 'No runtime model selected' : (widget.selectedModelDisplayName ?? selected.split('/').last),
+            Row(children: [
+              Expanded(child: ElevatedButton.icon(onPressed: _busy ? null : _pickModel, icon: const Icon(Icons.upload_file), label: const Text('UPLOAD MODEL'))),
+              if (selected != null) IconButton(onPressed: widget.onModelCleared, icon: const Icon(Icons.close)),
+            ])),
+          const SizedBox(height: 12),
+          _section(Icons.account_tree, 'INDEX',
+            widget.selectedIndexDisplayName ?? 'Optional mobile.index / standard .index',
+            Row(children: [
+              Expanded(child: OutlinedButton.icon(onPressed: _busy ? null : _pickIndex, icon: const Icon(Icons.upload_file), label: const Text('UPLOAD INDEX'))),
+              if (widget.selectedIndexPath != null) IconButton(onPressed: () => widget.onIndexSelected(null), icon: const Icon(Icons.close)),
+            ])),
+          const SizedBox(height: 12),
+          _section(Icons.library_music, 'MODEL LIBRARY',
+            _library.length.toString() + ' imported source model' + (_library.length == 1 ? '' : 's'),
+            Column(children: _library.isEmpty
+              ? [const Align(alignment: Alignment.centerLeft, child: Text('Nothing imported yet.'))]
+              : _library.map((p) {
+                  final runtime = _isRuntimeModel(p);
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(runtime ? Icons.check_circle : Icons.inventory_2, color: runtime ? Colors.redAccent : Colors.grey),
+                    title: Text(p.split('/').last, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    subtitle: Text(runtime ? 'READY FOR MOBILE INFERENCE' : 'SOURCE FILE — CONVERSION/TRAINING REQUIRED'),
+                    onTap: runtime ? () => widget.onModelSelected(p) : null,
+                  );
+                }).toList()),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(height: 54, child: ElevatedButton.icon(
+            onPressed: selected != null && _isRuntimeModel(selected) ? widget.onContinue : null,
+            icon: const Icon(Icons.arrow_forward), label: const Text('CONTINUE TO GENERATE'))),
+          const SizedBox(height: 14),
+          Text('Android inference uses ONNX voice models. PTH/PT/ZIP files can be uploaded and kept in the library, but they cannot be executed directly by this local ONNX engine.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey), textAlign: TextAlign.center),
+        ],
+      ),
+    );
+  }
+
+  Widget _section(IconData icon, String title, String subtitle, Widget child) => Card(
+    child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [Icon(icon, color: Colors.redAccent), const SizedBox(width: 10), Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1.1)))]),
+      const SizedBox(height: 6), Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
+      const SizedBox(height: 14), child,
+    ])),
+  );
+}
+''', encoding="utf-8")
 model_picker.write_text(mp, encoding="utf-8")
 
 # Add a visible model capability explanation so a .pth file is not presented
