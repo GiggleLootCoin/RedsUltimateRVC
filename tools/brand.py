@@ -565,3 +565,170 @@ for dart in (root / "lib").rglob("*.dart"):
     content = dart.read_text(encoding="utf-8")
     content = re.sub(r"[\u3400-\u9fff]+", "", content)
     dart.write_text(content, encoding="utf-8")
+
+# FINAL PATCH: authoritative model manager and dashboard wiring
+final_model_picker = r"""import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/rvc_bridge.dart';
+
+class ModelPickerScreen extends StatefulWidget {
+  final Function(String) onModelSelected;
+  final VoidCallback? onModelCleared;
+  final Function(String?) onIndexSelected;
+  final VoidCallback onContinue;
+  final String? selectedModelPath;
+  final String? selectedModelDisplayName;
+  final String? selectedIndexPath;
+  final String? selectedIndexDisplayName;
+  final String? selectedSongPath;
+  final String? selectedSongDisplayName;
+  const ModelPickerScreen({super.key, required this.onModelSelected, this.onModelCleared, required this.onIndexSelected, required this.onContinue, this.selectedModelPath, this.selectedModelDisplayName, this.selectedIndexPath, this.selectedIndexDisplayName, this.selectedSongPath, this.selectedSongDisplayName});
+  @override State<ModelPickerScreen> createState() => _ModelPickerScreenState();
+}
+
+class _ModelPickerScreenState extends State<ModelPickerScreen> {
+  final RVCBridge _bridge = RVCBridge();
+  final List<String> _library = [];
+  bool _busy = false;
+  bool _runtime(String p) => p.toLowerCase().endsWith('.onnx');
+
+  @override void initState() { super.initState(); _loadLibrary(); }
+
+  Future<void> _loadLibrary() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getStringList('rvc_model_library') ?? [];
+    if (mounted) setState(() { _library..clear()..addAll(saved); });
+  }
+
+  Future<void> _saveLibrary() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('rvc_model_library', _library);
+  }
+
+  Future<void> _pickModel() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['onnx','pth','pt','zip'], allowMultiple: false, withData: false);
+      final source = result?.files.single.path;
+      if (source == null) return;
+      final imported = await _bridge.importPickedFile(kind: 'model', sourcePath: source);
+      if (!_library.contains(imported.path)) _library.insert(0, imported.path);
+      await _saveLibrary();
+      if (_runtime(imported.path)) {
+        widget.onModelSelected(imported.path);
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ONNX model imported and ready.')));
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Source model uploaded and saved. Use Train / Model Lab for training or conversion.')));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Model upload failed: $e')));
+    } finally { if (mounted) setState(() => _busy = false); }
+  }
+
+  Future<void> _pickIndex() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['index','mobile.index'], allowMultiple: false, withData: false);
+      final source = result?.files.single.path;
+      if (source == null) return;
+      final imported = await _bridge.importPickedFile(kind: 'index', sourcePath: source);
+      widget.onIndexSelected(imported.path);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(source.toLowerCase().endsWith('.mobile.index') ? 'mobile.index imported.' : 'Standard .index imported and stored. Convert it before mobile inference.')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Index upload failed: $e')));
+    } finally { if (mounted) setState(() => _busy = false); }
+  }
+
+  @override Widget build(BuildContext context) {
+    final selected = widget.selectedModelPath;
+    return Scaffold(
+      appBar: AppBar(title: const Text("RED'S ULTIMATE RVC"), centerTitle: true),
+      body: ListView(padding: const EdgeInsets.fromLTRB(16,12,16,28), children: [
+        Card(child: Padding(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('VOICE MODEL', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 6),
+          Text(selected == null ? 'No inference model selected' : (widget.selectedModelDisplayName ?? selected.split('/').last)),
+          const SizedBox(height: 12),
+          SizedBox(width: double.infinity, height: 52, child: ElevatedButton.icon(onPressed: _busy ? null : _pickModel, icon: const Icon(Icons.upload_file), label: const Text('UPLOAD MODEL'))),
+          const SizedBox(height: 8),
+          const Text('Accepted: .onnx, .pth, .pt, .zip. ONNX is directly runnable on Android; source models are stored for training/conversion.', style: TextStyle(color: Colors.grey)),
+        ]))),
+        const SizedBox(height: 12),
+        Card(child: Padding(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('INDEX', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 6),
+          Text(widget.selectedIndexDisplayName ?? 'Optional .mobile.index / .index'),
+          const SizedBox(height: 10),
+          SizedBox(width: double.infinity, height: 48, child: OutlinedButton.icon(onPressed: _busy ? null : _pickIndex, icon: const Icon(Icons.upload_file), label: const Text('UPLOAD INDEX'))),
+          const SizedBox(height: 6),
+          const Text('mobile.index is directly usable. Standard .index is stored and must be converted before mobile inference.', style: TextStyle(color: Colors.grey)),
+        ]))),
+        const SizedBox(height: 12),
+        Card(child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('MODEL LIBRARY', style: TextStyle(fontWeight: FontWeight.w900)),
+          const SizedBox(height: 8),
+          if (_library.isEmpty) const Text('No uploaded models yet.')
+          else ..._library.map((p) => ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(_runtime(p) ? Icons.check_circle : Icons.inventory_2, color: _runtime(p) ? Colors.redAccent : Colors.grey),
+            title: Text(p.split('/').last, maxLines: 1, overflow: TextOverflow.ellipsis),
+            subtitle: Text(_runtime(p) ? 'READY FOR MOBILE INFERENCE' : 'SOURCE MODEL — TRAIN / CONVERT'),
+            onTap: _runtime(p) ? () => widget.onModelSelected(p) : null,
+          )),
+        ]))),
+        const SizedBox(height: 14),
+        SizedBox(height: 54, child: ElevatedButton.icon(onPressed: selected != null && _runtime(selected) ? widget.onContinue : null, icon: const Icon(Icons.arrow_forward), label: const Text('CONTINUE TO GENERATE'))),
+      ]),
+    );
+  }
+}
+""";
+
+(root / 'lib' / 'screens' / 'model_picker_screen.dart').write_text(final_model_picker, encoding='utf-8')
+
+main = root / 'lib' / 'main.dart'
+text = main.read_text(encoding='utf-8')
+if "import 'screens/red_home_screen.dart';" not in text:
+    text = text.replace("import 'screens/pitch_detection_screen.dart';", "import 'screens/pitch_detection_screen.dart';\nimport 'screens/red_home_screen.dart';\nimport 'screens/training_screen.dart';")
+
+text = text.replace("void _openAudioConversion() {\n    setState(() => _moduleIndex = 0);", "void _openAudioConversion() {\n    setState(() => _moduleIndex = 1);")
+text = text.replace("void _openRealtimeInference() {\n    setState(() => _moduleIndex = 1);", "void _openRealtimeInference() {\n    setState(() => _moduleIndex = 2);")
+text = text.replace("void _openVoiceChanger() {\n    setState(() => _moduleIndex = 2);", "void _openVoiceChanger() {\n    setState(() => _moduleIndex = 3);")
+text = text.replace("void _openIndexConverter() {\n    setState(() => _moduleIndex = 3);", "void _openIndexConverter() {\n    setState(() => _moduleIndex = 4);")
+text = text.replace("void _openParameterGuide() {\n    setState(() => _moduleIndex = 4);", "void _openParameterGuide() {\n    setState(() => _moduleIndex = 5);")
+text = text.replace("void _openDecibelMeter() {\n    setState(() => _moduleIndex = 5);", "void _openDecibelMeter() {\n    setState(() => _moduleIndex = 6);")
+text = text.replace("void _openPitchDetection() {\n    setState(() => _moduleIndex = 6);", "void _openPitchDetection() {\n    setState(() => _moduleIndex = 7);")
+text = text.replace("bottomNavigationBar: _moduleIndex == 0", "bottomNavigationBar: _moduleIndex == 1")
+
+const marker = "    final moduleScreens = [";
+const pos = text.indexOf(marker);
+const endMarker = "    ];\n\n    return PopScope(";
+const end = text.indexOf(endMarker, pos);
+if (pos >= 0 && end > pos) {
+  const block = text.slice(pos, end + 7);
+  const first = block.indexOf("      GestureDetector(");
+  const audio = block.slice(first);
+  const shifted = audio.replaceAll("_moduleIndex == 5", "_moduleIndex == 6").replaceAll("_moduleIndex == 6", "_moduleIndex == 7");
+  const dashboard = "    final moduleScreens = [\n" +
+    "      RedHomeScreen(\n" +
+    "        onGenerate: _openAudioConversion,\n" +
+    "        onSongCovers: _openAudioConversion,\n" +
+    "        onSpeech: _openVoiceChanger,\n" +
+    "        onModels: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(onModelSelected: _onModelSelected, onModelCleared: _onModelCleared, onIndexSelected: _onIndexSelected, onContinue: _continueToGenerate, selectedModelPath: _selectedModelPath, selectedModelDisplayName: _selectedModelDisplayName, selectedIndexPath: _selectedIndexPath, selectedIndexDisplayName: _selectedIndexDisplayName, selectedSongPath: _selectedSongPath, selectedSongDisplayName: _selectedSongDisplayName))),\n" +
+    "        onUploadDownload: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(onModelSelected: _onModelSelected, onModelCleared: _onModelCleared, onIndexSelected: _onIndexSelected, onContinue: _continueToGenerate, selectedModelPath: _selectedModelPath, selectedModelDisplayName: _selectedModelDisplayName, selectedIndexPath: _selectedIndexPath, selectedIndexDisplayName: _selectedIndexDisplayName, selectedSongPath: _selectedSongPath, selectedSongDisplayName: _selectedSongDisplayName))),\n" +
+    "        onTrain: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrainingScreen())),\n" +
+    "        onAudio: _openAudioConversion, onSettings: _openParameterGuide,\n" +
+    "      ),\n" + shifted;
+  text = text.slice(0,pos) + dashboard + text.slice(end + 7);
+}
+
+main.write_text(text, encoding='utf-8')
+
+pub = root / 'pubspec.yaml'
+pub_text = pub.read_text(encoding='utf-8')
+if 'url_launcher:' not in pub_text:
+    pub_text = pub_text.replace('dependencies:\n', 'dependencies:\n  url_launcher: 6.2.6\n')
+pub.write_text(pub_text, encoding='utf-8')
