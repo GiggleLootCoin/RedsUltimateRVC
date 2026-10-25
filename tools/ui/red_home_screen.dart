@@ -33,7 +33,7 @@ class RedHomeScreen extends StatelessWidget {
               _button(Icons.music_video, 'SONG COVERS', onSongCovers),
               _button(Icons.record_voice_over, 'SPEECH', onSpeech),
               _button(Icons.library_music, 'MODELS', onModels),
-              _button(Icons.upload_download, 'UPLOAD / DOWNLOAD', onUploadDownload),
+              _button(Icons.upload_file, 'UPLOAD / DOWNLOAD', onUploadDownload),
               _button(Icons.model_training, 'TRAIN', onTrain),
               _button(Icons.audiotrack, 'AUDIO', onAudio),
               _button(Icons.settings, 'SETTINGS', onSettings),
