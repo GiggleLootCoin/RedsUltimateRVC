@@ -3,6 +3,15 @@ from pathlib import Path
 import urllib.request
 
 root = Path("buildsrc")
+repo_root = Path(__file__).resolve().parent.parent
+
+# Install the intended Android dashboard/training workspace into the upstream app.
+for ui_name in ("red_home_screen.dart", "training_screen.dart"):
+    source_ui = repo_root / "tools" / "ui" / ui_name
+    target_ui = root / "lib" / "screens" / ui_name
+    target_ui.parent.mkdir(parents=True, exist_ok=True)
+    target_ui.write_text(source_ui.read_text(encoding="utf-8"), encoding="utf-8")
+
 
 # Approved Red's Ultimate RVC artwork created for this project.
 LOGO_URL = "https://cdn.websitepublisher.ai/custom/wid25042/images/reds-ultimate-rvc-logo.svg"
