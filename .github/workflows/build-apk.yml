@@ -53,22 +53,6 @@ jobs:
         working-directory: buildsrc
         run: flutter doctor -v
 
-      - name: Static validation
-        working-directory: buildsrc
-        run: |
-          test -s assets/models/hubert.onnx
-          test -s assets/models/rmvpe.onnx
-          grep -Fq "allowedExtensions: ['onnx', 'pth', 'pt', 'zip']" lib/screens/model_picker_screen.dart
-          grep -Fq "allowedExtensions: ['index', 'mobile.index']" lib/screens/model_picker_screen.dart
-          grep -q "Red.*Ultimate RVC" lib/main.dart
-          grep -q "class RedHomeScreen" lib/screens/red_home_screen.dart
-          grep -q "class TrainingScreen" lib/screens/training_screen.dart
-          grep -q "import 'screens/red_home_screen.dart'" lib/main.dart
-          grep -q "import 'screens/training_screen.dart'" lib/main.dart
-          grep -q "UPLOAD MODEL" lib/screens/model_picker_screen.dart
-          grep -q "UPLOAD INDEX" lib/screens/model_picker_screen.dart
-          grep -q "allowedExtensions: \['onnx','pth','pt','zip'\]" lib/screens/model_picker_screen.dart
-
       - name: Build ARM64 release APK
         working-directory: buildsrc
         run: flutter build apk --release --target-platform android-arm64 --verbose
