@@ -365,7 +365,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
   );
 }
 ''', encoding="utf-8")
-model_picker.write_text(mp, encoding="utf-8")
+# legacy upstream picker write intentionally disabled; custom picker above is authoritative
 
 # Add a visible model capability explanation so a .pth file is not presented
 # as if it were already inference-ready.
