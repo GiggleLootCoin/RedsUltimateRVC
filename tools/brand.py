@@ -703,27 +703,43 @@ text = text.replace("void _openDecibelMeter() {\n    setState(() => _moduleIndex
 text = text.replace("void _openPitchDetection() {\n    setState(() => _moduleIndex = 6);", "void _openPitchDetection() {\n    setState(() => _moduleIndex = 7);")
 text = text.replace("bottomNavigationBar: _moduleIndex == 0", "bottomNavigationBar: _moduleIndex == 1")
 
-const marker = "    final moduleScreens = [";
-const pos = text.indexOf(marker);
-const endMarker = "    ];\n\n    return PopScope(";
-const end = text.indexOf(endMarker, pos);
-if (pos >= 0 && end > pos) {
-  const block = text.slice(pos, end + 7);
-  const first = block.indexOf("      GestureDetector(");
-  const audio = block.slice(first);
-  const shifted = audio.replaceAll("_moduleIndex == 5", "_moduleIndex == 6").replaceAll("_moduleIndex == 6", "_moduleIndex == 7");
-  const dashboard = "    final moduleScreens = [\n" +
-    "      RedHomeScreen(\n" +
-    "        onGenerate: _openAudioConversion,\n" +
-    "        onSongCovers: _openAudioConversion,\n" +
-    "        onSpeech: _openVoiceChanger,\n" +
-    "        onModels: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(onModelSelected: _onModelSelected, onModelCleared: _onModelCleared, onIndexSelected: _onIndexSelected, onContinue: _continueToGenerate, selectedModelPath: _selectedModelPath, selectedModelDisplayName: _selectedModelDisplayName, selectedIndexPath: _selectedIndexPath, selectedIndexDisplayName: _selectedIndexDisplayName, selectedSongPath: _selectedSongPath, selectedSongDisplayName: _selectedSongDisplayName))),\n" +
-    "        onUploadDownload: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(onModelSelected: _onModelSelected, onModelCleared: _onModelCleared, onIndexSelected: _onIndexSelected, onContinue: _continueToGenerate, selectedModelPath: _selectedModelPath, selectedModelDisplayName: _selectedModelDisplayName, selectedIndexPath: _selectedIndexPath, selectedIndexDisplayName: _selectedIndexDisplayName, selectedSongPath: _selectedSongPath, selectedSongDisplayName: _selectedSongDisplayName))),\n" +
-    "        onTrain: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrainingScreen())),\n" +
-    "        onAudio: _openAudioConversion, onSettings: _openParameterGuide,\n" +
-    "      ),\n" + shifted;
-  text = text.slice(0,pos) + dashboard + text.slice(end + 7);
-}
+
+# Patch the upstream main screen after all existing branding changes.
+main = root / 'lib' / 'main.dart'
+text = main.read_text(encoding='utf-8')
+if "import 'screens/red_home_screen.dart';" not in text:
+    text = text.replace("import 'screens/pitch_detection_screen.dart';", "import 'screens/pitch_detection_screen.dart';\nimport 'screens/red_home_screen.dart';\nimport 'screens/training_screen.dart';")
+
+text = text.replace("void _openAudioConversion() {\n    setState(() => _moduleIndex = 0);", "void _openAudioConversion() {\n    setState(() => _moduleIndex = 1);")
+text = text.replace("void _openRealtimeInference() {\n    setState(() => _moduleIndex = 1);", "void _openRealtimeInference() {\n    setState(() => _moduleIndex = 2);")
+text = text.replace("void _openVoiceChanger() {\n    setState(() => _moduleIndex = 2);", "void _openVoiceChanger() {\n    setState(() => _moduleIndex = 3);")
+text = text.replace("void _openIndexConverter() {\n    setState(() => _moduleIndex = 3);", "void _openIndexConverter() {\n    setState(() => _moduleIndex = 4);")
+text = text.replace("void _openParameterGuide() {\n    setState(() => _moduleIndex = 4);", "void _openParameterGuide() {\n    setState(() => _moduleIndex = 5);")
+text = text.replace("void _openDecibelMeter() {\n    setState(() => _moduleIndex = 5);", "void _openDecibelMeter() {\n    setState(() => _moduleIndex = 6);")
+text = text.replace("void _openPitchDetection() {\n    setState(() => _moduleIndex = 6);", "void _openPitchDetection() {\n    setState(() => _moduleIndex = 7);")
+text = text.replace("bottomNavigationBar: _moduleIndex == 0", "bottomNavigationBar: _moduleIndex == 1")
+
+marker = "    final moduleScreens = ["
+pos = text.find(marker)
+end_marker = "    ];\n\n    return PopScope("
+end = text.find(end_marker, pos)
+if pos >= 0 and end > pos:
+    block = text[pos:end + 7]
+    first = block.find("      GestureDetector(")
+    audio = block[first:]
+    shifted = audio.replace("_moduleIndex == 5", "_moduleIndex == 6").replace("_moduleIndex == 6", "_moduleIndex == 7")
+    dashboard = """    final moduleScreens = [
+      RedHomeScreen(
+        onGenerate: _openAudioConversion,
+        onSongCovers: _openAudioConversion,
+        onSpeech: _openVoiceChanger,
+        onModels: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(onModelSelected: _onModelSelected, onModelCleared: _onModelCleared, onIndexSelected: _onIndexSelected, onContinue: _continueToGenerate, selectedModelPath: _selectedModelPath, selectedModelDisplayName: _selectedModelDisplayName, selectedIndexPath: _selectedIndexPath, selectedIndexDisplayName: _selectedIndexDisplayName, selectedSongPath: _selectedSongPath, selectedSongDisplayName: _selectedSongDisplayName))),
+        onUploadDownload: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(onModelSelected: _onModelSelected, onModelCleared: _onModelCleared, onIndexSelected: _onIndexSelected, onContinue: _continueToGenerate, selectedModelPath: _selectedModelPath, selectedModelDisplayName: _selectedModelDisplayName, selectedIndexPath: _selectedIndexPath, selectedIndexDisplayName: _selectedIndexDisplayName, selectedSongPath: _selectedSongPath, selectedSongDisplayName: _selectedSongDisplayName))),
+        onTrain: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrainingScreen())),
+        onAudio: _openAudioConversion, onSettings: _openParameterGuide,
+      ),
+""" + shifted
+    text = text[:pos] + dashboard + text[end + 7:]
 
 main.write_text(text, encoding='utf-8')
 
