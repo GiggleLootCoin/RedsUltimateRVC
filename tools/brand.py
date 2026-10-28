@@ -934,6 +934,27 @@ const indexMethod = r'''  Future<void> _pickIndex() async {
 mp = mp.substring(0,start) + indexMethod + mp.substring(end);
 model_picker.write_text(mp, encoding="utf-8")
 
+# Persist imported voice models and indexes in app-internal files storage, not
+# Android cache. Cache is allowed to be cleared by the OS, which would make a
+# previously uploaded model disappear after a cleanup/restart.
+workspace = root / "android" / "app" / "src" / "main" / "kotlin" / "com" / "ultimatervc" / "mobile" / "TempWorkspaceManager.kt"
+if workspace.exists():
+    wt = workspace.read_text(encoding="utf-8")
+    old = """    fun resolveImportRoot(kind: ImportedFileKind): File {
+        return File(File(appCacheDir, IMPORTS_DIRECTORY_NAME), kind.directoryName).also { it.mkdirs() }
+    }"""
+    new = """    fun resolveImportRoot(kind: ImportedFileKind): File {
+        val baseDir = when (kind) {
+            ImportedFileKind.MODEL, ImportedFileKind.INDEX -> appFilesDir
+            ImportedFileKind.AUDIO -> appCacheDir
+        }
+        return File(File(baseDir, IMPORTS_DIRECTORY_NAME), kind.directoryName).also { it.mkdirs() }
+    }"""
+    if old not in wt:
+        raise RuntimeError("Persistent model storage patch did not match TempWorkspaceManager.kt")
+    wt = wt.replace(old, new)
+    workspace.write_text(wt, encoding="utf-8")
+
 # The final build must prove these exact behaviors exist in generated source.
 main_text = main.read_text(encoding="utf-8")
 picker_text = model_picker.read_text(encoding="utf-8")
