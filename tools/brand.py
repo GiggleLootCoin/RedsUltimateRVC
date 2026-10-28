@@ -884,8 +884,7 @@ start = mp.find("  Future<void> _pickIndex() async {");
 end = mp.find("  @override Widget build", start);
 if start < 0 or end < 0:
     raise RuntimeError("Could not locate authoritative index picker method")
-}
-const indexMethod = r'''  Future<void> _pickIndex() async {
+index_method = r'''  Future<void> _pickIndex() async {
     if (_busy) return;
     setState(() => _busy = true);
     try {
@@ -931,7 +930,7 @@ const indexMethod = r'''  Future<void> _pickIndex() async {
   }
 
 ''';
-mp = mp.substring(0,start) + indexMethod + mp.substring(end);
+mp = mp.substring(0,start) + index_method + mp.substring(end);
 model_picker.write_text(mp, encoding="utf-8")
 
 # Persist imported voice models and indexes in app-internal files storage, not
