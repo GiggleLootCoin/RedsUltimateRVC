@@ -59,10 +59,12 @@ jobs:
           grep -Fq "type: FileType.any" lib/screens/model_picker_screen.dart
           grep -Fq ".pth" lib/screens/model_picker_screen.dart
           grep -Fq ".mobile.index" lib/screens/model_picker_screen.dart
-          grep -Fq "Voice Training" lib/main.dart
           grep -Fq "training_screen.dart" lib/main.dart
-          ! grep -Fq "RedHomeScreen" lib/main.dart
-          ! grep -Fq "int _moduleIndex = 7" lib/main.dart
+          grep -Fq "RedHomeScreen(" lib/main.dart
+          grep -Fq "UPLOAD / DOWNLOAD" lib/screens/red_home_screen.dart
+          grep -Fq "TRAIN" lib/screens/red_home_screen.dart
+          grep -Fq "type: FileType.any" lib/screens/model_picker_screen.dart
+          grep -Fq ".pth" lib/screens/model_picker_screen.dart
 
       - name: Build ARM64 release APK
         working-directory: buildsrc
