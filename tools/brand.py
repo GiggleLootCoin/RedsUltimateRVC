@@ -878,7 +878,7 @@ model_method = r'''  Future<void> _pickModel() async {
   }
 
 ''';
-mp = mp.substring(0, start) + model_method + mp.substring(end);
+mp = mp[:start] + model_method + mp[end:]
 
 start = mp.find("  Future<void> _pickIndex() async {");
 end = mp.find("  @override Widget build", start);
@@ -930,7 +930,7 @@ index_method = r'''  Future<void> _pickIndex() async {
   }
 
 ''';
-mp = mp.substring(0,start) + index_method + mp.substring(end);
+mp = mp[:start] + index_method + mp[end:]
 model_picker.write_text(mp, encoding="utf-8")
 
 # Persist imported voice models and indexes in app-internal files storage, not
