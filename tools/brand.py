@@ -882,8 +882,8 @@ mp = mp.substring(0, start) + model_method + mp.substring(end);
 
 start = mp.find("  Future<void> _pickIndex() async {");
 end = mp.find("  @override Widget build", start);
-if (start < 0 || end < 0) {
-    throw new Error("Could not locate authoritative index picker method");
+if start < 0 or end < 0:
+    raise RuntimeError("Could not locate authoritative index picker method")
 }
 const indexMethod = r'''  Future<void> _pickIndex() async {
     if (_busy) return;
