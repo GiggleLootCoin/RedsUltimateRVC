@@ -963,3 +963,105 @@ assert "type: FileType.any" in picker_text
 assert ".pth" in picker_text
 assert ".mobile.index" in picker_text
 
+
+# FINAL OVERRIDE v72
+# Keep the Red dashboard authoritative and make Samsung model import unrestricted.
+main = root / "lib" / "main.dart"
+picker = root / "lib" / "screens" / "model_picker_screen.dart"
+
+p = picker.read_text(encoding="utf-8")
+p = re.sub(r"type:\s*FileType\.custom,\s*allowedExtensions:\s*\[[^\]]+\],", "type: FileType.any,", p)
+# Source RVC models are uploadable and retained; only ONNX is runtime-ready.
+p = p.replace("if (_runtime(imported.path)) {\n        widget.onModelSelected(imported.path);", "widget.onModelSelected(imported.path);\n      if (_runtime(imported.path)) {", 1)
+picker.write_text(p, encoding="utf-8")
+
+m = main.read_text(encoding="utf-8")
+if "import 'screens/red_home_screen.dart';" not in m:
+    m = m.replace("import 'screens/pitch_detection_screen.dart';", "import 'screens/pitch_detection_screen.dart';\nimport 'screens/red_home_screen.dart';\nimport 'screens/training_screen.dart';")
+m = re.sub(r"_moduleIndex\s*=\s*prefs\.getInt\('moduleIndex'\)\s*\?\?\s*0;", "_moduleIndex = 0;", m)
+
+for name, idx in {
+    "_openAudioConversion":1, "_openRealtimeInference":2, "_openVoiceChanger":3,
+    "_openIndexConverter":4, "_openParameterGuide":5, "_openDecibelMeter":6,
+    "_openPitchDetection":7,
+}.items():
+    m = re.sub(r"(void " + re.escape(name) + r"\(\) \{\s*setState\(\(\) => _moduleIndex = )\d+;", r"\g<1>" + str(idx) + ";", m, count=1)
+
+start = m.find("    final moduleScreens = [")
+end = m.find("    return PopScope(", start)
+if start < 0 or end < 0:
+    raise RuntimeError("moduleScreens not found")
+
+dashboard = """    final moduleScreens = [
+      RedHomeScreen(
+        onGenerate: _openAudioConversion,
+        onSongCovers: _openAudioConversion,
+        onSpeech: _openVoiceChanger,
+        onModels: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(
+          onModelSelected: _onModelSelected, onModelCleared: _onModelCleared,
+          onIndexSelected: _onIndexSelected, onContinue: _continueToGenerate,
+          selectedModelPath: _selectedModelPath, selectedModelDisplayName: _selectedModelDisplayName,
+          selectedIndexPath: _selectedIndexPath, selectedIndexDisplayName: _selectedIndexDisplayName,
+          selectedSongPath: _selectedSongPath, selectedSongDisplayName: _selectedSongDisplayName,
+        ))),
+        onUploadDownload: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(
+          onModelSelected: _onModelSelected, onModelCleared: _onModelCleared,
+          onIndexSelected: _onIndexSelected, onContinue: _continueToGenerate,
+          selectedModelPath: _selectedModelPath, selectedModelDisplayName: _selectedModelDisplayName,
+          selectedIndexPath: _selectedIndexPath, selectedIndexDisplayName: _selectedIndexDisplayName,
+          selectedSongPath: _selectedSongPath, selectedSongDisplayName: _selectedSongDisplayName,
+        ))),
+        onTrain: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrainingScreen())),
+        onAudio: _openAudioConversion, onSettings: _openParameterGuide,
+      ),
+      GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onHorizontalDragUpdate: _handleAudioHorizontalDragUpdate,
+        onHorizontalDragEnd: _handleAudioHorizontalDragEnd,
+        child: PageView(
+          controller: _audioPageController, physics: const NeverScrollableScrollPhysics(),
+          onPageChanged: _onAudioPageChanged, children: audioScreens,
+        ),
+      ),
+      RealtimeInferenceScreen(otherModeRunning: _generationState.isGenerating, onRunningChanged: _onRealtimeInferenceRunningChanged),
+      VoiceChangerScreen(otherModeRunning: _generationState.isGenerating || (_inferenceProcessRunning && !_voiceChangerProcessing), onProcessingChanged: _onVoiceChangerProcessingChanged),
+      IndexConverterScreen(),
+      ParameterGuideScreen(),
+      DecibelMeterScreen(isActive: _moduleIndex == 6),
+      PitchDetectionScreen(isActive: _moduleIndex == 7),
+    ];
+
+"""
+m = m[:start] + dashboard + m[end:]
+
+# Existing drawer labels are tied to the old indexes; replace exact comparisons.
+for (const [a,b] of [
+  ["selected: _moduleIndex == 0","selected: _moduleIndex == 1"],
+  ["selected: _moduleIndex == 1","selected: _moduleIndex == 2"],
+  ["selected: _moduleIndex == 2","selected: _moduleIndex == 3"],
+  ["selected: _moduleIndex == 3","selected: _moduleIndex == 4"],
+  ["selected: _moduleIndex == 4","selected: _moduleIndex == 5"],
+  ["selected: _moduleIndex == 5","selected: _moduleIndex == 6"],
+  ["selected: _moduleIndex == 6","selected: _moduleIndex == 7"],
+]) m = m.replace(a,b);
+m = m.replace("bottomNavigationBar: _moduleIndex == 0", "bottomNavigationBar: _moduleIndex == 1");
+main.write_text(m, encoding="utf-8")
+
+workspace = root / "android" / "app" / "src" / "main" / "kotlin" / "com" / "ultimatervc" / "mobile" / "TempWorkspaceManager.kt"
+if workspace.exists():
+    w = workspace.read_text(encoding="utf-8")
+    w = w.replace("""    fun resolveImportRoot(kind: ImportedFileKind): File {
+        return File(File(appCacheDir, IMPORTS_DIRECTORY_NAME), kind.directoryName).also { it.mkdirs() }
+    }""", """    fun resolveImportRoot(kind: ImportedFileKind): File {
+        val baseDir = when (kind) {
+            ImportedFileKind.MODEL, ImportedFileKind.INDEX -> appFilesDir
+            ImportedFileKind.AUDIO -> appCacheDir
+        }
+        return File(File(baseDir, IMPORTS_DIRECTORY_NAME), kind.directoryName).also { it.mkdirs() }
+    }""")
+    workspace.write_text(w, encoding="utf-8")
+
+assert "RedHomeScreen(" in m
+assert "TrainingScreen()" in m
+assert "type: FileType.any" in p
+assert ".pth" in p
