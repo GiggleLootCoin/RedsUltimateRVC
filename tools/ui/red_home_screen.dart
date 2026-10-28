@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class RedHomeScreen extends StatelessWidget {
   final VoidCallback onGenerate, onSongCovers, onSpeech, onModels, onUploadDownload, onTrain, onAudio, onSettings;
@@ -18,8 +19,10 @@ class RedHomeScreen extends StatelessWidget {
               border: Border.all(color: Colors.redAccent.withOpacity(.55)),
               gradient: const LinearGradient(colors: [Color(0xFF180007), Color(0xFF09090D)]),
             ),
-            child: const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text("RED'S ULTIMATE RVC", style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              SizedBox(height: 92, child: SvgPicture.asset("assets/images/reds-ultimate-rvc-logo.svg", fit: BoxFit.contain, alignment: Alignment.centerLeft)),
+              const SizedBox(height: 10),
+              const Text("RED'S ULTIMATE RVC", style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
               SizedBox(height: 7),
               Text('Your voice. Your sound. Local Android voice conversion.', style: TextStyle(color: Color(0xFFCACAD2))),
             ]),
@@ -34,7 +37,7 @@ class RedHomeScreen extends StatelessWidget {
               _button(Icons.record_voice_over, 'SPEECH', onSpeech),
               _button(Icons.library_music, 'MODELS', onModels),
               _button(Icons.upload_file, 'UPLOAD / DOWNLOAD', onUploadDownload),
-              _button(Icons.model_training, 'TRAIN', onTrain),
+              _button(Icons.model_training, 'TRAIN / CREATE MODEL', onTrain),
               _button(Icons.audiotrack, 'AUDIO', onAudio),
               _button(Icons.settings, 'SETTINGS', onSettings),
             ],
