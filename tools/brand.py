@@ -770,11 +770,176 @@ mp = re.sub(
 )
 model_picker.write_text(mp, encoding="utf-8")
 
-# The dashboard is the intended landing screen.
+# FINAL AUTHORITATIVE FIXES:
+# 1) Always land on Red's dashboard. Never restore the old upstream module page.
+# 2) Samsung's picker must be unrestricted so .pth/.index files are not greyed out.
+# 3) Validate extensions after selection and store the selected file inside app storage.
+# 4) Never present a source .pth as an inference-ready model.
 main = root / "lib" / "main.dart"
 mt = main.read_text(encoding="utf-8")
 if "RedHomeScreen(" not in mt:
     raise RuntimeError("Red dashboard was not wired into main.dart")
 if "training_screen.dart" not in mt:
     raise RuntimeError("Training workspace was not wired into main.dart")
+
+# Force a clean, deterministic landing page on every launch. Old builds stored
+# moduleIndex=1/2/etc.; restoring that state is exactly what made the app open
+# looking like the upstream app instead of the intended Red dashboard.
+mt = re.sub(
+    r"_moduleIndex\s*=\s*prefs\.getInt\('moduleIndex'\)\s*\?\?\s*0\s*;",
+    "_moduleIndex = 0;",
+    mt,
+)
+# Also remove any previously persisted module page so an upgrade cannot bring
+# the old navigation state back.
+mt = mt.replace(
+    "final prefs = await SharedPreferences.getInstance();\n    if (!mounted) return;",
+    "final prefs = await SharedPreferences.getInstance();\n    await prefs.remove('moduleIndex');\n    if (!mounted) return;",
+    1,
+)
 main.write_text(mt, encoding="utf-8")
+
+model_picker = root / "lib" / "screens" / "model_picker_screen.dart"
+mp = model_picker.read_text(encoding="utf-8")
+
+# Samsung Galaxy A12 / Android 12: do not use a restrictive MIME/extension
+# filter. Samsung can grey out legitimate RVC files before Flutter sees them.
+mp = re.sub(
+    r"type: FileType\.custom,\s*allowedExtensions: \['onnx','pth','pt','zip'\],",
+    "type: FileType.any,",
+    mp,
+    count=1,
+)
+mp = re.sub(
+    r"type: FileType\.custom,\s*allowedExtensions: \['index','mobile\.index'\],",
+    "type: FileType.any,",
+    mp,
+    count=1,
+)
+
+# Replace the model picker implementation with a deterministic post-selection
+# validator. This fixes both Samsung greyed-out files and misleading success.
+start = mp.find("  Future<void> _pickModel() async {")
+end = mp.find("  Future<void> _pickIndex() async {", start)
+if start < 0 or end < 0:
+    raise RuntimeError("Could not locate authoritative model picker methods")
+model_method = r'''  Future<void> _pickModel() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: false,
+        withData: false,
+      );
+      final source = result?.files.single.path;
+      if (source == null || source.isEmpty) return;
+
+      final lower = source.toLowerCase();
+      final supported = lower.endsWith('.onnx') ||
+          lower.endsWith('.pth') ||
+          lower.endsWith('.pt') ||
+          lower.endsWith('.zip');
+      if (!supported) {
+        throw Exception('Choose an RVC model file: .onnx, .pth, .pt or .zip');
+      }
+
+      final imported = await _bridge.importPickedFile(
+        kind: 'model',
+        sourcePath: source,
+      );
+      if (!_library.contains(imported.path)) {
+        _library.insert(0, imported.path);
+      }
+      await _saveLibrary();
+
+      if (!mounted) return;
+      if (_runtime(imported.path)) {
+        widget.onModelSelected(imported.path);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('ONNX model uploaded and ready for Android inference.')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Model uploaded and saved. PTH/PT/ZIP must be trained or converted to ONNX before Android inference.'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('MODEL UPLOAD FAILED: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+''';
+mp = mp.substring(0, start) + model_method + mp.substring(end);
+
+start = mp.find("  Future<void> _pickIndex() async {");
+end = mp.find("  @override Widget build", start);
+if (start < 0 || end < 0) {
+    throw new Error("Could not locate authoritative index picker method");
+}
+const indexMethod = r'''  Future<void> _pickIndex() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: false,
+        withData: false,
+      );
+      final source = result?.files.single.path;
+      if (source == null || source.isEmpty) return;
+
+      final lower = source.toLowerCase();
+      if (!lower.endsWith('.index') && !lower.endsWith('.mobile.index')) {
+        throw Exception('Choose an RVC index file: .index or .mobile.index');
+      }
+
+      final imported = await _bridge.importPickedFile(
+        kind: 'index',
+        sourcePath: source,
+      );
+      widget.onIndexSelected(imported.path);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              lower.endsWith('.mobile.index')
+                  ? 'mobile.index uploaded and ready.'
+                  : 'Standard .index uploaded and saved. Convert it before mobile inference.',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('INDEX UPLOAD FAILED: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+''';
+mp = mp.substring(0,start) + indexMethod + mp.substring(end);
+model_picker.write_text(mp, encoding="utf-8")
+
+# The final build must prove these exact behaviors exist in generated source.
+main_text = main.read_text(encoding="utf-8")
+picker_text = model_picker.read_text(encoding="utf-8")
+assert "RedHomeScreen(" in main_text
+assert "_moduleIndex = 0;" in main_text
+assert "type: FileType.any" in picker_text
+assert ".pth" in picker_text
+assert ".mobile.index" in picker_text
+
