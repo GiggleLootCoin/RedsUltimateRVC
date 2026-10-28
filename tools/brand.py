@@ -1035,15 +1035,16 @@ dashboard = """    final moduleScreens = [
 m = m[:start] + dashboard + m[end:]
 
 # Existing drawer labels are tied to the old indexes; replace exact comparisons.
-for (const [a,b] of [
-  ["selected: _moduleIndex == 0","selected: _moduleIndex == 1"],
-  ["selected: _moduleIndex == 1","selected: _moduleIndex == 2"],
-  ["selected: _moduleIndex == 2","selected: _moduleIndex == 3"],
-  ["selected: _moduleIndex == 3","selected: _moduleIndex == 4"],
-  ["selected: _moduleIndex == 4","selected: _moduleIndex == 5"],
-  ["selected: _moduleIndex == 5","selected: _moduleIndex == 6"],
-  ["selected: _moduleIndex == 6","selected: _moduleIndex == 7"],
-]) m = m.replace(a,b);
+for a, b in [
+    ("selected: _moduleIndex == 0", "selected: _moduleIndex == 1"),
+    ("selected: _moduleIndex == 1", "selected: _moduleIndex == 2"),
+    ("selected: _moduleIndex == 2", "selected: _moduleIndex == 3"),
+    ("selected: _moduleIndex == 3", "selected: _moduleIndex == 4"),
+    ("selected: _moduleIndex == 4", "selected: _moduleIndex == 5"),
+    ("selected: _moduleIndex == 5", "selected: _moduleIndex == 6"),
+    ("selected: _moduleIndex == 6", "selected: _moduleIndex == 7"),
+]:
+    m = m.replace(a, b)
 m = m.replace("bottomNavigationBar: _moduleIndex == 0", "bottomNavigationBar: _moduleIndex == 1");
 main.write_text(m, encoding="utf-8")
 
