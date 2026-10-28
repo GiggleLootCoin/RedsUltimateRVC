@@ -214,7 +214,6 @@ mp = mp.replace(
 """
 )
 model_picker.write_text(r'''import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/rvc_bridge.dart';
 
@@ -827,12 +826,7 @@ model_method = r'''  Future<void> _pickModel() async {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.any,
-        allowMultiple: false,
-        withData: false,
-      );
-      final source = result?.files.single.path;
+      final source = await _bridge.pickExternalFile(kind: 'model');
       if (source == null || source.isEmpty) return;
 
       final lower = source.toLowerCase();
@@ -888,12 +882,7 @@ index_method = r'''  Future<void> _pickIndex() async {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.any,
-        allowMultiple: false,
-        withData: false,
-      );
-      final source = result?.files.single.path;
+      final source = await _bridge.pickExternalFile(kind: 'index');
       if (source == null || source.isEmpty) return;
 
       final lower = source.toLowerCase();
