@@ -504,8 +504,7 @@ if "import 'screens/red_home_screen.dart';" not in mt:
                     "import 'screens/pitch_detection_screen.dart';\nimport 'screens/red_home_screen.dart';\nimport 'screens/training_screen.dart';")
 
 # Theme/branding text.
-mt = mt.replace("Ultimate RVC Mobile", "Red's Ultimate RVC")
-mt = mt.replace("title: 'Red's Ultimate RVC',", 'title: "RED\\'S ULTIMATE RVC",')
+mt = mt.replace("Ultimate RVC Mobile", "Reds Ultimate RVC")
 mt = mt.replace("primarySwatch: Colors.blue,", "primarySwatch: Colors.red,")
 mt = mt.replace("backgroundColor: Colors.white", "backgroundColor: const Color(0xFF07070A)")
 for a,b in {
