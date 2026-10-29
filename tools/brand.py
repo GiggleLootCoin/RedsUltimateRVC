@@ -116,7 +116,8 @@ load_replacement = '''  Future<void> _loadSavedState() async {
       _generatedOutputPath = outputPath;
       final generationDurationMs = outputPath == null ? null : prefs.getInt('generationDurationMs');
       _generationDuration = generationDurationMs == null ? null : Duration(milliseconds: generationDurationMs);
-      _moduleIndex = prefs.getInt('moduleIndex') ?? 0;
+      _moduleIndex = prefs.getInt('moduleIndex') ?? 7;
+      if (_moduleIndex < 0 || _moduleIndex > 7) _moduleIndex = 7;
       _audioStepIndex = prefs.getInt('audioStepIndex') ?? 0;
       if (_selectedSongPath == null) {
         _audioStepIndex = 0;
@@ -268,17 +269,9 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
       );
       final source = result?.files.single.path;
       if (source == null) return;
-      final imported = await _bridge.importPickedFile(kind: 'model', sourcePath: source);
-      final path = imported.path;
-      if (!_library.contains(path)) _library.insert(0, path);
-      await _saveLibrary();
       if (!mounted) return;
-      if (_isRuntimeModel(path)) {
-        widget.onModelSelected(path);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ONNX model imported and ready for mobile inference.')));
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Source model imported. PTH/PT/ZIP files are stored but are not directly runnable by the Android ONNX engine.')));
-      }
+      widget.onModelSelected(source);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Model selected. The app will import it into its local model library.')));
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Model import failed: ' + e.toString())));
     } finally {
@@ -297,8 +290,8 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
       );
       final source = result?.files.single.path;
       if (source == null) return;
-      final imported = await _bridge.importPickedFile(kind: 'index', sourcePath: source);
-      widget.onIndexSelected(imported.path);
+      if (!mounted) return;
+      widget.onIndexSelected(source);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(
         source.toLowerCase().endsWith('.mobile.index')
@@ -378,7 +371,7 @@ main = root / "lib" / "main.dart"
 m = main.read_text(encoding="utf-8")
 if "screens/red_home_screen.dart" not in m:
     m = m.replace("import 'screens/pitch_detection_screen.dart';", "import 'screens/pitch_detection_screen.dart';\nimport 'screens/red_home_screen.dart';\nimport 'screens/training_screen.dart';")
-m = m.replace("int _moduleIndex = 0;", "int _moduleIndex = 0;", 1)
+m = m.replace("int _moduleIndex = 7;", "int _moduleIndex = 0;", 1)
 home_block = '''      RedHomeScreen(
         onGenerate: () { setState(() { _moduleIndex = 0; _audioStepIndex = 0; }); _saveState(); },
         onSongCovers: _openAudioConversion,
@@ -396,7 +389,25 @@ home_block = '''      RedHomeScreen(
       ),
 '''
 if "onUploadDownload:" not in m:
-    m = m.replace("    final moduleScreens = [\n", "    final moduleScreens = [\n" + home_block, 1)
+    m = m.replace("    final homeScreen = RedHomeScreen(
+      onGenerate: () { setState(() { _moduleIndex = 0; _audioStepIndex = 0; }); _saveState(); },
+      onSongCovers: _openAudioConversion,
+      onSpeech: _openVoiceChanger,
+      onModels: () { setState(() { _moduleIndex = 0; _audioStepIndex = 1; }); _saveState(); },
+      onUploadDownload: () {
+        Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(
+          onModelSelected: _onModelSelected, onModelCleared: _onModelCleared,
+          onIndexSelected: _onIndexSelected, onContinue: _continueToGenerate,
+          selectedModelPath: _selectedModelPath, selectedModelDisplayName: _selectedModelDisplayName,
+          selectedIndexPath: _selectedIndexPath, selectedIndexDisplayName: _selectedIndexDisplayName,
+          selectedSongPath: _selectedSongPath, selectedSongDisplayName: _selectedSongDisplayName,
+        )));
+      },
+      onTrain: () { Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrainingScreen())); },
+      onAudio: _openAudioConversion,
+      onSettings: _openParameterGuide,
+    );
+    final moduleScreens = [\n", "    final moduleScreens = [\n" + home_block, 1)
 main.write_text(m, encoding="utf-8")
 
 # Add a visible model capability explanation so a .pth file is not presented
