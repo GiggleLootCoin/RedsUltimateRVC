@@ -507,7 +507,6 @@ if "import 'screens/red_home_screen.dart';" not in mt:
 mt = mt.replace("Ultimate RVC Mobile", "Red's Ultimate RVC")
 mt = mt.replace("primarySwatch: Colors.blue,", "primarySwatch: Colors.red,")
 mt = mt.replace("backgroundColor: Colors.white", "backgroundColor: const Color(0xFF07070A)")
-mt = mt.replace("title: Text('Ultimate RVC'", "title: const Text(\"RED'S ULTIMATE RVC\"")
 for a,b in {
     "音频推理":"Audio Conversion",
     "实时推理":"Realtime RVC",
