@@ -738,7 +738,7 @@ if manifest.exists():
     m = manifest.read_text(encoding="utf-8")
     m = re.sub(r'android:label="[^"]+"', 'android:label="Red\'s Ultimate RVC"', m, count=1)
     if 'android.permission.INTERNET' not in m:
-        m = m.replace('<manifest xmlns:android="http://schemas.android.com/apk/res/android">', '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\\n    <uses-permission android:name="android.permission.INTERNET" />', 1)
+        m = m.replace('<manifest xmlns:android="http://schemas.android.com/apk/res/android">', '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <uses-permission android:name="android.permission.INTERNET" />', 1)
     if 'android:icon="' in m:
         m = re.sub(r'android:icon="[^"]+"', 'android:icon="@drawable/reds_ultimate_rvc_logo"', m, count=1)
     else:
