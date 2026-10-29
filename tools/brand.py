@@ -529,8 +529,8 @@ for name, old_index, new_index in [
     ("_openDecibelMeter", 5, 6),
     ("_openPitchDetection", 6, 7),
 ]:
-    old_line = f"void {name}() {{\\n    setState(() => _moduleIndex = {old_index});"
-    new_line = f"void {name}() {{\\n    setState(() => _moduleIndex = {new_index});"
+    old_line = f"void {name}() {{\n    setState(() => _moduleIndex = {old_index});"
+    new_line = f"void {name}() {{\n    setState(() => _moduleIndex = {new_index});"
     if old_line not in mt:
         raise RuntimeError(f"Could not patch {name}")
     mt = mt.replace(old_line, new_line, 1)
