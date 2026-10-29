@@ -252,6 +252,7 @@ class _Action extends StatelessWidget {
 ''')
 
 # Fix the apostrophe inside the Dart const string above.
+write(home, (repo_root / "tools" / "ui" / "red_home_screen.dart").read_text(encoding="utf-8"))
 ht = home.read_text(encoding="utf-8")
 write(home, ht)
 
