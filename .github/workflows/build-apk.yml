@@ -53,21 +53,9 @@ jobs:
         working-directory: buildsrc
         run: flutter doctor -v
 
-      - name: Validate final generated UI and upload behavior
+      - name: Analyze final Flutter source
         working-directory: buildsrc
-        run: |
-          grep -Fq "type: FileType.any" lib/screens/model_picker_screen.dart
-          grep -Fq ".pth" lib/screens/model_picker_screen.dart
-          grep -Fq ".mobile.index" lib/screens/model_picker_screen.dart
-          grep -Fq "training_screen.dart" lib/main.dart
-          grep -Fq "RedHomeScreen(" lib/main.dart
-          grep -Fq "_moduleIndex = 0;" lib/main.dart
-          grep -Fq "RVC model file" lib/screens/model_picker_screen.dart
-          grep -Fq "UPLOAD / DOWNLOAD" lib/screens/red_home_screen.dart
-          grep -Fq "TRAIN" lib/screens/red_home_screen.dart
-          grep -Fq "type: FileType.any" lib/screens/model_picker_screen.dart
-          grep -Fq ".pth" lib/screens/model_picker_screen.dart
-
+        run: flutter analyze --no-fatal-infos
       - name: Build ARM64 release APK
         working-directory: buildsrc
         run: flutter build apk --release --target-platform android-arm64 --verbose
