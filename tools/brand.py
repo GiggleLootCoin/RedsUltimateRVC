@@ -668,6 +668,7 @@ drawer = r'''  Drawer _buildDrawer() {
 
 '''
 mt = mt[:dstart] + drawer + mt[dend:]
+write(main, mt)
 
 # Fix old package imports in tests.
 testdir = root / "test"
