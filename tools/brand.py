@@ -713,7 +713,7 @@ if workspace.exists():
 gradle_props = root / "android/gradle.properties"
 if gradle_props.exists():
     gp = gradle_props.read_text(encoding="utf-8")
-    gp = re.sub(r"^org\\.gradle\\.java\\.home=.*\\n?", "", gp, flags=re.M)
+    gp = re.sub(r"^org\.gradle\.java\.home=.*\n?", "", gp, flags=re.M)
     write(gradle_props, gp)
 
 # ---------------------------------------------------------------------------
