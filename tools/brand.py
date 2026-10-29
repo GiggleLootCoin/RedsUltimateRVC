@@ -520,14 +520,20 @@ for a,b in {
     mt = mt.replace(a,b)
 
 # Module indexes: 0 dashboard, 1 audio, 2 realtime, 3 changer, 4 index, 5 controls, 6 dB, 7 pitch.
-for name, idx in {
-    "_openAudioConversion":1, "_openRealtimeInference":2, "_openVoiceChanger":3,
-    "_openIndexConverter":4, "_openParameterGuide":5, "_openDecibelMeter":6,
-    "_openPitchDetection":7,
-}.items():
-    mt, n = re.subn(r"(void\s+" + re.escape(name) + r"\(\)\s*\{\s*setState\(\(\)\s*=>\s*_moduleIndex\s*=\s*)\d+;", r"\g<1>"+str(idx)+";", mt, count=1)
-    if n != 1:
+for name, old_index, new_index in [
+    ("_openAudioConversion", 0, 1),
+    ("_openRealtimeInference", 1, 2),
+    ("_openVoiceChanger", 2, 3),
+    ("_openIndexConverter", 3, 4),
+    ("_openParameterGuide", 4, 5),
+    ("_openDecibelMeter", 5, 6),
+    ("_openPitchDetection", 6, 7),
+]:
+    old_line = f"void {name}() {{\\n    setState(() => _moduleIndex = {old_index});"
+    new_line = f"void {name}() {{\\n    setState(() => _moduleIndex = {new_index});"
+    if old_line not in mt:
         raise RuntimeError(f"Could not patch {name}")
+    mt = mt.replace(old_line, new_line, 1)
 
 # Whenever normal audio flow returns to the main area, return to audio module 1.
 for method in ("_onSongSelected", "_continueToGenerate", "_onGenerationComplete", "_startNewGeneration"):
