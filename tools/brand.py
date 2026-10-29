@@ -5,217 +5,260 @@ import urllib.request
 root = Path("buildsrc")
 repo_root = Path(__file__).resolve().parent.parent
 
-# Install the intended Android dashboard/training workspace into the upstream app.
-for ui_name in ("red_home_screen.dart", "training_screen.dart"):
-    source_ui = repo_root / "tools" / "ui" / ui_name
-    target_ui = root / "lib" / "screens" / ui_name
-    target_ui.parent.mkdir(parents=True, exist_ok=True)
-    target_ui.write_text(source_ui.read_text(encoding="utf-8"), encoding="utf-8")
+# Red's Ultimate RVC is a branded product layer around the verified local
+# Ultimate RVC Mobile engine. This script intentionally replaces the previous
+# accumulated patch stack with one deterministic finalizer.
 
+# ---------------------------------------------------------------------------
+# Assets / custom UI
+# ---------------------------------------------------------------------------
+logo_url = "https://cdn.websitepublisher.ai/custom/wid25042/images/reds-ultimate-rvc-logo.svg"
+logo = root / "assets" / "images" / "reds-ultimate-rvc-logo.svg"
+logo.parent.mkdir(parents=True, exist_ok=True)
+urllib.request.urlretrieve(logo_url, logo)
 
-# Approved Red's Ultimate RVC artwork created for this project.
-LOGO_URL = "https://cdn.websitepublisher.ai/custom/wid25042/images/reds-ultimate-rvc-logo.svg"
-logo_svg = root / "assets" / "images" / "reds-ultimate-rvc-logo.svg"
-logo_svg.parent.mkdir(parents=True, exist_ok=True)
-urllib.request.urlretrieve(LOGO_URL, logo_svg)
+for name in ("red_home_screen.dart", "training_screen.dart"):
+    src = repo_root / "tools" / "ui" / name
+    dst = root / "lib" / "screens" / name
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    dst.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
 
-
-def replace_in(path, replacements):
-    if not path.exists():
-        return
-    text = path.read_text(encoding="utf-8")
-    for old, new in replacements:
-        text = text.replace(old, new)
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+def write(path, text):
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
 
-def regex_replace(path, pattern, replacement):
-    if not path.exists():
-        return
+def replace_once(path, old, new, required=True):
     text = path.read_text(encoding="utf-8")
-    updated, count = re.subn(pattern, replacement, text)
-    if count == 0:
-        raise RuntimeError(f"Required compatibility patch did not match: {path}")
+    if old not in text:
+        if required:
+            raise RuntimeError(f"Required text not found in {path}: {old[:120]}")
+        return
+    text = text.replace(old, new, 1)
+    path.write_text(text, encoding="utf-8")
+
+def regex_once(path, pattern, replacement):
+    text = path.read_text(encoding="utf-8")
+    updated, count = re.subn(pattern, replacement, text, count=1, flags=re.S)
+    if count != 1:
+        raise RuntimeError(f"Required regex did not match exactly once: {path}: {pattern}")
     path.write_text(updated, encoding="utf-8")
 
-replace_in(
-    root / "lib" / "main.dart",
-    [
-        ("Ultimate RVC Mobile", "Red\\'s Ultimate RVC"),
-        ("音频推理", "Audio Conversion"),
-        ("实时推理", "Realtime"),
-        ("变声器模式", "Voice Changer"),
-        ("分贝仪", "dB Meter"),
-        ("音高检测", "Pitch Detection"),
-        ("参数解释", "RVC Controls"),
-        ("mobile.index 转换教程", "Index Converter"),
-        ("primarySwatch: Colors.blue,", "primarySwatch: Colors.red,"),
-        ("backgroundColor: Colors.white", "backgroundColor: const Color(0xFF09090D)"),
-    ],
-)
+# ---------------------------------------------------------------------------
+# Pubspec / package identity
+# ---------------------------------------------------------------------------
+pubspec = root / "pubspec.yaml"
+pt = pubspec.read_text(encoding="utf-8")
+pt = pt.replace("name: ultimate_rvc_mobile", "name: reds_ultimate_rvc")
+if "  url_launcher:" not in pt:
+    pt = pt.replace("dependencies:\n", "dependencies:\n  url_launcher: 6.2.6\n", 1)
+write(pubspec, pt)
 
-# Brand the upstream drawer header with the approved artwork.
-s_drawer = (root / "lib" / "main.dart").read_text(encoding="utf-8")
-s_drawer = s_drawer.replace("child: Text('Ultimate RVC', style: Theme.of(context).textTheme.headlineSmall),", "child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.end, children: [SizedBox(height: 74, child: SvgPicture.asset('assets/images/reds-ultimate-rvc-logo.svg', fit: BoxFit.contain, alignment: Alignment.centerLeft)), const SizedBox(height: 8), const Text(\"RED'S ULTIMATE RVC\", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)), const SizedBox(height: 4), const Text('Local Android voice conversion', style: TextStyle(color: Color(0xFFB8B8C2), fontSize: 12))]),")
-(root / "lib" / "main.dart").write_text(s_drawer, encoding="utf-8")
+# ---------------------------------------------------------------------------
+# Clean Red dashboard
+# ---------------------------------------------------------------------------
+home = root / "lib" / "screens" / "red_home_screen.dart"
+write(home, r'''import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
-# Keep upstream test imports valid after renaming the Flutter package.
-for dart in (root / "test").rglob("*.dart"):
-    content = dart.read_text(encoding="utf-8")
-    content = content.replace("package:ultimate_rvc_mobile/", "package:reds_ultimate_rvc/")
-    dart.write_text(content, encoding="utf-8")
+class RedHomeScreen extends StatelessWidget {
+  final VoidCallback onGenerate;
+  final VoidCallback onSongCovers;
+  final VoidCallback onRealtime;
+  final VoidCallback onVoiceChanger;
+  final VoidCallback onModels;
+  final VoidCallback onTrain;
+  final VoidCallback onAudioTools;
+  final VoidCallback onSettings;
 
+  const RedHomeScreen({
+    super.key,
+    required this.onGenerate,
+    required this.onSongCovers,
+    required this.onRealtime,
+    required this.onVoiceChanger,
+    required this.onModels,
+    required this.onTrain,
+    required this.onAudioTools,
+    required this.onSettings,
+  });
 
-# Make Android model/index selection practical on Samsung's document picker.
-# The upstream screen used FileType.any and then rejected everything except ONNX,
-# which made common .pth RVC models appear unusable. We explicitly expose the
-# formats the app can store, while clearly distinguishing inference-ready ONNX
-# from source .pth models.
-# Restore only files that still exist. Android/Flutter temp paths can disappear
-# between launches; never reopen a stale cached selection.
-main_state = root / "lib" / "main.dart"
-main_text = main_state.read_text(encoding="utf-8")
-load_pattern = r'  Future<void> _loadSavedState\(\) async \{.*?\n  \}\n\n  Future<void> _saveState'
-load_replacement = '''  Future<void> _loadSavedState() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
-
-    String? existingPath(String? path) {
-      if (path == null || path.isEmpty) return null;
-      return File(path).existsSync() ? path : null;
-    }
-
-    final songPath = existingPath(prefs.getString('selectedSongPath'));
-    final modelPath = existingPath(prefs.getString('selectedModelPath'));
-    final indexPath = existingPath(prefs.getString('selectedIndexPath'));
-    final outputPath = existingPath(prefs.getString('generatedOutputPath'));
-
-    if (songPath == null) {
-      await prefs.remove('selectedSongPath');
-      await prefs.remove('selectedSongDisplayName');
-    }
-    if (modelPath == null) {
-      await prefs.remove('selectedModelPath');
-      await prefs.remove('selectedModelDisplayName');
-    }
-    if (indexPath == null) {
-      await prefs.remove('selectedIndexPath');
-      await prefs.remove('selectedIndexDisplayName');
-    }
-    if (outputPath == null) {
-      await prefs.remove('generatedOutputPath');
-      await prefs.remove('generationDurationMs');
-    }
-
-    setState(() {
-      _selectedSongPath = songPath;
-      _selectedSongDisplayName = songPath == null ? null : (prefs.getString('selectedSongDisplayName') ?? File(songPath).uri.pathSegments.last);
-      _selectedModelPath = modelPath;
-      _selectedModelDisplayName = modelPath == null ? null : (prefs.getString('selectedModelDisplayName') ?? File(modelPath).uri.pathSegments.last);
-      _selectedIndexPath = indexPath;
-      _selectedIndexDisplayName = indexPath == null ? null : (prefs.getString('selectedIndexDisplayName') ?? File(indexPath).uri.pathSegments.last);
-      _generatedOutputPath = outputPath;
-      final generationDurationMs = outputPath == null ? null : prefs.getInt('generationDurationMs');
-      _generationDuration = generationDurationMs == null ? null : Duration(milliseconds: generationDurationMs);
-      _moduleIndex = prefs.getInt('moduleIndex') ?? 7;
-      if (_moduleIndex < 0 || _moduleIndex > 7) _moduleIndex = 7;
-      _audioStepIndex = prefs.getInt('audioStepIndex') ?? 0;
-      if (_selectedSongPath == null) {
-        _audioStepIndex = 0;
-      } else if (_selectedModelPath == null && _audioStepIndex > 1) {
-        _audioStepIndex = 1;
-      } else if (_selectedModelPath != null && _generatedOutputPath == null && _audioStepIndex > 2) {
-        _audioStepIndex = 2;
-      } else if (_generatedOutputPath == null && _audioStepIndex == 3) {
-        _audioStepIndex = 2;
-      }
-    });
-    if (_audioPageController.hasClients) {
-      _audioPageController.jumpToPage(_audioStepIndex);
-    } else {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _audioPageController.hasClients) {
-          _audioPageController.jumpToPage(_audioStepIndex);
-        }
-      });
-    }
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      backgroundColor: const Color(0xFF07070A),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF09090D),
+        elevation: 0,
+        title: const Text("RED'S ULTIMATE RVC", style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: .4)),
+        centerTitle: true,
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 30),
+          children: [
+            Container(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(26),
+                border: Border.all(color: const Color(0xFFE00022).withOpacity(.55), width: 1.2),
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF250008), Color(0xFF0C0C11), Color(0xFF07070A)],
+                ),
+                boxShadow: const [BoxShadow(color: Color(0x55000000), blurRadius: 22, offset: Offset(0, 10))],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    height: 112,
+                    width: double.infinity,
+                    child: SvgPicture.asset(
+                      'assets/images/reds-ultimate-rvc-logo.svg',
+                      fit: BoxFit.contain,
+                      alignment: Alignment.centerLeft,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text('RED'S ULTIMATE RVC', style: TextStyle(fontSize: 25, fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Your complete local voice studio for Android.',
+                    style: theme.textTheme.bodyMedium?.copyWith(color: const Color(0xFFBEBEC7)),
+                  ),
+                  const SizedBox(height: 13),
+                  Row(
+                    children: const [
+                      Icon(Icons.wifi_off, size: 17, color: Color(0xFF70D890)),
+                      SizedBox(width: 7),
+                      Text('LOCAL • PRIVATE • ANDROID', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: .8)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            _section('CREATE & CONVERT'),
+            _grid([
+              _Action(Icons.graphic_eq, 'CONVERT AUDIO', 'Song / speech to your selected voice', onGenerate),
+              _Action(Icons.music_video, 'SONG COVERS', 'Full-length audio conversion', onSongCovers),
+              _Action(Icons.settings_voice, 'REALTIME RVC', 'Live microphone conversion', onRealtime),
+              _Action(Icons.record_voice_over, 'VOICE CHANGER', 'Use RVC while recording', onVoiceChanger),
+            ]),
+            const SizedBox(height: 16),
+            _section('VOICES & TRAINING'),
+            _grid([
+              _Action(Icons.library_music, 'MODEL LIBRARY', 'Import, manage and select voices', onModels),
+              _Action(Icons.model_training, 'TRAIN / CREATE VOICE', 'Build and manage a local training workspace', onTrain),
+              _Action(Icons.tune, 'AUDIO TOOLS', 'Index, pitch and level tools', onAudioTools),
+              _Action(Icons.settings, 'SETTINGS & CONTROLS', 'RVC parameters and options', onSettings),
+            ]),
+            const SizedBox(height: 18),
+            Container(
+              padding: const EdgeInsets.all(15),
+              decoration: BoxDecoration(
+                color: const Color(0xFF101016),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFF292932)),
+              ),
+              child: const Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline, color: Color(0xFFE00022)),
+                  SizedBox(width: 11),
+                  Expanded(
+                    child: Text(
+                      'RVC conversion is performed locally on the phone. ONNX voice models are directly usable by the Android engine; source .pth/.pt models can be stored in the library but require conversion to a mobile-compatible model before inference.',
+                      style: TextStyle(color: Color(0xFFC7C7D0), height: 1.35, fontSize: 12.5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
-  Future<void> _saveState'''
-updated, count = re.subn(load_pattern, load_replacement, main_text, count=1, flags=re.S)
-if count != 1:
-    raise RuntimeError("Required stale-state recovery patch did not match main.dart")
-main_state.write_text(updated, encoding="utf-8")
+  Widget _section(String title) => Padding(
+    padding: const EdgeInsets.only(left: 3, bottom: 9),
+    child: Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.25, color: Color(0xFFE00022))),
+  );
 
-model_picker = root / "lib" / "screens" / "model_picker_screen.dart"
-mp = model_picker.read_text(encoding="utf-8")
-mp = mp.replace(
-"""      final result = await FilePicker.platform.pickFiles(
-        type: FileType.any,
-        allowMultiple: false,
-      );""",
-"""      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['onnx'],
-        allowMultiple: false,
-        withData: false,
-      );""",
-1)
-mp = mp.replace(
-"""      final result = await FilePicker.platform.pickFiles(
-        type: FileType.any,
-        allowMultiple: false,
-      );""",
-"""      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['mobile.index'],
-        allowMultiple: false,
-        withData: false,
-      );""",
-1)
-mp = mp.replace(
-"""  bool _isSupportedModelFile(String filePath) {
-    final lowerPath = filePath.toLowerCase();
-    return lowerPath.endsWith('.onnx');
-  }""",
-"""  bool _isSupportedModelFile(String filePath) {
-    final lowerPath = filePath.toLowerCase();
-    return lowerPath.endsWith('.onnx');
-  }"""
-)
-mp = mp.replace(
-"""  bool _isSupportedIndexFile(String filePath) {
-    return filePath.toLowerCase().endsWith('.mobile.index');
-  }""",
-"""  bool _isSupportedIndexFile(String filePath) {
-    final lowerPath = filePath.toLowerCase();
-    return lowerPath.endsWith('.mobile.index');
-  }"""
-)
-mp = mp.replace(
-"""                        '支持：.onnx 模型',
-""",
-"""                        'Supported: .onnx voice models (required for mobile inference)',
-"""
-)
-mp = mp.replace(
-"""                        '支持：mobile.index 索引',
-""",
-"""                        'Supported: mobile.index (convert standard .index first)',
-"""
-)
-mp = mp.replace(
-"""              ElevatedButton.icon(
-                onPressed: selectedModelPath != null ? onContinue : null,
-""",
-"""              ElevatedButton.icon(
-                onPressed: selectedModelPath != null &&
-                        selectedModelPath!.toLowerCase().endsWith('.onnx')
-                    ? onContinue
-                    : null,
-"""
-)
-model_picker.write_text(r'''import 'package:flutter/material.dart';
+  Widget _grid(List<_Action> actions) => GridView.count(
+    crossAxisCount: 2,
+    shrinkWrap: true,
+    physics: const NeverScrollableScrollPhysics(),
+    mainAxisSpacing: 10,
+    crossAxisSpacing: 10,
+    childAspectRatio: 1.34,
+    children: actions,
+  );
+}
+
+class _Action extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _Action(this.icon, this.title, this.subtitle, this.onTap);
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: const Color(0xFF111117),
+    borderRadius: BorderRadius.circular(20),
+    child: InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(13),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFF282831)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 42, height: 42,
+              decoration: BoxDecoration(
+                color: const Color(0x22E00022),
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Icon(icon, color: const Color(0xFFFF334F), size: 23),
+            ),
+            const SizedBox(height: 9),
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12.5)),
+            const SizedBox(height: 4),
+            Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Color(0xFF92929D), fontSize: 10.5, height: 1.2)),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+''')
+
+# Fix the apostrophe inside the Dart const string above.
+ht = home.read_text(encoding="utf-8").replace("const Text('RED'S ULTIMATE RVC'", "const Text("RED'S ULTIMATE RVC"")
+write(home, ht)
+
+# ---------------------------------------------------------------------------
+# Model library: Samsung-safe picker + persistent app storage + clear status
+# ---------------------------------------------------------------------------
+picker = root / "lib" / "screens" / "model_picker_screen.dart"
+write(picker, r'''import 'dart:io';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/rvc_bridge.dart';
 
@@ -232,48 +275,89 @@ class ModelPickerScreen extends StatefulWidget {
   final String? selectedSongDisplayName;
 
   const ModelPickerScreen({
-    required this.onModelSelected, this.onModelCleared, required this.onIndexSelected,
-    required this.onContinue, this.selectedModelPath, this.selectedModelDisplayName,
-    this.selectedIndexPath, this.selectedIndexDisplayName, this.selectedSongPath, this.selectedSongDisplayName,
+    super.key,
+    required this.onModelSelected,
+    this.onModelCleared,
+    required this.onIndexSelected,
+    required this.onContinue,
+    this.selectedModelPath,
+    this.selectedModelDisplayName,
+    this.selectedIndexPath,
+    this.selectedIndexDisplayName,
+    this.selectedSongPath,
+    this.selectedSongDisplayName,
   });
 
-  @override State<ModelPickerScreen> createState() => _ModelPickerScreenState();
+  @override
+  State<ModelPickerScreen> createState() => _ModelPickerScreenState();
 }
 
 class _ModelPickerScreenState extends State<ModelPickerScreen> {
   final RVCBridge _bridge = RVCBridge();
-  final List<String> _library = <String>[];
+  List<String> _library = [];
   bool _busy = false;
 
-  bool _isRuntimeModel(String p) => p.toLowerCase().endsWith('.onnx');
+  @override
+  void initState() {
+    super.initState();
+    _loadLibrary();
+  }
 
   Future<void> _loadLibrary() async {
     final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getStringList('rvc_model_library') ?? <String>[];
-    if (mounted) setState(() { _library..clear()..addAll(saved); });
+    final saved = prefs.getStringList('red_rvc_model_library') ?? [];
+    final valid = saved.where((p) => File(p).existsSync()).toList();
+    await prefs.setStringList('red_rvc_model_library', valid);
+    if (mounted) setState(() => _library = valid);
   }
 
   Future<void> _saveLibrary() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('rvc_model_library', _library);
+    await prefs.setStringList('red_rvc_model_library', _library);
   }
+
+  String _ext(String path) {
+    final p = path.toLowerCase();
+    if (p.endsWith('.mobile.index')) return 'mobile.index';
+    final i = p.lastIndexOf('.');
+    return i >= 0 ? p.substring(i + 1) : '';
+  }
+
+  bool _runtime(String path) => _ext(path) == 'onnx';
+
+  bool _sourceModel(String path) => ['pth', 'pt', 'zip'].contains(_ext(path));
+
+  bool _index(String path) => ['index', 'mobile.index'].contains(_ext(path));
 
   Future<void> _pickModel() async {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.any,
-        allowMultiple: false,
-        withData: false,
-      );
+      // FileType.any is intentional. Samsung's Android 12 picker can grey out
+      // RVC files when a restrictive MIME/extension filter is used.
+      final result = await FilePicker.platform.pickFiles(type: FileType.any, allowMultiple: false, withData: false);
       final source = result?.files.single.path;
-      if (source == null) return;
+      if (source == null || source.isEmpty) return;
+      final ext = _ext(source);
+      if (!['onnx', 'pth', 'pt', 'zip'].contains(ext)) {
+        throw Exception('Select an RVC model: .onnx, .pth, .pt or .zip');
+      }
+
+      final imported = await _bridge.importPickedFile(kind: 'model', sourcePath: source);
+      if (!_library.contains(imported.path)) _library.insert(0, imported.path);
+      await _saveLibrary();
+
       if (!mounted) return;
-      widget.onModelSelected(source);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Model selected. The app will import it into its local model library.')));
+      if (_runtime(imported.path)) {
+        widget.onModelSelected(imported.path);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ONNX model imported and ready.')));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Model imported into the library. PTH/PT/ZIP is stored safely but is not directly runnable by the Android ONNX engine.')),
+        );
+      }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Model import failed: ' + e.toString())));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('MODEL IMPORT FAILED: $e')));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -283,637 +367,326 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.any,
-        allowMultiple: false,
-        withData: false,
-      );
+      final result = await FilePicker.platform.pickFiles(type: FileType.any, allowMultiple: false, withData: false);
       final source = result?.files.single.path;
-      if (source == null) return;
-      if (!mounted) return;
-      widget.onIndexSelected(source);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(
-        source.toLowerCase().endsWith('.mobile.index')
-          ? 'mobile.index imported.'
-          : 'Standard .index imported. Convert it before mobile inference.'
-      )));
+      if (source == null || source.isEmpty) return;
+      final ext = _ext(source);
+      if (!_index(source)) throw Exception('Select an RVC .index or .mobile.index file');
+
+      final imported = await _bridge.importPickedFile(kind: 'index', sourcePath: source);
+      widget.onIndexSelected(imported.path);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(ext == 'mobile.index' ? 'mobile.index imported and ready.' : 'Standard .index imported. Use Index Tools to convert it for mobile use.')),
+        );
+      }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Index import failed: ' + e.toString())));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('INDEX IMPORT FAILED: $e')));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
-  @override void initState() { super.initState(); _loadLibrary(); }
+  Future<void> _use(String path) async {
+    if (!_runtime(path)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This source model is stored, but Android inference requires an ONNX model.')));
+      return;
+    }
+    widget.onModelSelected(path);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _delete(String path) async {
+    try {
+      await _bridge.releaseImportedFile(path);
+    } catch (_) {}
+    _library.remove(path);
+    await _saveLibrary();
+    if (mounted) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
     final selected = widget.selectedModelPath;
+    final ready = selected != null && _runtime(selected);
     return Scaffold(
-      appBar: AppBar(title: const Text("RED'S ULTIMATE RVC"), centerTitle: true),
+      appBar: AppBar(title: const Text("RED'S ULTIMATE RVC — MODEL LIBRARY"), centerTitle: true),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 30),
         children: [
-          _section(Icons.graphic_eq, 'VOICE MODEL',
-            selected == null ? 'No runtime model selected' : (widget.selectedModelDisplayName ?? selected.split('/').last),
-            Row(children: [
-              Expanded(child: ElevatedButton.icon(onPressed: _busy ? null : _pickModel, icon: const Icon(Icons.upload_file), label: const Text('UPLOAD MODEL'))),
-              if (selected != null) IconButton(onPressed: widget.onModelCleared, icon: const Icon(Icons.close)),
-            ])),
+          _card(
+            title: 'VOICE MODEL',
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(
+                selected == null ? 'No runtime voice selected' : (widget.selectedModelDisplayName ?? File(selected).uri.pathSegments.last),
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 7),
+              Text(ready ? 'READY — ONNX model can be used for conversion.' : 'Choose an ONNX model for conversion. Source RVC models can also be stored below.', style: const TextStyle(color: Color(0xFFAAAA B5))),
+              const SizedBox(height: 13),
+              Row(children: [
+                Expanded(child: ElevatedButton.icon(onPressed: _busy ? null : _pickModel, icon: const Icon(Icons.upload_file), label: const Text('IMPORT MODEL'))),
+                if (selected != null && widget.onModelCleared != null) ...[
+                  const SizedBox(width: 8),
+                  IconButton(onPressed: widget.onModelCleared, icon: const Icon(Icons.clear), tooltip: 'Clear selected model'),
+                ],
+              ]),
+            ]),
+          ),
           const SizedBox(height: 12),
-          _section(Icons.account_tree, 'INDEX',
-            widget.selectedIndexDisplayName ?? 'Optional mobile.index / standard .index',
-            Row(children: [
-              Expanded(child: OutlinedButton.icon(onPressed: _busy ? null : _pickIndex, icon: const Icon(Icons.upload_file), label: const Text('UPLOAD INDEX'))),
-              if (widget.selectedIndexPath != null) IconButton(onPressed: () => widget.onIndexSelected(null), icon: const Icon(Icons.close)),
-            ])),
+          _card(
+            title: 'INDEX — OPTIONAL',
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(widget.selectedIndexDisplayName ?? (widget.selectedIndexPath == null ? 'No index selected' : File(widget.selectedIndexPath!).uri.pathSegments.last),
+                style: const TextStyle(fontWeight: FontWeight.w800)),
+              const SizedBox(height: 8),
+              const Text('mobile.index is directly usable. Standard .index files can be converted with Index Tools.', style: TextStyle(color: Color(0xFF9E9EA8), height: 1.3)),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(onPressed: _busy ? null : _pickIndex, icon: const Icon(Icons.upload_file), label: const Text('IMPORT INDEX')),
+            ]),
+          ),
           const SizedBox(height: 12),
-          _section(Icons.library_music, 'MODEL LIBRARY',
-            _library.length.toString() + ' imported source model' + (_library.length == 1 ? '' : 's'),
-            Column(children: _library.isEmpty
-              ? [const Align(alignment: Alignment.centerLeft, child: Text('Nothing imported yet.'))]
-              : _library.map((p) {
-                  final runtime = _isRuntimeModel(p);
+          _card(
+            title: 'IMPORTED LIBRARY',
+            child: _library.isEmpty
+              ? const Text('No imported models yet.', style: TextStyle(color: Color(0xFF9999A4)))
+              : Column(children: _library.map((p) {
+                  final runtime = _runtime(p);
+                  final source = _sourceModel(p);
                   return ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: Icon(runtime ? Icons.check_circle : Icons.inventory_2, color: runtime ? Colors.redAccent : Colors.grey),
-                    title: Text(p.split('/').last, maxLines: 1, overflow: TextOverflow.ellipsis),
-                    subtitle: Text(runtime ? 'READY FOR MOBILE INFERENCE' : 'SOURCE FILE — CONVERSION/TRAINING REQUIRED'),
-                    onTap: runtime ? () => widget.onModelSelected(p) : null,
+                    leading: Icon(runtime ? Icons.check_circle : Icons.inventory_2, color: runtime ? const Color(0xFF5DE58A) : const Color(0xFFFF334F)),
+                    title: Text(File(p).uri.pathSegments.last, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    subtitle: Text(runtime ? 'READY FOR MOBILE INFERENCE' : source ? 'SOURCE MODEL — CONVERSION REQUIRED' : 'IMPORTED FILE'),
+                    trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                      if (runtime) IconButton(onPressed: () => _use(p), icon: const Icon(Icons.play_arrow), tooltip: 'Use model'),
+                      IconButton(onPressed: () => _delete(p), icon: const Icon(Icons.delete_outline), tooltip: 'Delete'),
+                    ]),
                   );
                 }).toList()),
           ),
-          const SizedBox(height: 16),
-          SizedBox(height: 54, child: ElevatedButton.icon(
-            onPressed: selected != null && _isRuntimeModel(selected) ? widget.onContinue : null,
-            icon: const Icon(Icons.arrow_forward), label: const Text('CONTINUE TO GENERATE'))),
           const SizedBox(height: 14),
-          Text('Android inference uses ONNX voice models. PTH/PT/ZIP files can be uploaded and kept in the library, but they cannot be executed directly by this local ONNX engine.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey), textAlign: TextAlign.center),
+          SizedBox(height: 52, child: ElevatedButton.icon(
+            onPressed: ready && widget.selectedSongPath != null ? widget.onContinue : null,
+            icon: const Icon(Icons.arrow_forward),
+            label: const Text('CONTINUE TO CONVERSION'),
+          )),
         ],
       ),
     );
   }
 
-  Widget _section(IconData icon, String title, String subtitle, Widget child) => Card(
-    child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [Icon(icon, color: Colors.redAccent), const SizedBox(width: 10), Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 1.1)))]),
-      const SizedBox(height: 6), Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
-      const SizedBox(height: 14), child,
-    ])),
+  Widget _card({required String title, required Widget child}) => Card(
+    color: const Color(0xFF111117),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Color(0xFF292932))),
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(title, style: const TextStyle(color: Color(0xFFE00022), fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1.1)),
+        const SizedBox(height: 10),
+        child,
+      ]),
+    ),
   );
 }
-''', encoding="utf-8")
-# legacy upstream picker write intentionally disabled; custom picker above is authoritative
+'''.replace("Color(0xFFAAAA B5)", "Color(0xFFAAAAB5)"))
 
+# ---------------------------------------------------------------------------
+# Main.dart: deterministic dashboard-first navigation, clean English/red theme
+# ---------------------------------------------------------------------------
 main = root / "lib" / "main.dart"
-m = main.read_text(encoding="utf-8")
-if "screens/red_home_screen.dart" not in m:
-    m = m.replace(
-        "import 'screens/pitch_detection_screen.dart';",
-        "import 'screens/pitch_detection_screen.dart';\nimport 'screens/red_home_screen.dart';\nimport 'screens/training_screen.dart';",
-    )
-m = m.replace("int _moduleIndex = 0;", "int _moduleIndex = 7;", 1)
+mt = main.read_text(encoding="utf-8")
 
+# Add custom imports.
+if "import 'screens/red_home_screen.dart';" not in mt:
+    mt = mt.replace("import 'screens/pitch_detection_screen.dart';",
+                    "import 'screens/pitch_detection_screen.dart';\nimport 'screens/red_home_screen.dart';\nimport 'screens/training_screen.dart';")
 
+# Theme/branding text.
+mt = mt.replace("Ultimate RVC Mobile", "Red's Ultimate RVC")
+mt = mt.replace("primarySwatch: Colors.blue,", "primarySwatch: Colors.red,")
+mt = mt.replace("backgroundColor: Colors.white", "backgroundColor: const Color(0xFF07070A)")
+mt = mt.replace("title: Text('Ultimate RVC'", "title: const Text(\"RED'S ULTIMATE RVC\"")
+for a,b in {
+    "音频推理":"Audio Conversion",
+    "实时推理":"Realtime RVC",
+    "变声器模式":"Voice Changer",
+    "分贝仪":"dB Meter",
+    "音高检测":"Pitch Detection",
+    "参数解释":"RVC Controls",
+    "mobile.index 转换教程":"Index Tools",
+}.items():
+    mt = mt.replace(a,b)
 
-# Add a visible model capability explanation so a .pth file is not presented
-# as if it were already inference-ready.
-for dart in (root / "lib" / "screens").rglob("*.dart"):
-    content = dart.read_text(encoding="utf-8")
-    content = content.replace(
-        "Please select an .onnx model file.",
-        "Choose an .onnx voice model. RVC .pth models must be converted to .onnx before mobile use."
-    )
-    dart.write_text(content, encoding="utf-8")
+# Module indexes: 0 dashboard, 1 audio, 2 realtime, 3 changer, 4 index, 5 controls, 6 dB, 7 pitch.
+for name, idx in {
+    "_openAudioConversion":1, "_openRealtimeInference":2, "_openVoiceChanger":3,
+    "_openIndexConverter":4, "_openParameterGuide":5, "_openDecibelMeter":6,
+    "_openPitchDetection":7,
+}.items():
+    mt, n = re.subn(r"(void\s+" + re.escape(name) + r"\(\)\s*\{\s*setState\(\(\)\s*=>\s*_moduleIndex\s*=\s*)\d+;", r"\g<1>"+str(idx)+";", mt, count=1)
+    if n != 1:
+        raise RuntimeError(f"Could not patch {name}")
 
-# Render the exact approved SVG artwork into a launcher PNG.
-launcher_png = root / "android" / "app" / "src" / "main" / "res" / "drawable" / "reds_ultimate_rvc_logo.png"
-launcher_png.parent.mkdir(parents=True, exist_ok=True)
-try:
-    import cairosvg
-    cairosvg.svg2png(url=str(logo_svg), write_to=str(launcher_png), output_width=512, output_height=512)
-except Exception as exc:
-    raise RuntimeError(f"Could not render the approved Red's Ultimate RVC logo: {exc}")
+# Whenever normal audio flow returns to the main area, return to audio module 1.
+for method in ("_onSongSelected", "_continueToGenerate", "_onGenerationComplete", "_startNewGeneration"):
+    pat = rf"(Future<void>\s+{method}\([^{{]*\{{|void\s+{method}\([^{{]*\{{)"
+    # We only replace the first _moduleIndex = 0 occurring after the method.
+    m = re.search(pat, mt)
+    if m:
+        tail_start = m.start()
+        tail_end = mt.find("\n  }", tail_start)
+        if tail_end > tail_start:
+            segment = mt[tail_start:tail_end]
+            segment = segment.replace("_moduleIndex = 0;", "_moduleIndex = 1;")
+            mt = mt[:tail_start] + segment + mt[tail_end:]
 
-manifest = root / "android" / "app" / "src" / "main" / "AndroidManifest.xml"
-replace_in(
-    manifest,
-    [
-        ('android:label="Ultimate RVC Mobile"', 'android:label="Red\'s Ultimate RVC"'),
-        ('android:icon="@mipmap/ic_launcher"', 'android:icon="@drawable/reds_ultimate_rvc_logo"'),
-    ],
-)
+# Load state: dashboard is the launch destination. Audio progress itself remains saved.
+mt = re.sub(r"_moduleIndex\s*=\s*prefs\.getInt\('moduleIndex'\)\s*\?\?\s*\d+;", "_moduleIndex = 0;", mt, count=1)
+mt = mt.replace("final prefs = await SharedPreferences.getInstance();\n    if (!mounted) return;",
+                "final prefs = await SharedPreferences.getInstance();\n    await prefs.remove('moduleIndex');\n    if (!mounted) return;", 1)
 
-# The CI intentionally uses Flutter 3.24.5. Its Android template uses
-# Gradle 8.3, AGP 8.1.0 and Kotlin 1.8.22. The upstream RVC project is older
-# (Gradle 7.6.3 / AGP 7.3.0 / Kotlin 1.8.10), which causes Flutter's Android
-# dependency validation to reject the build. Keep all three versions aligned.
-settings_gradle = root / "android" / "settings.gradle"
-regex_replace(
-    settings_gradle,
-    r'(id\s+["\']com\.android\.application["\']\s+version\s+["\'])[^"\']+(["\']\s+apply\s+false)',
-    r'\g<1>8.1.0\2',
-)
-regex_replace(
-    settings_gradle,
-    r'(id\s+["\']org\.jetbrains\.kotlin\.android["\']\s+version\s+["\'])[^"\']+(["\']\s+apply\s+false)',
-    r'\g<1>1.8.22\2',
-)
+# Replace the entire moduleScreens list with a clean authoritative one.
+start = mt.find("    final moduleScreens = [")
+end = mt.find("    return PopScope(", start)
+if start < 0 or end < 0:
+    raise RuntimeError("moduleScreens block not found")
 
-android_build = root / "android" / "build.gradle"
-regex_replace(
-    android_build,
-    r'(com\.android\.tools\.build:gradle:)[^"\']+',
-    r'\g<1>8.1.0',
-)
-regex_replace(
-    android_build,
-    r'(org\.jetbrains\.kotlin:kotlin-gradle-plugin:)[^"\']+',
-    r'\g<1>1.8.22',
-)
-
-wrapper = root / "android" / "gradle" / "wrapper" / "gradle-wrapper.properties"
-regex_replace(
-    wrapper,
-    r'(distributionUrl=.*gradle-)[^\\/]+(-all\.zip)',
-    r'\g<1>8.3\2',
-)
-
-pubspec = root / "pubspec.yaml"
-replace_in(
-    pubspec,
-    [
-        ("name: ultimate_rvc_mobile", "name: reds_ultimate_rvc"),
-        ("Cross-platform RVC voice conversion app", "Red's Ultimate RVC - local Android voice conversion"),
-        ("dev_dependencies:\n", "dependency_overrides:\n  win32: 5.5.5\n\ndev_dependencies:\n"),
-    ],
-)
-
-# R8 fails on Flutter's optional Play Store deferred-component classes when
-# shrinking this standalone APK. Red's Ultimate RVC does not use deferred
-# Play Feature Delivery, so keep release shrinking off for a reliable APK.
-app_gradle = root / "android" / "app" / "build.gradle"
-replace_in(
-    app_gradle,
-    [
-        ("minifyEnabled true", "minifyEnabled false"),
-        ("shrinkResources true", "shrinkResources false"),
-    ],
-)
-
-gradle_props = root / "android" / "gradle.properties"
-replace_in(
-    gradle_props,
-    [("org.gradle.java.home=/usr/lib/jvm/java-17-openjdk-amd64\n", "")],
-)
-
-
-ui = {
-"生成已中止":"Generation stopped","生成完成":"Conversion complete","初始化失败":"Initialization failed","初始化中...":"Initializing...",
-"再按一次退出":"Press back again to exit","确定":"OK","音频推理":"Audio Conversion","实时推理":"Realtime Conversion","变声器模式":"Voice Changer",
-"分贝仪":"dB Meter","音高检测":"Pitch Detection","参数解释":"RVC Controls","mobile.index 转换教程":"Index Converter",
-"音频":"Audio","音色":"Voice Model","生成":"Convert","结果":"Result","未启动":"Ready","需要麦克风权限":"Microphone permission required",
-"实时测量中":"Measuring","测量失败":"Measurement failed","已锁定":"Locked","解除锁定":"Unlock","锁定当前数值":"Lock current value",
-"分贝实时曲线":"Live dB Level","清空曲线":"Clear chart","准备生成":"Ready to convert","处理出错了，请重新生成":"Processing failed. Please try again.",
-"恢复进度中":"Restoring progress","无法继续":"Cannot continue","不做任何操作。":"No action was taken.","生成音频":"Convert Audio",
-"输入音频：":"Input audio: ","音色模型：":"Voice model: ","索引文件：":"Index file: ","未选择":"Not selected","参数":"Parameters",
-"高级参数":"Advanced","恢复默认":"Reset defaults","生成中...":"Converting...","生成用时：":"Conversion time: ","正在中止":"Stopping...",
-"终止生成":"Stop conversion","重新生成":"Convert again","开始生成":"Start conversion","继续未完成":"Resume unfinished job",
-"处理时间取决于音频长度":"Processing time depends on audio length.","为什么要先转换":"Why conversion is required",
-"标准 RVC/FAISS .index 需要先在电脑上转换，转换后再传到手机选择。":"Standard RVC/FAISS .index files must be converted on a computer before using them here.",
-"转换命令":"Conversion command","请选择 .onnx 模型文件":"Please select an .onnx model file.","请选择 mobile.index 文件":"Please select a mobile.index file.",
-"选择模型失败":"Model selection failed","选择索引失败":"Index selection failed","选择音色模型":"Select voice model","已选择音色：":"Selected voice: ",
-"支持：.onnx 模型":"Supported: .onnx models","更换模型":"Change model","选择模型":"Choose model","清除模型":"Clear model",
-"索引文件（可选）":"Index file (optional)","支持：mobile.index 索引":"Supported: mobile.index","更换 mobile.index":"Change mobile.index",
-"选择 mobile.index":"Choose mobile.index","清除索引":"Clear index","继续":"Continue","当前音频：":"Current audio: ",
-"Pitch（音调设置）":"Pitch","音调设置":"Pitch","半音":"semitones","Index Rate（索引强度）":"Index Rate","Index Rate（检索特征占比）":"Index Rate",
-"检索特征占比":"Feature retrieval ratio","索引强度":"Index strength","Formant（性别因子/声线粗细）":"Formant","性别因子/声线粗细":"Voice character",
-"Noise Gate（噪声过滤）":"Noise Gate","噪声过滤":"Noise gate","Sample Rate（采样率）":"Sample Rate","采样率":"Sample rate",
-"降噪优化":"Denoise","音域过滤":"Vocal Range Filter","只影响处理结果，不改原始录音文件":"Affects processing only; original recording is unchanged.",
-"Filter Radius（音高滤波）":"Filter Radius","音高滤波":"Pitch smoothing","RMS Mix（响度混合）":"RMS Mix","响度混合":"Loudness mix",
-"RMS Mix（响度因子）":"RMS Mix","响度因子":"Loudness mix","Protect（辅音保护）":"Protect","辅音保护":"Consonant protection",
-"正在停止实时推理":"Stopping realtime conversion","已停止":"Stopped","请选择 .onnx 音色模型":"Please choose an .onnx voice model.",
-"启动实时推理":"Start realtime conversion","停止实时推理":"Stop realtime conversion","状态：":"Status: ","音频采样率":"Audio sample rate",
-"采样长度":"Chunk length","淡入淡出长度":"Crossfade length","额外推理时长":"Extra inference time","延时缓冲":"Delay buffer","播放延迟":"Playback delay",
-"悬浮控制":"Floating controls","悬浮窗直径":"Overlay size","悬浮窗不透明度":"Overlay opacity","关闭悬浮窗":"Close overlay","打开悬浮窗":"Open overlay",
-"录制模式":"Recording mode","处理声线参数":"Voice settings","选择 .onnx 模型":"Choose .onnx model","更换 .onnx 模型":"Change .onnx model",
-"移除索引":"Remove index","分享失败":"Share failed","已保存":"Saved","保存失败":"Save failed","生成结果":"Conversion result",
-"音频已生成":"Audio converted","播放":"Play","暂停":"Pause","分享":"Share","保存":"Save","选择音频失败":"Audio selection failed",
-"录音失败":"Recording failed","选择音频":"Choose audio","支持：MP3、WAV、M4A、FLAC、OGG":"Supported: MP3, WAV, M4A, FLAC, OGG",
-"更换音频":"Change audio","清除音频":"Clear audio","停止录音":"Stop recording","直接录音":"Record","录音时长：":"Recording time: ",
-"音高检测设置":"Pitch detection settings","基准音高（留空默认 C4）":"Reference pitch (blank = C4)","图表 Y 轴模式":"Chart Y-axis mode",
-"相对半音值":"Relative semitone","频率 Hz":"Frequency Hz","音名（A2/C4）":"Note name (A2/C4)","检测灵敏度":"Detection sensitivity",
-"取消":"Cancel","音高实时曲线":"Live pitch","音名":"Note","相对半音值：":"Relative semitone: ","手机端限制":"Mobile limitations",
-"这个页面仅供演示。":"Realtime conversion page.","手机端实时推理性能和系统音频能力限制很大。":"Realtime conversion depends on device performance and Android audio routing.",
-"当前无法指定输入输出设备。":"Android does not expose selectable input/output devices here.","知道了":"Got it",
-"这是 Ultimate RVC 生成的音频。":"Audio converted with Red's Ultimate RVC.","Ultimate RVC 生成音频":"Red's Ultimate RVC audio","悬浮窗":"Overlay"
-}
-
-for dart in (root / "lib").rglob("*.dart"):
-    s = dart.read_text(encoding="utf-8")
-    for a, b in ui.items():
-        s = s.replace(a, b)
-    def clean(m):
-        q, body = m.group(1), m.group(2)
-        body = re.sub(r"[\u3400-\u9fff]+", "", body).strip()
-        return q + (body or "RVC") + q
-    s = re.sub(r"(['\"])([^'\"\n]*[\u3400-\u9fff][^'\"\n]*)\\1", clean, s)
-    dart.write_text(s, encoding="utf-8")
-
-main = root / "lib" / "main.dart"
-s = main.read_text(encoding="utf-8")
-s = s.replace(
-    "theme: ThemeData(",
-    "theme: ThemeData(\n"
-    "        brightness: Brightness.dark,\n"
-    "        scaffoldBackgroundColor: const Color(0xFF08080C),\n"
-    "        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE00020), brightness: Brightness.dark),\n"
-    "        appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF08080C), foregroundColor: Colors.white, elevation: 0, centerTitle: true),\n"
-    "        cardTheme: CardTheme(color: Color(0xFF121218), surfaceTintColor: Colors.transparent, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(18)), side: BorderSide(color: Color(0xFF282831)))),"
-)
-s = s.replace("title: 'Ultimate RVC Mobile',", "title: \"Red's Ultimate RVC\",")
-main.write_text(s, encoding="utf-8")
-
-
-# Final sanity scrub: the branded build must never ship untranslated CJK text.
-for dart in (root / "lib").rglob("*.dart"):
-    content = dart.read_text(encoding="utf-8")
-    content = re.sub(r"[\u3400-\u9fff]+", "", content)
-    dart.write_text(content, encoding="utf-8")
-
-# FINAL PATCH: authoritative model manager and dashboard wiring
-final_model_picker = r"""import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../services/rvc_bridge.dart';
-
-class ModelPickerScreen extends StatefulWidget {
-  final Function(String) onModelSelected;
-  final VoidCallback? onModelCleared;
-  final Function(String?) onIndexSelected;
-  final VoidCallback onContinue;
-  final String? selectedModelPath;
-  final String? selectedModelDisplayName;
-  final String? selectedIndexPath;
-  final String? selectedIndexDisplayName;
-  final String? selectedSongPath;
-  final String? selectedSongDisplayName;
-  const ModelPickerScreen({super.key, required this.onModelSelected, this.onModelCleared, required this.onIndexSelected, required this.onContinue, this.selectedModelPath, this.selectedModelDisplayName, this.selectedIndexPath, this.selectedIndexDisplayName, this.selectedSongPath, this.selectedSongDisplayName});
-  @override State<ModelPickerScreen> createState() => _ModelPickerScreenState();
-}
-
-class _ModelPickerScreenState extends State<ModelPickerScreen> {
-  final RVCBridge _bridge = RVCBridge();
-  final List<String> _library = [];
-  bool _busy = false;
-  bool _runtime(String p) => p.toLowerCase().endsWith('.onnx');
-
-  @override void initState() { super.initState(); _loadLibrary(); }
-
-  Future<void> _loadLibrary() async {
-    final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getStringList('rvc_model_library') ?? [];
-    if (mounted) setState(() { _library..clear()..addAll(saved); });
-  }
-
-  Future<void> _saveLibrary() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList('rvc_model_library', _library);
-  }
-
-  Future<void> _pickModel() async {
-    if (_busy) return;
-    setState(() => _busy = true);
-    try {
-      final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['onnx','pth','pt','zip'], allowMultiple: false, withData: false);
-      final source = result?.files.single.path;
-      if (source == null) return;
-      final imported = await _bridge.importPickedFile(kind: 'model', sourcePath: source);
-      if (!_library.contains(imported.path)) _library.insert(0, imported.path);
-      await _saveLibrary();
-      if (_runtime(imported.path)) {
-        widget.onModelSelected(imported.path);
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ONNX model imported and ready.')));
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Source model uploaded and saved. Use Train / Model Lab for training or conversion.')));
-      }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Model upload failed: $e')));
-    } finally { if (mounted) setState(() => _busy = false); }
-  }
-
-  Future<void> _pickIndex() async {
-    if (_busy) return;
-    setState(() => _busy = true);
-    try {
-      final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['index','mobile.index'], allowMultiple: false, withData: false);
-      final source = result?.files.single.path;
-      if (source == null) return;
-      final imported = await _bridge.importPickedFile(kind: 'index', sourcePath: source);
-      widget.onIndexSelected(imported.path);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(source.toLowerCase().endsWith('.mobile.index') ? 'mobile.index imported.' : 'Standard .index imported and stored. Convert it before mobile inference.')));
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Index upload failed: $e')));
-    } finally { if (mounted) setState(() => _busy = false); }
-  }
-
-  @override Widget build(BuildContext context) {
-    final selected = widget.selectedModelPath;
-    return Scaffold(
-      appBar: AppBar(title: const Text("RED'S ULTIMATE RVC"), centerTitle: true),
-      body: ListView(padding: const EdgeInsets.fromLTRB(16,12,16,28), children: [
-        Card(child: Padding(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('VOICE MODEL', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
-          const SizedBox(height: 6),
-          Text(selected == null ? 'No inference model selected' : (widget.selectedModelDisplayName ?? selected.split('/').last)),
-          const SizedBox(height: 12),
-          SizedBox(width: double.infinity, height: 52, child: ElevatedButton.icon(onPressed: _busy ? null : _pickModel, icon: const Icon(Icons.upload_file), label: const Text('UPLOAD MODEL'))),
-          const SizedBox(height: 8),
-          const Text('Accepted: .onnx, .pth, .pt, .zip. ONNX is directly runnable on Android; source models are stored for training/conversion.', style: TextStyle(color: Colors.grey)),
-        ]))),
-        const SizedBox(height: 12),
-        Card(child: Padding(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('INDEX', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
-          const SizedBox(height: 6),
-          Text(widget.selectedIndexDisplayName ?? 'Optional .mobile.index / .index'),
-          const SizedBox(height: 10),
-          SizedBox(width: double.infinity, height: 48, child: OutlinedButton.icon(onPressed: _busy ? null : _pickIndex, icon: const Icon(Icons.upload_file), label: const Text('UPLOAD INDEX'))),
-          const SizedBox(height: 6),
-          const Text('mobile.index is directly usable. Standard .index is stored and must be converted before mobile inference.', style: TextStyle(color: Colors.grey)),
-        ]))),
-        const SizedBox(height: 12),
-        Card(child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('MODEL LIBRARY', style: TextStyle(fontWeight: FontWeight.w900)),
-          const SizedBox(height: 8),
-          if (_library.isEmpty) const Text('No uploaded models yet.')
-          else ..._library.map((p) => ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(_runtime(p) ? Icons.check_circle : Icons.inventory_2, color: _runtime(p) ? Colors.redAccent : Colors.grey),
-            title: Text(p.split('/').last, maxLines: 1, overflow: TextOverflow.ellipsis),
-            subtitle: Text(_runtime(p) ? 'READY FOR MOBILE INFERENCE' : 'SOURCE MODEL — TRAIN / CONVERT'),
-            onTap: _runtime(p) ? () => widget.onModelSelected(p) : null,
-          )),
-        ]))),
-        const SizedBox(height: 14),
-        SizedBox(height: 54, child: ElevatedButton.icon(onPressed: selected != null && _runtime(selected) ? widget.onContinue : null, icon: const Icon(Icons.arrow_forward), label: const Text('CONTINUE TO GENERATE'))),
-      ]),
-    );
-  }
-}
-""";
-
-(root / 'lib' / 'screens' / 'model_picker_screen.dart').write_text(final_model_picker, encoding='utf-8')
-
-main = root / 'lib' / 'main.dart'
-text = main.read_text(encoding='utf-8')
-if "import 'screens/red_home_screen.dart';" not in text:
-    text = text.replace("import 'screens/pitch_detection_screen.dart';", "import 'screens/pitch_detection_screen.dart';\nimport 'screens/red_home_screen.dart';\nimport 'screens/training_screen.dart';")
-
-text = text.replace("void _openAudioConversion() {\n    setState(() => _moduleIndex = 0);", "void _openAudioConversion() {\n    setState(() => _moduleIndex = 1);")
-text = text.replace("void _openRealtimeInference() {\n    setState(() => _moduleIndex = 1);", "void _openRealtimeInference() {\n    setState(() => _moduleIndex = 2);")
-text = text.replace("void _openVoiceChanger() {\n    setState(() => _moduleIndex = 2);", "void _openVoiceChanger() {\n    setState(() => _moduleIndex = 3);")
-text = text.replace("void _openIndexConverter() {\n    setState(() => _moduleIndex = 3);", "void _openIndexConverter() {\n    setState(() => _moduleIndex = 4);")
-text = text.replace("void _openParameterGuide() {\n    setState(() => _moduleIndex = 4);", "void _openParameterGuide() {\n    setState(() => _moduleIndex = 5);")
-text = text.replace("void _openDecibelMeter() {\n    setState(() => _moduleIndex = 5);", "void _openDecibelMeter() {\n    setState(() => _moduleIndex = 6);")
-text = text.replace("void _openPitchDetection() {\n    setState(() => _moduleIndex = 6);", "void _openPitchDetection() {\n    setState(() => _moduleIndex = 7);")
-text = text.replace("bottomNavigationBar: _moduleIndex == 0", "bottomNavigationBar: _moduleIndex == 1")
-
-
-# Patch the upstream main screen after all existing branding changes.
-main = root / 'lib' / 'main.dart'
-text = main.read_text(encoding='utf-8')
-if "import 'screens/red_home_screen.dart';" not in text:
-    text = text.replace("import 'screens/pitch_detection_screen.dart';", "import 'screens/pitch_detection_screen.dart';\nimport 'screens/red_home_screen.dart';\nimport 'screens/training_screen.dart';")
-
-text = text.replace("void _openAudioConversion() {\n    setState(() => _moduleIndex = 0);", "void _openAudioConversion() {\n    setState(() => _moduleIndex = 1);")
-text = text.replace("void _openRealtimeInference() {\n    setState(() => _moduleIndex = 1);", "void _openRealtimeInference() {\n    setState(() => _moduleIndex = 2);")
-text = text.replace("void _openVoiceChanger() {\n    setState(() => _moduleIndex = 2);", "void _openVoiceChanger() {\n    setState(() => _moduleIndex = 3);")
-text = text.replace("void _openIndexConverter() {\n    setState(() => _moduleIndex = 3);", "void _openIndexConverter() {\n    setState(() => _moduleIndex = 4);")
-text = text.replace("void _openParameterGuide() {\n    setState(() => _moduleIndex = 4);", "void _openParameterGuide() {\n    setState(() => _moduleIndex = 5);")
-text = text.replace("void _openDecibelMeter() {\n    setState(() => _moduleIndex = 5);", "void _openDecibelMeter() {\n    setState(() => _moduleIndex = 6);")
-text = text.replace("void _openPitchDetection() {\n    setState(() => _moduleIndex = 6);", "void _openPitchDetection() {\n    setState(() => _moduleIndex = 7);")
-text = text.replace("bottomNavigationBar: _moduleIndex == 0", "bottomNavigationBar: _moduleIndex == 1")
-
-marker = "    final moduleScreens = ["
-pos = text.find(marker)
-end_marker = "    ];\n\n    return PopScope("
-end = text.find(end_marker, pos)
-if pos >= 0 and end > pos:
-    block = text[pos:end + 7]
-    first = block.find("      GestureDetector(")
-    audio = block[first:]
-    shifted = audio.replace("_moduleIndex == 5", "_moduleIndex == 6").replace("_moduleIndex == 6", "_moduleIndex == 7")
-    dashboard = """    final moduleScreens = [
+dashboard = '''    final moduleScreens = [
       RedHomeScreen(
         onGenerate: _openAudioConversion,
         onSongCovers: _openAudioConversion,
-        onSpeech: _openVoiceChanger,
-        onModels: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(onModelSelected: _onModelSelected, onModelCleared: _onModelCleared, onIndexSelected: _onIndexSelected, onContinue: _continueToGenerate, selectedModelPath: _selectedModelPath, selectedModelDisplayName: _selectedModelDisplayName, selectedIndexPath: _selectedIndexPath, selectedIndexDisplayName: _selectedIndexDisplayName, selectedSongPath: _selectedSongPath, selectedSongDisplayName: _selectedSongDisplayName))),
-        onUploadDownload: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(onModelSelected: _onModelSelected, onModelCleared: _onModelCleared, onIndexSelected: _onIndexSelected, onContinue: _continueToGenerate, selectedModelPath: _selectedModelPath, selectedModelDisplayName: _selectedModelDisplayName, selectedIndexPath: _selectedIndexPath, selectedIndexDisplayName: _selectedIndexDisplayName, selectedSongPath: _selectedSongPath, selectedSongDisplayName: _selectedSongDisplayName))),
+        onRealtime: _openRealtimeInference,
+        onVoiceChanger: _openVoiceChanger,
+        onModels: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(
+          onModelSelected: _onModelSelected,
+          onModelCleared: _onModelCleared,
+          onIndexSelected: _onIndexSelected,
+          onContinue: _continueToGenerate,
+          selectedModelPath: _selectedModelPath,
+          selectedModelDisplayName: _selectedModelDisplayName,
+          selectedIndexPath: _selectedIndexPath,
+          selectedIndexDisplayName: _selectedIndexDisplayName,
+          selectedSongPath: _selectedSongPath,
+          selectedSongDisplayName: _selectedSongDisplayName,
+        ))),
         onTrain: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrainingScreen())),
-        onAudio: _openAudioConversion, onSettings: _openParameterGuide,
+        onAudioTools: _openIndexConverter,
+        onSettings: _openParameterGuide,
       ),
-""" + shifted
-    text = text[:pos] + dashboard + text[end + 7:]
+      GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onHorizontalDragUpdate: _handleAudioHorizontalDragUpdate,
+        onHorizontalDragEnd: _handleAudioHorizontalDragEnd,
+        child: PageView(
+          controller: _audioPageController,
+          physics: const NeverScrollableScrollPhysics(),
+          onPageChanged: _onAudioPageChanged,
+          children: audioScreens,
+        ),
+      ),
+      RealtimeInferenceScreen(
+        otherModeRunning: _generationState.isGenerating,
+        onRunningChanged: _onRealtimeInferenceRunningChanged,
+      ),
+      VoiceChangerScreen(
+        otherModeRunning: _generationState.isGenerating || (_inferenceProcessRunning && !_voiceChangerProcessing),
+        onProcessingChanged: _onVoiceChangerProcessingChanged,
+      ),
+      IndexConverterScreen(),
+      ParameterGuideScreen(),
+      DecibelMeterScreen(isActive: _moduleIndex == 6),
+      PitchDetectionScreen(isActive: _moduleIndex == 7),
+    ];
 
-main.write_text(text, encoding='utf-8')
+'''
+mt = mt[:start] + dashboard + mt[end:]
 
-pub = root / 'pubspec.yaml'
-pub_text = pub.read_text(encoding='utf-8')
-if 'url_launcher:' not in pub_text:
-    pub_text = pub_text.replace('dependencies:\n', 'dependencies:\n  url_launcher: 6.2.6\n')
-pub.write_text(pub_text, encoding='utf-8')
+# Bottom navigation belongs only to the audio workflow (module 1).
+mt = mt.replace("bottomNavigationBar: _moduleIndex == 0", "bottomNavigationBar: _moduleIndex == 1")
 
-
-# ==================== FINAL RED'S ULTIMATE RVC FINALIZER ====================
-# Keep the custom Red dashboard. Do not normalize back to the upstream-looking UI.
-# Samsung's Android document picker is deliberately unfiltered so RVC model files
-# are not greyed out; the app validates the extension after selection.
-model_picker = root / "lib" / "screens" / "model_picker_screen.dart"
-mp = model_picker.read_text(encoding="utf-8")
-mp = re.sub(
-    r"type: FileType\.custom,\s*allowedExtensions: \['onnx','pth','pt','zip'\],",
-    "type: FileType.any,",
-    mp,
-    count=1,
-)
-mp = re.sub(
-    r"type: FileType\.custom,\s*allowedExtensions: \['index','mobile\.index'\],",
-    "type: FileType.any,",
-    mp,
-    count=1,
-)
-model_picker.write_text(mp, encoding="utf-8")
-
-# FINAL AUTHORITATIVE FIXES:
-# 1) Always land on Red's dashboard. Never restore the old upstream module page.
-# 2) Samsung's picker must be unrestricted so .pth/.index files are not greyed out.
-# 3) Validate extensions after selection and store the selected file inside app storage.
-# 4) Never present a source .pth as an inference-ready model.
-main = root / "lib" / "main.dart"
-mt = main.read_text(encoding="utf-8")
-if "RedHomeScreen(" not in mt:
-    raise RuntimeError("Red dashboard was not wired into main.dart")
-if "training_screen.dart" not in mt:
-    raise RuntimeError("Training workspace was not wired into main.dart")
-
-# Force a clean, deterministic landing page on every launch. Old builds stored
-# moduleIndex=1/2/etc.; restoring that state is exactly what made the app open
-# looking like the upstream app instead of the intended Red dashboard.
-mt = re.sub(
-    r"_moduleIndex\s*=\s*prefs\.getInt\('moduleIndex'\)\s*\?\?\s*0\s*;",
-    "_moduleIndex = 0;",
-    mt,
-)
-# Also remove any previously persisted module page so an upgrade cannot bring
-# the old navigation state back.
-mt = mt.replace(
-    "final prefs = await SharedPreferences.getInstance();\n    if (!mounted) return;",
-    "final prefs = await SharedPreferences.getInstance();\n    await prefs.remove('moduleIndex');\n    if (!mounted) return;",
-    1,
-)
-main.write_text(mt, encoding="utf-8")
-
-model_picker = root / "lib" / "screens" / "model_picker_screen.dart"
-mp = model_picker.read_text(encoding="utf-8")
-
-# Samsung Galaxy A12 / Android 12: do not use a restrictive MIME/extension
-# filter. Samsung can grey out legitimate RVC files before Flutter sees them.
-mp = re.sub(
-    r"type: FileType\.custom,\s*allowedExtensions: \['onnx','pth','pt','zip'\],",
-    "type: FileType.any,",
-    mp,
-    count=1,
-)
-mp = re.sub(
-    r"type: FileType\.custom,\s*allowedExtensions: \['index','mobile\.index'\],",
-    "type: FileType.any,",
-    mp,
-    count=1,
-)
-
-# Replace the model picker implementation with a deterministic post-selection
-# validator. This fixes both Samsung greyed-out files and misleading success.
-start = mp.find("  Future<void> _pickModel() async {")
-end = mp.find("  Future<void> _pickIndex() async {", start)
-if start < 0 or end < 0:
-    raise RuntimeError("Could not locate authoritative model picker methods")
-model_method = r'''  Future<void> _pickModel() async {
-    if (_busy) return;
-    setState(() => _busy = true);
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.any,
-        allowMultiple: false,
-        withData: false,
-      );
-      final source = result?.files.single.path;
-      if (source == null || source.isEmpty) return;
-
-      final lower = source.toLowerCase();
-      final supported = lower.endsWith('.onnx') ||
-          lower.endsWith('.pth') ||
-          lower.endsWith('.pt') ||
-          lower.endsWith('.zip');
-      if (!supported) {
-        throw Exception('Choose an RVC model file: .onnx, .pth, .pt or .zip');
-      }
-
-      final imported = await _bridge.importPickedFile(
-        kind: 'model',
-        sourcePath: source,
-      );
-      if (!_library.contains(imported.path)) {
-        _library.insert(0, imported.path);
-      }
-      await _saveLibrary();
-
-      if (!mounted) return;
-      if (_runtime(imported.path)) {
-        widget.onModelSelected(imported.path);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('ONNX model uploaded and ready for Android inference.')),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Model uploaded and saved. PTH/PT/ZIP must be trained or converted to ONNX before Android inference.'),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('MODEL UPLOAD FAILED: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-''';
-mp = mp[:start] + model_method + mp[end:]
-
-start = mp.find("  Future<void> _pickIndex() async {");
-end = mp.find("  @override Widget build", start);
-if start < 0 or end < 0:
-    raise RuntimeError("Could not locate authoritative index picker method")
-index_method = r'''  Future<void> _pickIndex() async {
-    if (_busy) return;
-    setState(() => _busy = true);
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.any,
-        allowMultiple: false,
-        withData: false,
-      );
-      final source = result?.files.single.path;
-      if (source == null || source.isEmpty) return;
-
-      final lower = source.toLowerCase();
-      if (!lower.endsWith('.index') && !lower.endsWith('.mobile.index')) {
-        throw Exception('Choose an RVC index file: .index or .mobile.index');
-      }
-
-      final imported = await _bridge.importPickedFile(
-        kind: 'index',
-        sourcePath: source,
-      );
-      widget.onIndexSelected(imported.path);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              lower.endsWith('.mobile.index')
-                  ? 'mobile.index uploaded and ready.'
-                  : 'Standard .index uploaded and saved. Convert it before mobile inference.',
+# Replace drawer completely.
+dstart = mt.find("  Drawer _buildDrawer()")
+dend = mt.find("  @override\n  Widget build", dstart)
+if dstart < 0 or dend < 0:
+    raise RuntimeError("Drawer block not found")
+drawer = r'''  Drawer _buildDrawer() {
+    return Drawer(
+      backgroundColor: const Color(0xFF0B0B10),
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          DrawerHeader(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(colors: [Color(0xFF270008), Color(0xFF0B0B10)], begin: Alignment.topLeft, end: Alignment.bottomRight),
             ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.end, children: [
+              SizedBox(height: 68, child: SvgPicture.asset('assets/images/reds-ultimate-rvc-logo.svg', fit: BoxFit.contain, alignment: Alignment.centerLeft)),
+              const SizedBox(height: 7),
+              const Text("RED'S ULTIMATE RVC", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17)),
+            ]),
           ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('INDEX UPLOAD FAILED: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
+          ListTile(leading: const Icon(Icons.home), title: const Text('Home'), selected: _moduleIndex == 0, onTap: () { setState(() => _moduleIndex = 0); _saveState(); Navigator.pop(context); }),
+          ListTile(leading: const Icon(Icons.graphic_eq), title: const Text('Audio Conversion'), selected: _moduleIndex == 1, onTap: _openAudioConversion),
+          ListTile(leading: const Icon(Icons.settings_voice), title: const Text('Realtime RVC'), selected: _moduleIndex == 2, onTap: _openRealtimeInference),
+          ListTile(leading: const Icon(Icons.record_voice_over), title: const Text('Voice Changer'), selected: _moduleIndex == 3, onTap: _openVoiceChanger),
+          ListTile(leading: const Icon(Icons.sync_alt), title: const Text('Index Tools'), selected: _moduleIndex == 4, onTap: _openIndexConverter),
+          ListTile(leading: const Icon(Icons.tune), title: const Text('RVC Controls'), selected: _moduleIndex == 5, onTap: _openParameterGuide),
+          ListTile(leading: const Icon(Icons.speed), title: const Text('dB Meter'), selected: _moduleIndex == 6, onTap: _openDecibelMeter),
+          ListTile(leading: const Icon(Icons.multitrack_audio), title: const Text('Pitch Detection'), selected: _moduleIndex == 7, onTap: _openPitchDetection),
+          const Divider(color: Color(0xFF282832)),
+          ListTile(leading: const Icon(Icons.library_music), title: const Text('Model Library'), onTap: () {
+            Navigator.pop(context);
+            Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(
+              onModelSelected: _onModelSelected,
+              onModelCleared: _onModelCleared,
+              onIndexSelected: _onIndexSelected,
+              onContinue: _continueToGenerate,
+              selectedModelPath: _selectedModelPath,
+              selectedModelDisplayName: _selectedModelDisplayName,
+              selectedIndexPath: _selectedIndexPath,
+              selectedIndexDisplayName: _selectedIndexDisplayName,
+              selectedSongPath: _selectedSongPath,
+              selectedSongDisplayName: _selectedSongDisplayName,
+            )));
+          }),
+          ListTile(leading: const Icon(Icons.model_training), title: const Text('Train / Create Voice'), onTap: () {
+            Navigator.pop(context);
+            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrainingScreen()));
+          }),
+        ],
+      ),
+    );
   }
 
-''';
-mp = mp[:start] + index_method + mp[end:]
-model_picker.write_text(mp, encoding="utf-8")
+'''
+mt = mt[:dstart] + drawer + mt[dend:]
 
-# Persist imported voice models and indexes in app-internal files storage, not
-# Android cache. Cache is allowed to be cleared by the OS, which would make a
-# previously uploaded model disappear after a cleanup/restart.
-workspace = root / "android" / "app" / "src" / "main" / "kotlin" / "com" / "ultimatervc" / "mobile" / "TempWorkspaceManager.kt"
+# Fix old package imports in tests.
+testdir = root / "test"
+if testdir.exists():
+    for dart in testdir.rglob("*.dart"):
+        write(dart, dart.read_text(encoding="utf-8").replace("package:ultimate_rvc_mobile/", "package:reds_ultimate_rvc/"))
+
+# Ensure all source strings are English enough for the user-facing screens.
+for dart in (root / "lib").rglob("*.dart"):
+    t = dart.read_text(encoding="utf-8")
+    replacements = {
+        "选择模型":"Select model", "更换模型":"Change model", "清除模型":"Clear model",
+        "未选择":"Not selected", "选择音色":"Select voice", "选择索引":"Select index",
+        "音频推理":"Audio Conversion", "实时推理":"Realtime RVC", "变声器模式":"Voice Changer",
+        "分贝仪":"dB Meter", "音高检测":"Pitch Detection", "参数解释":"RVC Controls",
+        "选择歌曲":"Select audio", "生成":"Generate", "结果":"Result",
+    }
+    for a,b in replacements.items():
+        t = t.replace(a,b)
+    write(dart,t)
+
+# ---------------------------------------------------------------------------
+# Persistent storage for imported models/indexes.
+# ---------------------------------------------------------------------------
+workspace = root / "android/app/src/main/kotlin/com/ultimatervc/mobile/TempWorkspaceManager.kt"
 if workspace.exists():
     wt = workspace.read_text(encoding="utf-8")
     old = """    fun resolveImportRoot(kind: ImportedFileKind): File {
@@ -926,120 +699,48 @@ if workspace.exists():
         }
         return File(File(baseDir, IMPORTS_DIRECTORY_NAME), kind.directoryName).also { it.mkdirs() }
     }"""
-    if old not in wt:
-        raise RuntimeError("Persistent model storage patch did not match TempWorkspaceManager.kt")
-    wt = wt.replace(old, new)
-    workspace.write_text(wt, encoding="utf-8")
+    if old in wt:
+        wt = wt.replace(old,new)
+        write(workspace,wt)
 
-# The final build must prove these exact behaviors exist in generated source.
-main_text = main.read_text(encoding="utf-8")
-picker_text = model_picker.read_text(encoding="utf-8")
-assert "RedHomeScreen(" in main_text
-assert "_moduleIndex = 0;" in main_text
-assert "type: FileType.any" in picker_text
-assert ".pth" in picker_text
-assert ".mobile.index" in picker_text
+# ---------------------------------------------------------------------------
+# Android branding / app icon.
+# ---------------------------------------------------------------------------
+manifest = root / "android/app/src/main/AndroidManifest.xml"
+if manifest.exists():
+    m = manifest.read_text(encoding="utf-8")
+    m = re.sub(r'android:label="[^"]+"', 'android:label="Red\'s Ultimate RVC"', m, count=1)
+    if 'android:icon="@drawable/reds_ultimate_rvc_logo"' not in m:
+        m = m.replace('<application', '<application android:icon="@drawable/reds_ultimate_rvc_logo"', 1)
+    write(manifest,m)
 
+# Render SVG icon into a drawable for Android.
+try:
+    import cairosvg
+    out = root / "android/app/src/main/res/drawable/reds_ultimate_rvc_logo.png"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    cairosvg.svg2png(url=str(logo), write_to=str(out), output_width=512, output_height=512)
+except Exception as exc:
+    raise RuntimeError(f"Could not render approved logo: {exc}")
 
-# FINAL OVERRIDE v72
-# Keep the Red dashboard authoritative and make Samsung model import unrestricted.
-main = root / "lib" / "main.dart"
-picker = root / "lib" / "screens" / "model_picker_screen.dart"
+# ---------------------------------------------------------------------------
+# Final static sanity checks. Fail the build before producing an APK if the
+# custom UI/navigation layer was not actually installed.
+# ---------------------------------------------------------------------------
+final_main = main.read_text(encoding="utf-8")
+final_picker = picker.read_text(encoding="utf-8")
+checks = {
+    "Red dashboard": "RedHomeScreen(" in final_main,
+    "Training screen": "TrainingScreen()" in final_main,
+    "Dashboard first": "final moduleScreens = [" in final_main and "RedHomeScreen(" in final_main.split("final moduleScreens = [",1)[1].split("GestureDetector(",1)[0],
+    "Samsung-safe model picker": "type: FileType.any" in final_picker,
+    "PTH support": ".pth" in final_picker,
+    "Mobile index support": ".mobile.index" in final_picker,
+    "Persistent model storage": workspace.exists() and "MODEL, ImportedFileKind.INDEX" in workspace.read_text(encoding="utf-8") if workspace.exists() else False,
+}
+failed = [name for name, ok in checks.items() if not ok]
+if failed:
+    raise RuntimeError("Finalizer sanity checks failed: " + ", ".join(failed))
 
-p = picker.read_text(encoding="utf-8")
-p = re.sub(r"type:\s*FileType\.custom,\s*allowedExtensions:\s*\[[^\]]+\],", "type: FileType.any,", p)
-# Source RVC models are uploadable and retained; only ONNX is runtime-ready.
-p = p.replace("if (_runtime(imported.path)) {\n        widget.onModelSelected(imported.path);", "widget.onModelSelected(imported.path);\n      if (_runtime(imported.path)) {", 1)
-picker.write_text(p, encoding="utf-8")
-
-m = main.read_text(encoding="utf-8")
-if "import 'screens/red_home_screen.dart';" not in m:
-    m = m.replace("import 'screens/pitch_detection_screen.dart';", "import 'screens/pitch_detection_screen.dart';\nimport 'screens/red_home_screen.dart';\nimport 'screens/training_screen.dart';")
-m = re.sub(r"_moduleIndex\s*=\s*prefs\.getInt\('moduleIndex'\)\s*\?\?\s*0;", "_moduleIndex = 0;", m)
-
-for name, idx in {
-    "_openAudioConversion":1, "_openRealtimeInference":2, "_openVoiceChanger":3,
-    "_openIndexConverter":4, "_openParameterGuide":5, "_openDecibelMeter":6,
-    "_openPitchDetection":7,
-}.items():
-    m = re.sub(r"(void " + re.escape(name) + r"\(\) \{\s*setState\(\(\) => _moduleIndex = )\d+;", r"\g<1>" + str(idx) + ";", m, count=1)
-
-start = m.find("    final moduleScreens = [")
-end = m.find("    return PopScope(", start)
-if start < 0 or end < 0:
-    raise RuntimeError("moduleScreens not found")
-
-dashboard = """    final moduleScreens = [
-      RedHomeScreen(
-        onGenerate: _openAudioConversion,
-        onSongCovers: _openAudioConversion,
-        onSpeech: _openVoiceChanger,
-        onModels: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(
-          onModelSelected: _onModelSelected, onModelCleared: _onModelCleared,
-          onIndexSelected: _onIndexSelected, onContinue: _continueToGenerate,
-          selectedModelPath: _selectedModelPath, selectedModelDisplayName: _selectedModelDisplayName,
-          selectedIndexPath: _selectedIndexPath, selectedIndexDisplayName: _selectedIndexDisplayName,
-          selectedSongPath: _selectedSongPath, selectedSongDisplayName: _selectedSongDisplayName,
-        ))),
-        onUploadDownload: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(
-          onModelSelected: _onModelSelected, onModelCleared: _onModelCleared,
-          onIndexSelected: _onIndexSelected, onContinue: _continueToGenerate,
-          selectedModelPath: _selectedModelPath, selectedModelDisplayName: _selectedModelDisplayName,
-          selectedIndexPath: _selectedIndexPath, selectedIndexDisplayName: _selectedIndexDisplayName,
-          selectedSongPath: _selectedSongPath, selectedSongDisplayName: _selectedSongDisplayName,
-        ))),
-        onTrain: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrainingScreen())),
-        onAudio: _openAudioConversion, onSettings: _openParameterGuide,
-      ),
-      GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onHorizontalDragUpdate: _handleAudioHorizontalDragUpdate,
-        onHorizontalDragEnd: _handleAudioHorizontalDragEnd,
-        child: PageView(
-          controller: _audioPageController, physics: const NeverScrollableScrollPhysics(),
-          onPageChanged: _onAudioPageChanged, children: audioScreens,
-        ),
-      ),
-      RealtimeInferenceScreen(otherModeRunning: _generationState.isGenerating, onRunningChanged: _onRealtimeInferenceRunningChanged),
-      VoiceChangerScreen(otherModeRunning: _generationState.isGenerating || (_inferenceProcessRunning && !_voiceChangerProcessing), onProcessingChanged: _onVoiceChangerProcessingChanged),
-      IndexConverterScreen(),
-      ParameterGuideScreen(),
-      DecibelMeterScreen(isActive: _moduleIndex == 6),
-      PitchDetectionScreen(isActive: _moduleIndex == 7),
-    ];
-
-"""
-m = m[:start] + dashboard + m[end:]
-
-# Existing drawer labels are tied to the old indexes; replace exact comparisons.
-for a, b in [
-    ("selected: _moduleIndex == 0", "selected: _moduleIndex == 1"),
-    ("selected: _moduleIndex == 1", "selected: _moduleIndex == 2"),
-    ("selected: _moduleIndex == 2", "selected: _moduleIndex == 3"),
-    ("selected: _moduleIndex == 3", "selected: _moduleIndex == 4"),
-    ("selected: _moduleIndex == 4", "selected: _moduleIndex == 5"),
-    ("selected: _moduleIndex == 5", "selected: _moduleIndex == 6"),
-    ("selected: _moduleIndex == 6", "selected: _moduleIndex == 7"),
-]:
-    m = m.replace(a, b)
-m = m.replace("bottomNavigationBar: _moduleIndex == 0", "bottomNavigationBar: _moduleIndex == 1");
-main.write_text(m, encoding="utf-8")
-
-workspace = root / "android" / "app" / "src" / "main" / "kotlin" / "com" / "ultimatervc" / "mobile" / "TempWorkspaceManager.kt"
-if workspace.exists():
-    w = workspace.read_text(encoding="utf-8")
-    w = w.replace("""    fun resolveImportRoot(kind: ImportedFileKind): File {
-        return File(File(appCacheDir, IMPORTS_DIRECTORY_NAME), kind.directoryName).also { it.mkdirs() }
-    }""", """    fun resolveImportRoot(kind: ImportedFileKind): File {
-        val baseDir = when (kind) {
-            ImportedFileKind.MODEL, ImportedFileKind.INDEX -> appFilesDir
-            ImportedFileKind.AUDIO -> appCacheDir
-        }
-        return File(File(baseDir, IMPORTS_DIRECTORY_NAME), kind.directoryName).also { it.mkdirs() }
-    }""")
-    workspace.write_text(w, encoding="utf-8")
-
-assert "RedHomeScreen(" in m
-assert "TrainingScreen()" in m
-assert "type: FileType.any" in p
-assert ".pth" in p
+# Keep main.dart in the expected package after the upstream checkout.
+write(main, final_main)
