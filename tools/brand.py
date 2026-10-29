@@ -262,8 +262,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
     setState(() => _busy = true);
     try {
       final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['onnx', 'pth', 'pt', 'zip'],
+        type: FileType.any,
         allowMultiple: false,
         withData: false,
       );
@@ -292,8 +291,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
     setState(() => _busy = true);
     try {
       final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['index', 'mobile.index'],
+        type: FileType.any,
         allowMultiple: false,
         withData: false,
       );
@@ -380,7 +378,7 @@ main = root / "lib" / "main.dart"
 m = main.read_text(encoding="utf-8")
 if "screens/red_home_screen.dart" not in m:
     m = m.replace("import 'screens/pitch_detection_screen.dart';", "import 'screens/pitch_detection_screen.dart';\nimport 'screens/red_home_screen.dart';\nimport 'screens/training_screen.dart';")
-m = m.replace("int _moduleIndex = 0;", "int _moduleIndex = 7;", 1)
+m = m.replace("int _moduleIndex = 0;", "int _moduleIndex = 0;", 1)
 home_block = '''      RedHomeScreen(
         onGenerate: () { setState(() { _moduleIndex = 0; _audioStepIndex = 0; }); _saveState(); },
         onSongCovers: _openAudioConversion,
