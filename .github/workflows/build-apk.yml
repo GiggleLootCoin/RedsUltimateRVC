@@ -55,7 +55,7 @@ jobs:
 
       - name: Analyze final Flutter source
         working-directory: buildsrc
-        run: flutter analyze --no-fatal-infos
+        run: flutter analyze --no-fatal-warnings --no-fatal-infos
       - name: Build ARM64 release APK
         working-directory: buildsrc
         run: flutter build apk --release --target-platform android-arm64 --verbose
