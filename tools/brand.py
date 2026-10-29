@@ -52,8 +52,9 @@ def regex_once(path, pattern, replacement):
 pubspec = root / "pubspec.yaml"
 pt = pubspec.read_text(encoding="utf-8")
 pt = pt.replace("name: ultimate_rvc_mobile", "name: reds_ultimate_rvc")
-if "  url_launcher:" not in pt:
-    pt = pt.replace("dependencies:\n", "dependencies:\n  url_launcher: 6.2.6\n", 1)
+pt = pt.replace("  url_launcher: 6.2.6\n", "")
+if "dependency_overrides:" not in pt:
+    pt += "\ndependency_overrides:\n  win32: 5.5.5\n"
 write(pubspec, pt)
 
 # ---------------------------------------------------------------------------
