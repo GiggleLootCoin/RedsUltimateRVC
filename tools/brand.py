@@ -709,6 +709,13 @@ if workspace.exists():
         wt = wt.replace(old,new)
         write(workspace,wt)
 
+# Remove upstream's machine-specific Java home. GitHub Actions supplies a valid JDK 17.
+gradle_props = root / "android/gradle.properties"
+if gradle_props.exists():
+    gp = gradle_props.read_text(encoding="utf-8")
+    gp = re.sub(r"^org\\.gradle\\.java\\.home=.*\\n?", "", gp, flags=re.M)
+    write(gradle_props, gp)
+
 # ---------------------------------------------------------------------------
 # Android branding / app icon.
 # ---------------------------------------------------------------------------
