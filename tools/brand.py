@@ -504,7 +504,7 @@ mt = main.read_text(encoding="utf-8")
 # Add custom imports.
 if "import 'screens/red_home_screen.dart';" not in mt:
     mt = mt.replace("import 'screens/pitch_detection_screen.dart';",
-                    "import 'screens/pitch_detection_screen.dart';\nimport 'screens/red_home_screen.dart';\nimport 'screens/training_screen.dart';")
+                    "import 'screens/pitch_detection_screen.dart';\nimport 'screens/red_home_screen.dart';\nimport 'screens/training_screen.dart';\nimport 'screens/full_rvc_screen.dart';")
 
 # Theme/branding text.
 mt = mt.replace("Ultimate RVC Mobile", "Reds Ultimate RVC")
