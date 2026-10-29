@@ -125,7 +125,7 @@ class RedHomeScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  const Text('RED'S ULTIMATE RVC', style: TextStyle(fontSize: 25, fontWeight: FontWeight.w900)),
+                  const Text("RED'S ULTIMATE RVC", style: TextStyle(fontSize: 25, fontWeight: FontWeight.w900)),
                   const SizedBox(height: 6),
                   Text(
                     'Your complete local voice studio for Android.',
