@@ -376,28 +376,7 @@ if "screens/red_home_screen.dart" not in m:
     )
 m = m.replace("int _moduleIndex = 0;", "int _moduleIndex = 7;", 1)
 
-home_block = """    final homeScreen = RedHomeScreen(
-      onGenerate: () { setState(() { _moduleIndex = 0; _audioStepIndex = 0; }); _saveState(); },
-      onSongCovers: _openAudioConversion,
-      onSpeech: _openVoiceChanger,
-      onModels: () { setState(() { _moduleIndex = 0; _audioStepIndex = 1; }); _saveState(); },
-      onUploadDownload: () {
-        Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(
-          onModelSelected: _onModelSelected, onModelCleared: _onModelCleared,
-          onIndexSelected: _onIndexSelected, onContinue: _continueToGenerate,
-          selectedModelPath: _selectedModelPath, selectedModelDisplayName: _selectedModelDisplayName,
-          selectedIndexPath: _selectedIndexPath, selectedIndexDisplayName: _selectedIndexDisplayName,
-          selectedSongPath: _selectedSongPath, selectedSongDisplayName: _selectedSongDisplayName,
-        )));
-      },
-      onTrain: () { Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrainingScreen())); },
-      onAudio: _openAudioConversion,
-      onSettings: _openParameterGuide,
-    );
-    final moduleScreens = [
-"""
-m = m.replace("    final moduleScreens = [", home_block, 1)
-main.write_text(m, encoding="utf-8")
+
 
 # Add a visible model capability explanation so a .pth file is not presented
 # as if it were already inference-ready.
