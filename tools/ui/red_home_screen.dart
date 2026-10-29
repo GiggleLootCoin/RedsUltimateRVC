@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class RedHomeScreen extends StatelessWidget {
-  final VoidCallback onGenerate, onSongCovers, onRealtime, onVoiceChanger, onModels, onTrain, onAudioTools, onSettings, onFullRvc;
-  const RedHomeScreen({super.key, required this.onGenerate, required this.onSongCovers, required this.onRealtime, required this.onVoiceChanger, required this.onModels, required this.onTrain, required this.onAudioTools, required this.onSettings, required this.onFullRvc});
+  final VoidCallback onGenerate, onSongCovers, onRealtime, onVoiceChanger, onModels, onTrain, onAudioTools, onSettings, onFullRvc, onYouTube;
+  const RedHomeScreen({super.key, required this.onGenerate, required this.onSongCovers, required this.onRealtime, required this.onVoiceChanger, required this.onModels, required this.onTrain, required this.onAudioTools, required this.onSettings, required this.onFullRvc, required this.onYouTube});
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +47,8 @@ class RedHomeScreen extends StatelessWidget {
                 const Text('Full RVC mode is available inside the app for source RVC models and the complete conversion workflow.', style: TextStyle(color: Color(0xFF9F9FAA), fontSize: 11.5, height: 1.3)),
                 const SizedBox(height: 11),
                 SizedBox(width: double.infinity, child: ElevatedButton.icon(onPressed: onFullRvc, icon: const Icon(Icons.open_in_new, size: 18), label: const Text('OPEN FULL RVC ENGINE'))),
+                const SizedBox(height: 8),
+                SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: onYouTube, icon: const Icon(Icons.play_circle_fill, size: 18), label: const Text('▶️ Click This Link To See What You Think... 👇😁✨️'))),
               ]),
             ),
             const SizedBox(height: 18),
