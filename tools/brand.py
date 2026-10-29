@@ -506,6 +506,10 @@ if "import 'screens/red_home_screen.dart';" not in mt:
     mt = mt.replace("import 'screens/pitch_detection_screen.dart';",
                     "import 'screens/pitch_detection_screen.dart';\nimport 'screens/red_home_screen.dart';\nimport 'screens/training_screen.dart';\nimport 'screens/full_rvc_screen.dart';")
 
+# The model picker already copies selected files into the app-owned library. Do not import the same path a second time.
+mt = mt.replace("final importedPath = await _importPickedFile(kind: 'model', sourcePath: path);", "final importedPath = File(path).absolute.path;")
+mt = mt.replace("final importedPath = path == null ? null : await _importPickedFile(kind: 'index', sourcePath: path);", "final importedPath = path == null ? null : File(path).absolute.path;")
+
 # Theme/branding text.
 mt = mt.replace("Ultimate RVC Mobile", "Reds Ultimate RVC")
 mt = mt.replace("primarySwatch: Colors.blue,", "primarySwatch: Colors.red,")
