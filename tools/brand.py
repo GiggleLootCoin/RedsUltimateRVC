@@ -587,6 +587,7 @@ dashboard = '''    final moduleScreens = [
         onAudioTools: _openIndexConverter,
         onSettings: _openParameterGuide,
         onFullRvc: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FullRvcScreen())),
+        onYouTube: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FullRvcScreen(url: 'https://youtube.com/@little-red-big-smile?si=U1pBT09zB91GBrW3', title: 'LittleRedBigSmile ❤️ — YouTube'))),
       ),
       GestureDetector(
         behavior: HitTestBehavior.translucent,
