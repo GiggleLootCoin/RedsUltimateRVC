@@ -17,7 +17,7 @@ logo = root / "assets" / "images" / "reds-ultimate-rvc-logo.svg"
 logo.parent.mkdir(parents=True, exist_ok=True)
 urllib.request.urlretrieve(logo_url, logo)
 
-for name in ("red_home_screen.dart", "training_screen.dart"):
+for name in ("red_home_screen.dart", "training_screen.dart", "full_rvc_screen.dart"):
     src = repo_root / "tools" / "ui" / name
     dst = root / "lib" / "screens" / name
     dst.parent.mkdir(parents=True, exist_ok=True)
@@ -53,6 +53,8 @@ pubspec = root / "pubspec.yaml"
 pt = pubspec.read_text(encoding="utf-8")
 pt = pt.replace("name: ultimate_rvc_mobile", "name: reds_ultimate_rvc")
 pt = pt.replace("  url_launcher: 6.2.6\n", "")
+if "webview_flutter:" not in pt:
+    pt = pt.replace("  flutter_svg: ^2.0.10+1\n", "  flutter_svg: ^2.0.10+1\n  webview_flutter: ^4.10.0\n")
 if "dependency_overrides:" not in pt:
     pt += "\ndependency_overrides:\n  win32: 5.5.5\n"
 write(pubspec, pt)
@@ -424,7 +426,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 7),
-              Text(ready ? 'READY — ONNX model can be used for conversion.' : 'Choose an ONNX model for conversion. Source RVC models can also be stored below.', style: const TextStyle(color: Color(0xFFAAAA B5))),
+              Text(ready ? 'READY — ONNX model can be used for conversion.' : 'Choose an ONNX model for conversion. Source RVC models can also be stored below.', style: const TextStyle(color: Color(0xFFAAAAB5))),
               const SizedBox(height: 13),
               Row(children: [
                 Expanded(child: ElevatedButton.icon(onPressed: _busy ? null : _pickModel, icon: const Icon(Icons.upload_file), label: const Text('IMPORT MODEL'))),
@@ -580,6 +582,7 @@ dashboard = '''    final moduleScreens = [
         onTrain: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrainingScreen())),
         onAudioTools: _openIndexConverter,
         onSettings: _openParameterGuide,
+        onFullRvc: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FullRvcScreen())),
       ),
       GestureDetector(
         behavior: HitTestBehavior.translucent,
@@ -656,6 +659,10 @@ drawer = r'''  Drawer _buildDrawer() {
               selectedSongPath: _selectedSongPath,
               selectedSongDisplayName: _selectedSongDisplayName,
             )));
+          }),
+          ListTile(leading: const Icon(Icons.open_in_new), title: const Text('Full RVC Engine'), onTap: () {
+            Navigator.pop(context);
+            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FullRvcScreen()));
           }),
           ListTile(leading: const Icon(Icons.model_training), title: const Text('Train / Create Voice'), onTap: () {
             Navigator.pop(context);
@@ -746,6 +753,7 @@ final_picker = picker.read_text(encoding="utf-8")
 checks = {
     "Red dashboard": "RedHomeScreen(" in final_main,
     "Training screen": "TrainingScreen()" in final_main,
+    "Full RVC screen": "FullRvcScreen()" in final_main,
     "Dashboard first": "final moduleScreens = [" in final_main and "RedHomeScreen(" in final_main.split("final moduleScreens = [",1)[1].split("GestureDetector(",1)[0],
     "Samsung-safe model picker": "type: FileType.any" in final_picker,
     "PTH support": ".pth" in final_picker,
