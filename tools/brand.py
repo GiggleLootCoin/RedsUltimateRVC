@@ -504,7 +504,8 @@ mt = main.read_text(encoding="utf-8")
 # Add custom imports.
 if "import 'screens/red_home_screen.dart';" not in mt:
     mt = mt.replace("import 'screens/pitch_detection_screen.dart';",
-                    "import 'screens/pitch_detection_screen.dart';\nimport 'screens/red_home_screen.dart';\nimport 'screens/training_screen.dart';\nimport 'screens/full_rvc_screen.dart';")
+                    "import 'screens/pitch_detection_screen.dart';\nimport 'screens/red_home_screen.dart';\nimport 'screens/training_screen.dart';\nimport 'screens/full_rvc_screen.dart';
+import 'package:url_launcher/url_launcher.dart';")
 
 # The model picker already copies selected files into the app-owned library. Do not import the same path a second time.
 mt = mt.replace("final importedPath = await _importPickedFile(kind: 'model', sourcePath: path);", "final importedPath = File(path).absolute.path;")
@@ -587,7 +588,7 @@ dashboard = '''    final moduleScreens = [
         onAudioTools: _openIndexConverter,
         onSettings: _openParameterGuide,
         onFullRvc: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => FullRvcScreen(onConvert: _openAudioConversion, onModels: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(onModelSelected: _onModelSelected, onModelCleared: _onModelCleared, onIndexSelected: _onIndexSelected, onContinue: _continueToGenerate, selectedModelPath: _selectedModelPath, selectedModelDisplayName: _selectedModelDisplayName, selectedIndexPath: _selectedIndexPath, selectedIndexDisplayName: _selectedIndexDisplayName, selectedSongPath: _selectedSongPath, selectedSongDisplayName: _selectedSongDisplayName))), onRealtime: _openRealtimeInference, onVoiceChanger: _openVoiceChanger, onTraining: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrainingScreen())), onIndexTools: _openIndexConverter))),
-        onYouTube: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FullRvcScreen(onConvert: _openAudioConversion, onModels: _openModels, onRealtime: _openRealtimeInference, onVoiceChanger: _openVoiceChanger, onTraining: _openTraining, onIndexTools: _openIndexConverter))),
+        onYouTube: _openCreatorYouTube,
       ),
       GestureDetector(
         behavior: HitTestBehavior.translucent,
@@ -625,7 +626,12 @@ dstart = mt.find("  Drawer _buildDrawer()")
 dend = mt.find("  @override\n  Widget build", dstart)
 if dstart < 0 or dend < 0:
     raise RuntimeError("Drawer block not found")
-drawer = r'''  Drawer _buildDrawer() {
+drawer = r'''  Future<void> _openCreatorYouTube() async {
+    final uri = Uri.parse('https://youtube.com/@little-red-big-smile?si=U1pBT09zB91GBrW3');
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Drawer _buildDrawer() {
     return Drawer(
       backgroundColor: const Color(0xFF0B0B10),
       child: ListView(
@@ -667,7 +673,7 @@ drawer = r'''  Drawer _buildDrawer() {
           }),
           ListTile(leading: const Icon(Icons.open_in_new), title: const Text('Full RVC Engine'), onTap: () {
             Navigator.pop(context);
-            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FullRvcScreen()));
+            Navigator.of(context).push(MaterialPageRoute(builder: (_) => FullRvcScreen(onConvert: _openAudioConversion, onModels: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(onModelSelected: _onModelSelected, onModelCleared: _onModelCleared, onIndexSelected: _onIndexSelected, onContinue: _continueToGenerate, selectedModelPath: _selectedModelPath, selectedModelDisplayName: _selectedModelDisplayName, selectedIndexPath: _selectedIndexPath, selectedIndexDisplayName: _selectedIndexDisplayName, selectedSongPath: _selectedSongPath, selectedSongDisplayName: _selectedSongDisplayName))), onRealtime: _openRealtimeInference, onVoiceChanger: _openVoiceChanger, onTraining: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrainingScreen())), onIndexTools: _openIndexConverter)));
           }),
           ListTile(leading: const Icon(Icons.model_training), title: const Text('Train / Create Voice'), onTap: () {
             Navigator.pop(context);
