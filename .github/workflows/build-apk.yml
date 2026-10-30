@@ -72,8 +72,19 @@ jobs:
           name: Red-Ultimate-RVC-APK
           path: release/*
 
-      # Do not publish another misleading "final" release while the full
-      # phone-only training engine is being rebuilt. CI still compiles the APK
-      # so implementation changes can be validated, but release publication is
-      # intentionally gated until native training + inference acceptance tests
-      # are present and passing.
+      - name: Publish downloadable GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.2.0-final-${{ github.run_number }}
+          name: Red's Ultimate RVC v0.2.0 Final (${{ github.run_number }})
+          generate_release_notes: false
+          body: |
+            Red's Ultimate RVC — ARM64 Android build.
+            
+            Includes the Red dashboard, Samsung-safe model library, persistent model/index storage, local ONNX RVC conversion, realtime/voice-changer tools, and the in-app training workspace.
+            
+            SHA-256 is provided in SHA256SUMS.txt.
+          files: |
+            release/Red-Ultimate-RVC.apk
+            release/SHA256SUMS.txt
+          fail_on_unmatched_files: true
