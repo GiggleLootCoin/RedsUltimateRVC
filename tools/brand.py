@@ -53,8 +53,7 @@ pubspec = root / "pubspec.yaml"
 pt = pubspec.read_text(encoding="utf-8")
 pt = pt.replace("name: ultimate_rvc_mobile", "name: reds_ultimate_rvc")
 pt = pt.replace("  url_launcher: 6.2.6\n", "")
-if "webview_flutter:" not in pt:
-    pt = pt.replace("  flutter_svg: ^2.0.10+1\n", "  flutter_svg: ^2.0.10+1\n  webview_flutter: ^4.10.0\n")
+pt = pt.replace("  webview_flutter: ^4.10.0\n", "")
 if "dependency_overrides:" not in pt:
     pt += "\ndependency_overrides:\n  win32: 5.5.5\n"
 write(pubspec, pt)
@@ -587,8 +586,8 @@ dashboard = '''    final moduleScreens = [
         onTrain: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrainingScreen())),
         onAudioTools: _openIndexConverter,
         onSettings: _openParameterGuide,
-        onFullRvc: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FullRvcScreen())),
-        onYouTube: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FullRvcScreen(url: 'https://youtube.com/@little-red-big-smile?si=U1pBT09zB91GBrW3', title: 'LittleRedBigSmile ❤️ — YouTube'))),
+        onFullRvc: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FullRvcScreen(onConvert: _openAudioConversion, onModels: _openModels, onRealtime: _openRealtimeInference, onVoiceChanger: _openVoiceChanger, onTraining: _openTraining, onIndexTools: _openIndexConverter))),
+        onYouTube: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FullRvcScreen(onConvert: _openAudioConversion, onModels: _openModels, onRealtime: _openRealtimeInference, onVoiceChanger: _openVoiceChanger, onTraining: _openTraining, onIndexTools: _openIndexConverter))),
       ),
       GestureDetector(
         behavior: HitTestBehavior.translucent,
