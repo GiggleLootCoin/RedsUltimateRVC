@@ -767,7 +767,7 @@ final_picker = picker.read_text(encoding="utf-8")
 checks = {
     "Red dashboard": "RedHomeScreen(" in final_main,
     "Training screen": "TrainingScreen()" in final_main,
-    "Full RVC screen": "FullRvcScreen()" in final_main,
+    "Full RVC screen": "FullRvcScreen(" in final_main,
     "Dashboard first": "final moduleScreens = [" in final_main and "RedHomeScreen(" in final_main.split("final moduleScreens = [",1)[1].split("GestureDetector(",1)[0],
     "Samsung-safe model picker": "type: FileType.any" in final_picker,
     "PTH support": ".pth" in final_picker,
