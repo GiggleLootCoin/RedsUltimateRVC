@@ -268,6 +268,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/rvc_bridge.dart';
+import 'model_converter_screen.dart';
 
 class ModelPickerScreen extends StatefulWidget {
   final Function(String) onModelSelected;
