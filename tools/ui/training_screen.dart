@@ -104,7 +104,7 @@ class _TrainingScreenState extends State<TrainingScreen> with SingleTickerProvid
         "RED'S ULTIMATE RVC — LOCAL TRAINING DATASET\n"
         "Voice: $folder\nSamples: ${_samples.length}\n"
         "Prepared entirely on the phone.\n"
-        "For actual neural RVC training, use the In-App Training tab; it stays inside this app window.\n",
+        "Training is started from the In-App Training tab and remains inside this app window.\n",
       );
       if (mounted) setState(() { _datasetPath = root.path; _status = 'Local dataset ready'; });
     } catch (e) {
@@ -152,7 +152,7 @@ class _TrainingScreenState extends State<TrainingScreen> with SingleTickerProvid
                     child: const Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Icon(Icons.info_outline, color: Colors.redAccent),
                       SizedBox(width: 10),
-                      Expanded(child: Text('A full RVC neural-network trainer is too large for the Galaxy A12 CPU/RAM target. The second tab provides the actual RVC training workflow inside this app, so you do not have to leave the app for Kaggle or another notebook.', style: TextStyle(fontWeight: FontWeight.w600))),
+                      Expanded(child: Text('The Galaxy A12 is not a practical target for running the full RVC neural-network trainer locally. This app keeps the real training workflow inside this screen and uses the training service only for the heavy neural-network computation. You do not need to open Kaggle, Colab or another app.', style: TextStyle(fontWeight: FontWeight.w600))),
                     ]),
                   ),
                 ]),
@@ -205,7 +205,7 @@ class _TrainingScreenState extends State<TrainingScreen> with SingleTickerProvid
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 color: const Color(0xFF111117),
                 child: Row(children: [
-                  const Expanded(child: Text('RVC training runs in this screen. Internet is required for the in-app trainer.', style: TextStyle(fontSize: 11, color: Color(0xFFB8B8C2)))),
+                  const Expanded(child: Text('RVC training runs inside this app screen. Internet is required because the heavy training compute runs on the in-app training service.', style: TextStyle(fontSize: 11, color: Color(0xFFB8B8C2)))),
                   IconButton(onPressed: () => _trainingWeb.reload(), icon: const Icon(Icons.refresh)),
                 ]),
               ),
