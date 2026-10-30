@@ -760,6 +760,17 @@ try:
 except Exception as exc:
     raise RuntimeError(f"Could not render approved logo: {exc}")
 
+# Ensure every custom screen referenced by the dashboard is imported in main.dart.
+final_main_pre = main.read_text(encoding="utf-8")
+for imp, token in [
+    ("import 'screens/red_home_screen.dart';", "RedHomeScreen("),
+    ("import 'screens/training_screen.dart';", "TrainingScreen("),
+    ("import 'screens/full_rvc_screen.dart';", "FullRvcScreen("),
+]:
+    if token in final_main_pre and imp not in final_main_pre:
+        final_main_pre = imp + "\n" + final_main_pre
+write(main, final_main_pre)
+
 # ---------------------------------------------------------------------------
 # Final static sanity checks. Fail the build before producing an APK if the
 # custom UI/navigation layer was not actually installed.
@@ -768,8 +779,8 @@ final_main = main.read_text(encoding="utf-8")
 final_picker = picker.read_text(encoding="utf-8")
 checks = {
     "Red dashboard": "RedHomeScreen(" in final_main,
-    "Training screen": "TrainingScreen()" in final_main,
-    "Full RVC screen": "FullRvcScreen(" in final_main,
+    "Training screen": (root / "lib" / "screens" / "training_screen.dart").exists() and "TrainingScreen()" in final_main,
+    "Full RVC screen": (root / "lib" / "screens" / "full_rvc_screen.dart").exists() and "FullRvcScreen(" in final_main,
     "Dashboard first": "final moduleScreens = [" in final_main and "RedHomeScreen(" in final_main.split("final moduleScreens = [",1)[1].split("GestureDetector(",1)[0],
     "Samsung-safe model picker": "type: FileType.any" in final_picker,
     "PTH support": ".pth" in final_picker,
