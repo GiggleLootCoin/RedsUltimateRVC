@@ -787,6 +787,7 @@ checks = {
     "Red dashboard": "RedHomeScreen(" in final_main,
     "Training screen": (root / "lib" / "screens" / "training_screen.dart").exists() and "TrainingScreen()" in final_main,
     "Full RVC screen": (root / "lib" / "screens" / "full_rvc_screen.dart").exists() and "FullRvcScreen(" in final_main,
+    "Model converter screen": (root / "lib" / "screens" / "model_converter_screen.dart").exists() and "ModelConverterScreen(" in final_picker,
     "Dashboard first": "final moduleScreens = [" in final_main and "RedHomeScreen(" in final_main.split("final moduleScreens = [",1)[1].split("GestureDetector(",1)[0],
     "Samsung-safe model picker": "type: FileType.any" in final_picker,
     "PTH support": ".pth" in final_picker,
