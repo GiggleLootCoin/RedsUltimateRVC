@@ -54,6 +54,8 @@ pt = pubspec.read_text(encoding="utf-8")
 if "  url_launcher:" not in pt:
     pt = pt.replace("  flutter_svg: ^2.0.10+1\n", "  flutter_svg: ^2.0.10+1\n  url_launcher: ^6.3.1\n")
 pt = pt.replace("name: ultimate_rvc_mobile", "name: reds_ultimate_rvc")
+if "  webview_flutter:" not in pt:
+    pt = pt.replace("  url_launcher: ^6.3.1\n", "  url_launcher: ^6.3.1\n  webview_flutter: ^4.10.0\n")
 pt = pt.replace("  url_launcher: 6.2.6\n", "")
 
 if "dependency_overrides:" not in pt:
