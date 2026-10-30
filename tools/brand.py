@@ -55,7 +55,7 @@ if "  url_launcher:" not in pt:
     pt = pt.replace("  flutter_svg: ^2.0.10+1\n", "  flutter_svg: ^2.0.10+1\n  url_launcher: ^6.3.1\n")
 pt = pt.replace("name: ultimate_rvc_mobile", "name: reds_ultimate_rvc")
 pt = pt.replace("  url_launcher: 6.2.6\n", "")
-pt = pt.replace("  webview_flutter: ^4.10.0\n", "")
+
 if "dependency_overrides:" not in pt:
     pt += "\ndependency_overrides:\n  win32: 5.5.5\n"
 write(pubspec, pt)
