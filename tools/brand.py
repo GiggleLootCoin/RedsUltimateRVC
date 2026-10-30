@@ -504,8 +504,7 @@ mt = main.read_text(encoding="utf-8")
 # Add custom imports.
 if "import 'screens/red_home_screen.dart';" not in mt:
     mt = mt.replace("import 'screens/pitch_detection_screen.dart';",
-                    "import 'screens/pitch_detection_screen.dart';\nimport 'screens/red_home_screen.dart';\nimport 'screens/training_screen.dart';\nimport 'screens/full_rvc_screen.dart';
-import 'package:url_launcher/url_launcher.dart';")
+                    "import 'screens/pitch_detection_screen.dart';\nimport 'screens/red_home_screen.dart';\nimport 'screens/training_screen.dart';\nimport 'screens/full_rvc_screen.dart';\nimport 'package:url_launcher/url_launcher.dart';")
 
 # The model picker already copies selected files into the app-owned library. Do not import the same path a second time.
 mt = mt.replace("final importedPath = await _importPickedFile(kind: 'model', sourcePath: path);", "final importedPath = File(path).absolute.path;")
