@@ -17,7 +17,7 @@ logo = root / "assets" / "images" / "reds-ultimate-rvc-logo.svg"
 logo.parent.mkdir(parents=True, exist_ok=True)
 urllib.request.urlretrieve(logo_url, logo)
 
-for name in ("red_home_screen.dart", "training_screen.dart", "full_rvc_screen.dart"):
+for name in ("red_home_screen.dart", "training_screen.dart", "full_rvc_screen.dart", "model_converter_screen.dart"):
     src = repo_root / "tools" / "ui" / name
     dst = root / "lib" / "screens" / name
     dst.parent.mkdir(parents=True, exist_ok=True)
@@ -451,6 +451,8 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
               const Text('mobile.index is directly usable. Standard .index files can be converted with Index Tools.', style: TextStyle(color: Color(0xFF9E9EA8), height: 1.3)),
               const SizedBox(height: 12),
               OutlinedButton.icon(onPressed: _busy ? null : _pickIndex, icon: const Icon(Icons.upload_file), label: const Text('IMPORT INDEX')),
+              const SizedBox(height: 9),
+              OutlinedButton.icon(onPressed: _busy ? null : () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ModelConverterScreen())), icon: const Icon(Icons.transform), label: const Text('CONVERT PTH → ONNX IN APP')),
             ]),
           ),
           const SizedBox(height: 12),
@@ -768,6 +770,7 @@ for imp, token in [
     ("import 'screens/red_home_screen.dart';", "RedHomeScreen("),
     ("import 'screens/training_screen.dart';", "TrainingScreen("),
     ("import 'screens/full_rvc_screen.dart';", "FullRvcScreen("),
+    ("import 'screens/model_converter_screen.dart';", "ModelConverterScreen("),
 ]:
     if token in final_main_pre and imp not in final_main_pre:
         final_main_pre = imp + "\n" + final_main_pre
