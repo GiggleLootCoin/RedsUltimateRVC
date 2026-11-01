@@ -1,51 +1,27 @@
 import 'package:flutter/material.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 
-class ModelConverterScreen extends StatefulWidget {
+/// Honest capability screen: no remote website or fake local conversion.
+class ModelConverterScreen extends StatelessWidget {
   const ModelConverterScreen({super.key});
 
   @override
-  State<ModelConverterScreen> createState() => _ModelConverterScreenState();
-}
-
-class _ModelConverterScreenState extends State<ModelConverterScreen> {
-  late final WebViewController _web;
-
-  @override
-  void initState() {
-    super.initState();
-    _web = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setNavigationDelegate(NavigationDelegate(
-        onWebResourceError: (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Converter page error: ${e.description}')),
-            );
-          }
-        },
-      ))
-      ..loadRequest(Uri.parse('https://voicechanger.live/tools/model-converter'));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("RED'S ULTIMATE RVC — PTH → ONNX"), centerTitle: true),
-      body: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-            color: const Color(0xFF111117),
-            child: const Text(
-              'This converter stays inside Red’s Ultimate RVC. PTH conversion runs locally in the browser engine; your model is not uploaded. After saving the ONNX file, return to Model Library and import it.',
-              style: TextStyle(fontSize: 11.5, color: Color(0xFFC0C0C9), height: 1.35),
-            ),
-          ),
-          Expanded(child: WebViewWidget(controller: _web)),
-        ],
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: const Color(0xFF07070A),
+    appBar: AppBar(title: const Text("RED'S ULTIMATE RVC — MODEL CONVERSION"), centerTitle: true),
+    body: ListView(padding: const EdgeInsets.all(18), children: [
+      const Icon(Icons.transform, size: 54, color: Color(0xFFFF334F)),
+      const SizedBox(height: 16),
+      const Text('PTH → ONNX CONVERSION', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+      const SizedBox(height: 10),
+      const Text(
+        'This Android build does not yet contain a local PTH-to-ONNX conversion engine. A .pth file can be stored in Model Library, but it cannot be run by the bundled ONNX inference engine until converted.',
+        style: TextStyle(height: 1.45),
       ),
-    );
-  }
+      const SizedBox(height: 14),
+      const Text(
+        'No third-party website is opened and no model is uploaded. This screen will only offer conversion once a real on-device converter has been integrated and tested.',
+        style: TextStyle(color: Color(0xFFB7B7C1), height: 1.4),
+      ),
+    ]),
+  );
 }
