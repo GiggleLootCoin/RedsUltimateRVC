@@ -1,112 +1,96 @@
-import 'package:flutter/material.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import '../services/rvc_bridge.dart';
 
+/// Local dataset preparation only. The bundled Android RVC engine has no
+/// neural-network training implementation; never present this as training.
 class TrainingScreen extends StatefulWidget {
   const TrainingScreen({super.key});
-  @override State<TrainingScreen> createState() => _TrainingScreenState();
+  @override
+  State<TrainingScreen> createState() => _TrainingScreenState();
 }
 
-class _TrainingScreenState extends State<TrainingScreen> with SingleTickerProviderStateMixin {
-  late final TabController _tabs;
+class _TrainingScreenState extends State<TrainingScreen> {
   final RVCBridge _bridge = RVCBridge();
-  final List<String> _samples = <String>[];
+  final List<String> _samples = [];
+  final TextEditingController _name = TextEditingController(text: 'Red Voice');
   bool _busy = false;
   bool _recording = false;
-  String _voiceName = 'Red Voice';
+  String _status = 'Add clean voice samples to begin';
   String? _datasetPath;
-  String _status = 'Ready';
-  late final WebViewController _trainingWeb;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabs = TabController(length: 2, vsync: this);
-    _trainingWeb = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setNavigationDelegate(NavigationDelegate(
-        onNavigationRequest: (_) => NavigationDecision.navigate,
-      ))
-      ..loadRequest(Uri.parse('https://nicevois.com/train-rvc-model-online'));
-  }
 
   @override
   void dispose() {
-    _tabs.dispose();
+    _name.dispose();
     super.dispose();
   }
 
   Future<void> _addAudio() async {
     if (_busy || _recording) return;
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.any,
-      allowMultiple: true,
-      withData: false,
-    );
-    if (result == null) return;
-    final paths = result.files.map((f) => f.path).whereType<String>()
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.any, allowMultiple: true, withData: false,
+      );
+      if (result == null) return;
+      final paths = result.files.map((f) => f.path).whereType<String>()
         .where((p) => File(p).existsSync())
-        .where((p) => ['.wav','.mp3','.flac','.m4a','.ogg','.aac'].any((e) => p.toLowerCase().endsWith(e)))
-        .toList();
-    if (!mounted) return;
-    setState(() {
-      for (final p in paths) {
-        if (!_samples.contains(p)) _samples.add(p);
-      }
-      _status = _samples.isEmpty ? 'No training audio selected' : '${_samples.length} training sample(s) ready';
-    });
+        .where((p) => ['.wav','.flac','.mp3','.m4a','.ogg','.aac']
+          .any((e) => p.toLowerCase().endsWith(e))).toList();
+      if (!mounted) return;
+      setState(() {
+        for (final p in paths) { if (!_samples.contains(p)) _samples.add(p); }
+        _status = '${_samples.length} sample(s) selected';
+      });
+    } catch (e) {
+      if (mounted) setState(() => _status = 'Could not import audio: $e');
+    }
   }
 
   Future<void> _recordSample() async {
     if (_busy) return;
-    if (!_recording) {
-      try {
-        await _bridge.startRecording();
-        if (mounted) setState(() { _recording = true; _status = 'Recording training sample…'; });
-      } catch (e) {
-        if (mounted) setState(() => _status = 'Recording failed: $e');
-      }
-      return;
-    }
     try {
-      final path = await _bridge.stopRecording();
-      if (mounted) setState(() {
-        _recording = false;
-        if (!_samples.contains(path)) _samples.add(path);
-        _status = '${_samples.length} training sample(s) ready';
-      });
+      if (!_recording) {
+        await _bridge.startRecording();
+        if (mounted) setState(() { _recording = true; _status = 'Recording…'; });
+      } else {
+        final path = await _bridge.stopRecording();
+        if (mounted) setState(() {
+          _recording = false;
+          if (!_samples.contains(path)) _samples.add(path);
+          _status = '${_samples.length} sample(s) selected';
+        });
+      }
     } catch (e) {
-      if (mounted) setState(() { _recording = false; _status = 'Recording failed: $e'; });
+      if (mounted) setState(() { _recording = false; _status = 'Recording error: $e'; });
     }
   }
 
   Future<void> _prepareDataset() async {
-    if (_samples.isEmpty || _busy) return;
-    setState(() { _busy = true; _status = 'Building local training dataset…'; });
+    if (_samples.isEmpty || _busy || _recording) return;
+    setState(() { _busy = true; _status = 'Copying samples into private app storage…'; });
     try {
       final docs = await getApplicationDocumentsDirectory();
-      final safeName = _voiceName.trim().replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
-      final folder = safeName.isEmpty ? 'red_voice' : safeName;
-      final root = Directory('${docs.path}/rvc_training/$folder');
-      final dataset = Directory('${root.path}/dataset');
-      await dataset.create(recursive: true);
+      final safe = _name.text.trim().replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
+      final root = Directory('${docs.path}/rvc_datasets/${safe.isEmpty ? 'voice' : safe}');
+      final data = Directory('${root.path}/audio');
+      await data.create(recursive: true);
+      var copied = 0;
       for (var i = 0; i < _samples.length; i++) {
         final src = File(_samples[i]);
         if (!await src.exists()) continue;
-        final name = src.uri.pathSegments.last.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
-        await src.copy('${dataset.path}/${i.toString().padLeft(4, '0')}_$name');
+        final base = src.uri.pathSegments.last.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+        await src.copy('${data.path}/${i.toString().padLeft(4, '0')}_$base');
+        copied++;
       }
-      final manifest = File('${root.path}/training_manifest.txt');
-      await manifest.writeAsString(
-        "RED'S ULTIMATE RVC — LOCAL TRAINING DATASET\n"
-        "Voice: $folder\nSamples: ${_samples.length}\n"
-        "Prepared entirely on the phone.\n"
-        "Training is started from the In-App Training tab and remains inside this app window.\n",
+      await File('${root.path}/README.txt').writeAsString(
+        "RED'S ULTIMATE RVC — DATASET\nVoice: ${_name.text.trim()}\nAudio files: $copied\n\nThis is prepared training data only. It has NOT trained a voice model. The bundled Android engine currently supports ONNX inference and does not contain an RVC training engine.\n",
       );
-      if (mounted) setState(() { _datasetPath = root.path; _status = 'Local dataset ready'; });
+      if (mounted) setState(() {
+        _datasetPath = root.path;
+        _status = '$copied sample(s) safely copied. Dataset prepared; no model has been trained.';
+      });
     } catch (e) {
       if (mounted) setState(() => _status = 'Dataset preparation failed: $e');
     } finally {
@@ -116,113 +100,56 @@ class _TrainingScreenState extends State<TrainingScreen> with SingleTickerProvid
 
   Future<void> _clear() async {
     if (_datasetPath != null) {
-      final dir = Directory(_datasetPath!);
-      if (await dir.exists()) await dir.delete(recursive: true);
+      final d = Directory(_datasetPath!);
+      if (await d.exists()) await d.delete(recursive: true);
     }
-    if (mounted) setState(() { _datasetPath = null; _samples.clear(); _status = 'Ready'; });
+    if (mounted) setState(() { _datasetPath = null; _samples.clear(); _status = 'Workspace cleared'; });
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("RED'S ULTIMATE RVC — TRAINING LAB"),
-        centerTitle: true,
-        bottom: TabBar(
-          controller: _tabs,
-          tabs: const [Tab(text: 'PHONE WORKSPACE'), Tab(text: 'IN-APP TRAINING')],
-        ),
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: const Color(0xFF07070A),
+    appBar: AppBar(title: const Text("RED'S ULTIMATE RVC — VOICE LAB"), centerTitle: true),
+    body: ListView(padding: const EdgeInsets.all(16), children: [
+      Card(color: const Color(0xFF171117), child: const Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('ON-PHONE DATASET WORKSPACE', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFFFF334F))),
+          SizedBox(height: 8),
+          Text('Import or record clean samples and organise them privately on this phone.'),
+          SizedBox(height: 10),
+          Text('Important: this build does not include an RVC neural-network trainer. Preparing a dataset is not training. No online training service, Kaggle, Colab or external app is launched.', style: TextStyle(height: 1.35)),
+        ]),
+      )),
+      const SizedBox(height: 12),
+      TextField(controller: _name, decoration: const InputDecoration(labelText: 'Voice / dataset name', border: OutlineInputBorder())),
+      const SizedBox(height: 12),
+      Row(children: [
+        Expanded(child: ElevatedButton.icon(onPressed: _busy ? null : _recordSample, icon: Icon(_recording ? Icons.stop : Icons.mic), label: Text(_recording ? 'STOP' : 'RECORD'))),
+        const SizedBox(width: 8),
+        Expanded(child: OutlinedButton.icon(onPressed: _busy || _recording ? null : _addAudio, icon: const Icon(Icons.audio_file), label: const Text('ADD AUDIO'))),
+      ]),
+      const SizedBox(height: 10),
+      Card(color: const Color(0xFF121218), child: ListTile(
+        leading: Icon(_recording ? Icons.fiber_manual_record : Icons.info_outline, color: const Color(0xFFFF334F)),
+        title: Text(_status),
+        subtitle: Text('${_samples.length} source sample(s)'),
+      )),
+      ..._samples.take(100).map((p) => ListTile(
+        dense: true, leading: const Icon(Icons.graphic_eq, color: Color(0xFFFF334F)),
+        title: Text(p.split('/').last, maxLines: 1, overflow: TextOverflow.ellipsis),
+      )),
+      const SizedBox(height: 10),
+      SizedBox(height: 50, child: ElevatedButton.icon(
+        onPressed: _busy || _recording || _samples.isEmpty ? null : _prepareDataset,
+        icon: const Icon(Icons.folder_copy), label: Text(_busy ? 'PREPARING…' : 'PREPARE LOCAL DATASET'),
+      )),
+      if (_datasetPath != null) Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: SelectableText('Saved privately at: $_datasetPath'),
       ),
-      body: TabBarView(
-        controller: _tabs,
-        children: [
-          ListView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 30),
-            children: [
-              Card(child: Padding(
-                padding: const EdgeInsets.all(18),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('PHONE TRAINING WORKSPACE', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
-                  const SizedBox(height: 8),
-                  const Text('Record or import your voice samples and build a clean dataset without leaving the app.'),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), color: const Color(0x221A1A1F)),
-                    child: const Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Icon(Icons.info_outline, color: Colors.redAccent),
-                      SizedBox(width: 10),
-                      Expanded(child: Text('The Galaxy A12 is not a practical target for running the full RVC neural-network trainer locally. This app keeps the real training workflow inside this screen and uses the training service only for the heavy neural-network computation. You do not need to open Kaggle, Colab or another app.', style: TextStyle(fontWeight: FontWeight.w600))),
-                    ]),
-                  ),
-                ]),
-              )),
-              const SizedBox(height: 12),
-              TextField(
-                controller: TextEditingController(text: _voiceName)..selection = TextSelection.collapsed(offset: _voiceName.length),
-                onChanged: (v) => _voiceName = v,
-                decoration: const InputDecoration(labelText: 'Voice / dataset name', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 12),
-              Row(children: [
-                Expanded(child: ElevatedButton.icon(onPressed: _busy ? null : _recordSample, icon: Icon(_recording ? Icons.stop : Icons.mic), label: Text(_recording ? 'STOP RECORDING' : 'RECORD SAMPLE'))),
-                const SizedBox(width: 10),
-                Expanded(child: OutlinedButton.icon(onPressed: _busy || _recording ? null : _addAudio, icon: const Icon(Icons.audio_file), label: const Text('ADD AUDIO'))),
-              ]),
-              const SizedBox(height: 10),
-              Card(child: ListTile(
-                leading: Icon(_recording ? Icons.fiber_manual_record : Icons.check_circle, color: _recording ? Colors.redAccent : Colors.green),
-                title: Text(_status),
-                subtitle: Text('${_samples.length} sample(s) in this workspace'),
-              )),
-              if (_samples.isNotEmpty) Card(child: Column(children: _samples.take(50).map((p) => ListTile(
-                dense: true, leading: const Icon(Icons.graphic_eq),
-                title: Text(p.split('/').last, maxLines: 1, overflow: TextOverflow.ellipsis),
-              )).toList())),
-              const SizedBox(height: 10),
-              SizedBox(height: 52, child: ElevatedButton.icon(
-                onPressed: _samples.isEmpty || _busy || _recording ? null : _prepareDataset,
-                icon: const Icon(Icons.folder_copy),
-                label: Text(_busy ? 'PREPARING…' : 'BUILD LOCAL DATASET'),
-              )),
-              if (_datasetPath != null) ...[
-                const SizedBox(height: 10),
-                Card(child: ListTile(
-                  leading: const Icon(Icons.folder_special, color: Colors.redAccent),
-                  title: const Text('LOCAL DATASET READY'),
-                  subtitle: Text(_datasetPath!, maxLines: 2, overflow: TextOverflow.ellipsis),
-                )),
-              ],
-              const SizedBox(height: 10),
-              OutlinedButton.icon(onPressed: _busy ? null : _clear, icon: const Icon(Icons.delete_outline), label: const Text('CLEAR TRAINING WORKSPACE')),
-              const SizedBox(height: 12),
-              const Text('Tip: 10–30 minutes of clean, single-speaker audio is a sensible starting dataset.'),
-            ],
-          ),
-          Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                color: const Color(0xFF111117),
-                child: Row(children: [
-                  const Expanded(child: Text('RVC training runs inside this app screen. Internet is required because the heavy training compute runs on the in-app training service.', style: TextStyle(fontSize: 11, color: Color(0xFFB8B8C2)))),
-                  IconButton(onPressed: () => _trainingWeb.reload(), icon: const Icon(Icons.refresh)),
-                ]),
-              ),
-              const Expanded(child: _TrainingWebPlaceholder()),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TrainingWebPlaceholder extends StatelessWidget {
-  const _TrainingWebPlaceholder();
-  @override
-  Widget build(BuildContext context) {
-    final state = context.findAncestorStateOfType<_TrainingScreenState>();
-    return WebViewWidget(controller: state!._trainingWeb);
-  }
+      const SizedBox(height: 8),
+      OutlinedButton.icon(onPressed: _busy ? null : _clear, icon: const Icon(Icons.delete_outline), label: const Text('CLEAR WORKSPACE')),
+    ]),
+  );
 }
