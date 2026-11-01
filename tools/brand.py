@@ -134,7 +134,7 @@ class RedHomeScreen extends StatelessWidget {
                   const Text("RED'S ULTIMATE RVC", style: TextStyle(fontSize: 25, fontWeight: FontWeight.w900)),
                   const SizedBox(height: 6),
                   Text(
-                    'Your complete local voice studio for Android.',
+                    'Your Android voice conversion studio.',
                     style: theme.textTheme.bodyMedium?.copyWith(color: const Color(0xFFBEBEC7)),
                   ),
                   const SizedBox(height: 13),
@@ -160,7 +160,7 @@ class RedHomeScreen extends StatelessWidget {
             _section('VOICES & TRAINING'),
             _grid([
               _Action(Icons.library_music, 'MODEL LIBRARY', 'Import, manage and select voices', onModels),
-              _Action(Icons.model_training, 'TRAIN / CREATE VOICE', 'Build and manage a local training workspace', onTrain),
+              _Action(Icons.model_training, 'VOICE DATASET LAB', 'Record and organise voice samples on this phone', onTrain),
               _Action(Icons.tune, 'AUDIO TOOLS', 'Index, pitch and level tools', onAudioTools),
               _Action(Icons.settings, 'SETTINGS & CONTROLS', 'RVC parameters and options', onSettings),
             ]),
@@ -681,7 +681,7 @@ drawer = r'''  Future<void> _openCreatorYouTube() async {
             Navigator.pop(context);
             Navigator.of(context).push(MaterialPageRoute(builder: (_) => FullRvcScreen(onConvert: _openAudioConversion, onModels: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(onModelSelected: _onModelSelected, onModelCleared: _onModelCleared, onIndexSelected: _onIndexSelected, onContinue: _continueToGenerate, selectedModelPath: _selectedModelPath, selectedModelDisplayName: _selectedModelDisplayName, selectedIndexPath: _selectedIndexPath, selectedIndexDisplayName: _selectedIndexDisplayName, selectedSongPath: _selectedSongPath, selectedSongDisplayName: _selectedSongDisplayName))), onRealtime: _openRealtimeInference, onVoiceChanger: _openVoiceChanger, onTraining: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrainingScreen())), onIndexTools: _openIndexConverter)));
           }),
-          ListTile(leading: const Icon(Icons.model_training), title: const Text('Train / Create Voice'), onTap: () {
+          ListTile(leading: const Icon(Icons.model_training), title: const Text('Voice Dataset Lab'), onTap: () {
             Navigator.pop(context);
             Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrainingScreen()));
           }),
