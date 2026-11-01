@@ -81,7 +81,7 @@ jobs:
           body: |
             Red's Ultimate RVC — ARM64 Android build.
             
-            Includes the Red dashboard, Samsung-safe model library, persistent model/index storage, local ONNX RVC conversion, realtime/voice-changer tools, and the in-app training workspace.
+            Includes the Red dashboard, model library, local ONNX inference, realtime/voice-changer modules, and an on-phone voice-sample dataset workspace. PTH conversion and neural-network RVC training are not included.
             
             SHA-256 is provided in SHA256SUMS.txt.
           files: |
