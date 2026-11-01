@@ -46,7 +46,7 @@ class FullRvcScreen extends StatelessWidget {
                 Text("FULL PHONE WORKSPACE", style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
                 SizedBox(height: 8),
                 Text(
-                  "All supported RVC work is kept inside the Android app. No Kaggle, Colab or cloud inference is required for mobile-ready ONNX conversion.",
+                  "Phone-local conversion is available for compatible ONNX models. This build does not include local PTH-to-ONNX conversion or a neural-network RVC training engine.",
                   style: TextStyle(color: Color(0xFFC8C8D1), height: 1.35),
                 ),
               ],
@@ -54,11 +54,11 @@ class FullRvcScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           _button(Icons.graphic_eq, "AUDIO CONVERSION", "Convert audio with the local RVC engine.", onConvert),
-          _button(Icons.library_music, "MODEL LIBRARY", "Import ONNX, PTH, PT and ZIP source models.", onModels),
+          _button(Icons.library_music, "MODEL LIBRARY", "Import ONNX models and store PTH/PT/ZIP source files.", onModels),
           _button(Icons.settings_voice, "REALTIME RVC", "Use the local realtime voice-conversion engine.", onRealtime),
           _button(Icons.record_voice_over, "VOICE CHANGER", "Record and process through the selected voice.", onVoiceChanger),
           _button(Icons.sync_alt, "INDEX TOOLS", "Manage mobile index files and conversion tools.", onIndexTools),
-          _button(Icons.model_training, "TRAIN / CREATE VOICE", "Build and manage training data directly on the phone.", onTraining),
+          _button(Icons.model_training, "VOICE DATASET LAB", "Prepare and organise voice samples on this phone; this is not model training.", onTraining),
           const SizedBox(height: 10),
           const Card(
             color: Color(0xFF111117),
