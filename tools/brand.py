@@ -303,12 +303,33 @@ class ModelPickerScreen extends StatefulWidget {
 class _ModelPickerScreenState extends State<ModelPickerScreen> {
   final RVCBridge _bridge = RVCBridge();
   List<String> _library = [];
+  String? _selectedModelPath;
+  String? _selectedModelDisplayName;
+  String? _selectedIndexPath;
+  String? _selectedIndexDisplayName;
   bool _busy = false;
 
   @override
   void initState() {
     super.initState();
+    _selectedModelPath = widget.selectedModelPath;
+    _selectedModelDisplayName = widget.selectedModelDisplayName;
+    _selectedIndexPath = widget.selectedIndexPath;
+    _selectedIndexDisplayName = widget.selectedIndexDisplayName;
     _loadLibrary();
+  }
+
+  @override
+  void didUpdateWidget(covariant ModelPickerScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedModelPath != widget.selectedModelPath) {
+      _selectedModelPath = widget.selectedModelPath;
+      _selectedModelDisplayName = widget.selectedModelDisplayName;
+    }
+    if (oldWidget.selectedIndexPath != widget.selectedIndexPath) {
+      _selectedIndexPath = widget.selectedIndexPath;
+      _selectedIndexDisplayName = widget.selectedIndexDisplayName;
+    }
   }
 
   Future<void> _loadLibrary() async {
@@ -353,9 +374,14 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
 
       final imported = await _bridge.importPickedFile(kind: 'model', sourcePath: source);
       if (!_library.contains(imported.path)) _library.insert(0, imported.path);
+      if (_runtime(imported.path)) {
+        _selectedModelPath = imported.path;
+        _selectedModelDisplayName = File(imported.path).uri.pathSegments.last;
+      }
       await _saveLibrary();
 
       if (!mounted) return;
+      setState(() {});
       if (_runtime(imported.path)) {
         widget.onModelSelected(imported.path);
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ONNX model imported and ready.')));
@@ -382,6 +408,9 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
       if (!_index(source)) throw Exception('Select an RVC .index or .mobile.index file');
 
       final imported = await _bridge.importPickedFile(kind: 'index', sourcePath: source);
+      _selectedIndexPath = imported.path;
+      _selectedIndexDisplayName = File(imported.path).uri.pathSegments.last;
+      if (mounted) setState(() {});
       widget.onIndexSelected(imported.path);
 
       if (mounted) {
@@ -401,6 +430,8 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This source model is stored, but Android inference requires an ONNX model.')));
       return;
     }
+    _selectedModelPath = path;
+    _selectedModelDisplayName = File(path).uri.pathSegments.last;
     widget.onModelSelected(path);
     if (mounted) setState(() {});
   }
@@ -410,13 +441,18 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
       await _bridge.releaseImportedFile(path);
     } catch (_) {}
     _library.remove(path);
+    if (_selectedModelPath == path) {
+      _selectedModelPath = null;
+      _selectedModelDisplayName = null;
+      widget.onModelCleared?.call();
+    }
     await _saveLibrary();
     if (mounted) setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    final selected = widget.selectedModelPath;
+    final selected = _selectedModelPath;
     final ready = selected != null && _runtime(selected);
     return Scaffold(
       appBar: AppBar(title: const Text("RED'S ULTIMATE RVC — MODEL LIBRARY"), centerTitle: true),
@@ -427,7 +463,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
             title: 'VOICE MODEL',
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(
-                selected == null ? 'No runtime voice selected' : (widget.selectedModelDisplayName ?? File(selected).uri.pathSegments.last),
+                selected == null ? 'No runtime voice selected' : (_selectedModelDisplayName ?? File(selected).uri.pathSegments.last),
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 7),
@@ -446,14 +482,14 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
           _card(
             title: 'INDEX — OPTIONAL',
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(widget.selectedIndexDisplayName ?? (widget.selectedIndexPath == null ? 'No index selected' : File(widget.selectedIndexPath!).uri.pathSegments.last),
+              Text(_selectedIndexDisplayName ?? (_selectedIndexPath == null ? 'No index selected' : File(_selectedIndexPath!).uri.pathSegments.last),
                 style: const TextStyle(fontWeight: FontWeight.w800)),
               const SizedBox(height: 8),
               const Text('mobile.index is directly usable. Standard .index files can be converted with Index Tools.', style: TextStyle(color: Color(0xFF9E9EA8), height: 1.3)),
               const SizedBox(height: 12),
               OutlinedButton.icon(onPressed: _busy ? null : _pickIndex, icon: const Icon(Icons.upload_file), label: const Text('IMPORT INDEX')),
               const SizedBox(height: 9),
-              OutlinedButton.icon(onPressed: _busy ? null : () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ModelConverterScreen())), icon: const Icon(Icons.transform), label: const Text('CONVERT PTH → ONNX IN APP')),
+              const Text('PTH → ONNX conversion is not included in this offline mobile engine. Imported PTH files remain stored safely, but cannot be selected for inference until a genuine converter is integrated.', style: TextStyle(color: Color(0xFFFFA3AE), height: 1.35)),
             ]),
           ),
           const SizedBox(height: 12),
@@ -520,6 +556,19 @@ mt = mt.replace("final importedPath = path == null ? null : await _importPickedF
 # Theme/branding text.
 mt = mt.replace("Ultimate RVC Mobile", "Reds Ultimate RVC")
 mt = mt.replace("primarySwatch: Colors.blue,", "primarySwatch: Colors.red,")
+mt = re.sub(r"theme: ThemeData\\(.*?\\),\\n      home:", """theme: ThemeData(
+        brightness: Brightness.dark,
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE00022), brightness: Brightness.dark, surface: const Color(0xFF111117)),
+        scaffoldBackgroundColor: const Color(0xFF07070A),
+        canvasColor: const Color(0xFF0B0B10),
+        cardColor: const Color(0xFF111117),
+        appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF09090D), foregroundColor: Colors.white, elevation: 0, centerTitle: true),
+        elevatedButtonTheme: ElevatedButtonThemeData(style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE00022), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)))),
+        outlinedButtonTheme: OutlinedButtonThemeData(style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFFFF5269), side: const BorderSide(color: Color(0xFF8D1B2B)))),
+        visualDensity: VisualDensity.adaptivePlatformDensity,
+        useMaterial3: true,
+      ),
+      home:""", mt, count=1, flags=re.S)
 mt = mt.replace("backgroundColor: Colors.white", "backgroundColor: const Color(0xFF07070A)")
 for a,b in {
     "音频推理":"Audio Conversion",
