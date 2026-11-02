@@ -556,7 +556,7 @@ mt = mt.replace("final importedPath = path == null ? null : await _importPickedF
 # Theme/branding text.
 mt = mt.replace("Ultimate RVC Mobile", "Reds Ultimate RVC")
 mt = mt.replace("primarySwatch: Colors.blue,", "primarySwatch: Colors.red,")
-mt = re.sub(r"theme: ThemeData\\(.*?\\),\\n      home:", """theme: ThemeData(
+mt = re.sub(r"theme: ThemeData\(.*?\),\n      home:", """theme: ThemeData(
         brightness: Brightness.dark,
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFE00022), brightness: Brightness.dark, surface: const Color(0xFF111117)),
         scaffoldBackgroundColor: const Color(0xFF07070A),
