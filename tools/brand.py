@@ -360,9 +360,14 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      // FileType.any is intentional. Samsung's Android 12 picker can grey out
-      // RVC files when a restrictive MIME/extension filter is used.
-      final result = await FilePicker.platform.pickFiles(type: FileType.any, allowMultiple: false, withData: false);
+      // Use the explicit RVC extension list required by the Android picker.
+      // Validate again after selection because providers can return unusual URIs.
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['onnx', 'pth', 'pt', 'zip'],
+        allowMultiple: false,
+        withData: false,
+      );
       final source = result?.files.single.path;
       if (source == null || source.isEmpty) return;
       final ext = _ext(source);
@@ -399,7 +404,12 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      final result = await FilePicker.platform.pickFiles(type: FileType.any, allowMultiple: false, withData: false);
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['index'],
+        allowMultiple: false,
+        withData: false,
+      );
       final source = result?.files.single.path;
       if (source == null || source.isEmpty) return;
       final ext = _ext(source);
