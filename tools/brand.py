@@ -853,6 +853,270 @@ for imp, token in [
 write(main, final_main_pre)
 
 # ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Direct Android SAF import for RVC models and indexes.
+# Samsung My Files returns content:// URIs; this avoids relying on FilePicker
+# to materialize those URIs as temporary filesystem paths.
+# ---------------------------------------------------------------------------
+plugin = root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt"
+kt = plugin.read_text(encoding="utf-8")
+imports = [
+    ("import android.content.ContentValues\n", "import android.app.Activity\nimport android.content.ContentValues\nimport android.content.Intent\n"),
+    ("import android.provider.MediaStore\n", "import android.provider.MediaStore\nimport android.provider.OpenableColumns\n"),
+    ("import io.flutter.embedding.engine.plugins.FlutterPlugin\n", "import io.flutter.embedding.engine.plugins.FlutterPlugin\nimport io.flutter.embedding.engine.plugins.activity.ActivityAware\nimport io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding\n"),
+    ("import io.flutter.plugin.common.MethodCall\n", "import io.flutter.plugin.common.MethodCall\nimport io.flutter.plugin.common.PluginRegistry\n"),
+    ("import java.util.Locale\n", "import java.util.Locale\nimport java.util.UUID\n"),
+    ("class RVCPlugin : FlutterPlugin, MethodCallHandler, StreamHandler {", "class RVCPlugin : FlutterPlugin, MethodCallHandler, StreamHandler, ActivityAware, PluginRegistry.ActivityResultListener {"),
+    ("    private lateinit var appContext: Context\n", "    private lateinit var appContext: Context\n    private var activityBinding: ActivityPluginBinding? = null\n    private var pendingDocumentPickerResult: Result? = null\n    private var pendingDocumentPickerKind: String? = null\n    private val documentPickerRequestCode = 48173\n"),
+    ("            \"importPickedFile\" -> importPickedFile(call, result)\n", "            \"importPickedFile\" -> importPickedFile(call, result)\n            \"pickAndImportFile\" -> pickAndImportFile(call, result)\n"),
+]
+for old, new in imports:
+    if old not in kt:
+        raise RuntimeError("SAF import patch did not match: " + old[:90])
+    kt = kt.replace(old, new, 1)
+
+activity_methods = r'''
+    override fun onAttachedToActivity(binding: ActivityPluginBinding) {
+        activityBinding = binding
+        binding.addActivityResultListener(this)
+    }
+
+    override fun onDetachedFromActivityForConfigChanges() {
+        activityBinding?.removeActivityResultListener(this)
+        activityBinding = null
+    }
+
+    override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
+        activityBinding = binding
+        binding.addActivityResultListener(this)
+    }
+
+    override fun onDetachedFromActivity() {
+        activityBinding?.removeActivityResultListener(this)
+        activityBinding = null
+        pendingDocumentPickerResult?.error("PICKER_UNAVAILABLE", "Android document picker was detached.", null)
+        pendingDocumentPickerResult = null
+        pendingDocumentPickerKind = null
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
+        if (requestCode != documentPickerRequestCode) return false
+        val reply = pendingDocumentPickerResult
+        val kind = pendingDocumentPickerKind
+        pendingDocumentPickerResult = null
+        pendingDocumentPickerKind = null
+        if (reply == null || kind == null) return true
+        if (resultCode != Activity.RESULT_OK) {
+            reply.success(null)
+            return true
+        }
+        val uri = data?.data
+        if (uri == null) {
+            reply.error("PICKER_EMPTY", "Android returned no selected document.", null)
+            return true
+        }
+        scope.launch {
+            try {
+                val imported = importDocumentUri(kind, uri)
+                withContext(Dispatchers.Main) {
+                    reply.success(mapOf(
+                        "path" to imported.path,
+                        "referenceCount" to imported.referenceCount,
+                        "lastUpdatedAtMs" to imported.lastUpdatedAtMs,
+                    ))
+                }
+            } catch (error: Throwable) {
+                withContext(Dispatchers.Main) {
+                    reply.error("PICKER_IMPORT_FAILED", error.message ?: "Could not import the selected document.", null)
+                }
+            }
+        }
+        return true
+    }
+
+    private fun pickAndImportFile(call: MethodCall, result: Result) {
+        val kind = call.argument<String>("kind")
+        if (kind != "model" && kind != "index") {
+            result.error("INVALID_ARGUMENTS", "Import kind must be model or index.", null)
+            return
+        }
+        val activity = activityBinding?.activity
+        if (activity == null) {
+            result.error("PICKER_UNAVAILABLE", "Android document picker is not attached.", null)
+            return
+        }
+        if (pendingDocumentPickerResult != null) {
+            result.error("PICKER_BUSY", "Another document selection is already open.", null)
+            return
+        }
+        pendingDocumentPickerResult = result
+        pendingDocumentPickerKind = kind
+        try {
+            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = "*/*"
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            activity.startActivityForResult(intent, documentPickerRequestCode)
+        } catch (error: Throwable) {
+            pendingDocumentPickerResult = null
+            pendingDocumentPickerKind = null
+            result.error("PICKER_LAUNCH_FAILED", error.message, null)
+        }
+    }
+
+    private fun importDocumentUri(kind: String, uri: Uri): ManagedImportedFile {
+        val resolver = appContext.contentResolver
+        val displayName = resolver.query(
+            uri,
+            arrayOf(OpenableColumns.DISPLAY_NAME),
+            null,
+            null,
+            null,
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val column = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (column >= 0) cursor.getString(column) else null
+            } else null
+        }?.takeIf { it.isNotBlank() } ?: (uri.lastPathSegment ?: "rvc_import")
+
+        val lowerName = displayName.lowercase(Locale.ROOT)
+        val valid = if (kind == "model") {
+            listOf(".onnx", ".pth", ".pt", ".zip").any { lowerName.endsWith(it) }
+        } else {
+            lowerName.endsWith(".mobile.index") || lowerName.endsWith(".index")
+        }
+        require(valid) {
+            if (kind == "model") "Choose an RVC model file: .onnx, .pth, .pt or .zip."
+            else "Choose an RVC index file: .index or .mobile.index."
+        }
+
+        val safeName = displayName
+            .replace(Regex("[^A-Za-z0-9._() -]"), "_")
+            .take(180)
+            .ifBlank { "rvc_import" }
+        val stagingDir = File(appContext.cacheDir, "rvc_document_import_" + UUID.randomUUID().toString())
+        require(stagingDir.mkdirs()) { "Could not create a temporary import folder." }
+        val stagedFile = File(stagingDir, safeName)
+        try {
+            val input = resolver.openInputStream(uri)
+                ?: error("Android could not open the selected document.")
+            input.use { source ->
+                stagedFile.outputStream().buffered().use { output ->
+                    source.copyTo(output, 1024 * 1024)
+                }
+            }
+            require(stagedFile.isFile && stagedFile.length() > 0L) {
+                "The selected file is empty or could not be copied."
+            }
+            val fileKind = when (kind) {
+                "model" -> ImportedFileKind.MODEL
+                "index" -> ImportedFileKind.INDEX
+                else -> error("Unsupported import type.")
+            }
+            return TempWorkspaceManager(appContext.filesDir, appContext.cacheDir)
+                .importPickedFile(fileKind, stagedFile.absolutePath)
+        } finally {
+            stagingDir.deleteRecursively()
+        }
+    }
+'''
+needle = "    private fun importPickedFile(call: MethodCall, result: Result) {"
+if kt.count(needle) != 1:
+    raise RuntimeError("Native import function insertion point missing")
+kt = kt.replace(needle, activity_methods + "\n" + needle, 1)
+cleanup = "        scope.cancel()\n"
+if cleanup not in kt:
+    raise RuntimeError("Plugin cleanup insertion point missing")
+kt = kt.replace(cleanup, "        pendingDocumentPickerResult?.error(\"PICKER_UNAVAILABLE\", \"App closed before import completed.\", null)\n        pendingDocumentPickerResult = null\n        pendingDocumentPickerKind = null\n        scope.cancel()\n", 1)
+plugin.write_text(kt, encoding="utf-8")
+
+bridge = root / "lib/services/rvc_bridge.dart"
+bt = bridge.read_text(encoding="utf-8")
+bridge_needle = """  Future<ImportedFileHandle> importPickedFile({
+    required String kind,
+    required String sourcePath,
+  }) async {"""
+bridge_method = """  /// Native Android document picker; null means the user cancelled.
+  Future<ImportedFileHandle?> pickAndImportFile({required String kind}) async {
+    final result = await _channel.invokeMethod<Map<dynamic, dynamic>>(
+      'pickAndImportFile',
+      {'kind': kind},
+    );
+    if (result == null) return null;
+    return ImportedFileHandle.fromMap(Map<String, dynamic>.from(result));
+  }
+
+"""
+if bridge_needle not in bt:
+    raise RuntimeError("RVCBridge import method insertion point missing")
+bt = bt.replace(bridge_needle, bridge_method + bridge_needle, 1)
+bridge.write_text(bt, encoding="utf-8")
+
+picker = root / "lib/screens/model_picker_screen.dart"
+pt = picker.read_text(encoding="utf-8").replace("import 'package:file_picker/file_picker.dart';\n", "")
+old_model = """      final result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: false,
+        withData: false,
+      );
+      final source = result?.files.single.path;
+      if (source == null || source.isEmpty) return;
+      final ext = _ext(source);
+      if (!['onnx', 'pth', 'pt', 'zip'].contains(ext)) {
+        throw Exception('Select an RVC model: .onnx, .pth, .pt or .zip');
+      }
+
+      final imported = await _bridge.importPickedFile(kind: 'model', sourcePath: source);"""
+new_model = """      final imported = await _bridge.pickAndImportFile(kind: 'model');
+      if (imported == null) return;
+      final ext = _ext(imported.path);"""
+old_index = """      final result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: false,
+        withData: false,
+      );
+      final source = result?.files.single.path;
+      if (source == null || source.isEmpty) return;
+      final ext = _ext(source);
+      if (!_index(source)) throw Exception('Select an RVC .index or .mobile.index file');
+
+      final imported = await _bridge.importPickedFile(kind: 'index', sourcePath: source);"""
+new_index = """      final imported = await _bridge.pickAndImportFile(kind: 'index');
+      if (imported == null) return;
+      final ext = _ext(imported.path);"""
+old_select = """      _selectedIndexPath = imported.path;
+      _selectedIndexDisplayName = File(imported.path).uri.pathSegments.last;
+      if (mounted) setState(() {});
+      widget.onIndexSelected(imported.path);"""
+new_select = """      if (ext == 'mobile.index') {
+        _selectedIndexPath = imported.path;
+        _selectedIndexDisplayName = File(imported.path).uri.pathSegments.last;
+        widget.onIndexSelected(imported.path);
+      }
+      if (mounted) setState(() {});"""
+for old, new in [(old_model,new_model),(old_index,new_index),(old_select,new_select)]:
+    if old not in pt:
+        raise RuntimeError("Model/index picker source changed; cannot apply SAF patch")
+    pt = pt.replace(old,new,1)
+pt = pt.replace(
+    "Standard .index imported. Use Index Tools to convert it for mobile use.",
+    "Standard .index stored. It is not runtime-ready; an on-phone FAISS converter is not included yet.",
+    1
+)
+picker.write_text(pt, encoding="utf-8")
+
+# Confirm the generated native and Dart source gets the new SAF code.
+for name, check in [
+    ("native Android SAF", "pickAndImportFile" in kt and "ACTION_OPEN_DOCUMENT" in kt and "ActivityAware" in kt),
+    ("Dart SAF bridge", "pickAndImportFile" in bt),
+    ("model screen SAF", "pickAndImportFile(kind: 'model')" in pt and "FilePicker.platform.pickFiles" not in pt),
+]:
+    if not check:
+        raise RuntimeError("Missing required finalization component: " + name)
+
+
 # Final static sanity checks. Fail the build before producing an APK if the
 # custom UI/navigation layer was not actually installed.
 # ---------------------------------------------------------------------------
