@@ -1296,6 +1296,252 @@ if "private fun extractModelArchive" not in kt or "extractModelArchive" not in b
 plugin.write_text(kt, encoding="utf-8")
 
 
+# ---------------------------------------------------------------------------
+# Native Android SAF audio import: one audio file for conversion and a
+# multi-select audio picker for the private dataset workspace.
+# ---------------------------------------------------------------------------
+kt = plugin.read_text(encoding="utf-8")
+handler_audio = '            "pickAndImportFile" -> pickAndImportFile(call, result)\n'
+if '"pickAndImportAudioFiles" -> pickAndImportAudioFiles(result)' not in kt:
+    if handler_audio not in kt: raise RuntimeError("Audio SAF handler insertion point missing")
+    kt = kt.replace(handler_audio, handler_audio + '            "pickAndImportAudioFiles" -> pickAndImportAudioFiles(result)\n', 1)
+
+# Route multi-select results through the same streaming importer.
+activity_result_anchor = """        if (resultCode != Activity.RESULT_OK) {
+            reply.success(null)
+            return true
+        }
+        val uri = data?.data"""
+activity_result_replacement = """        if (resultCode != Activity.RESULT_OK) {
+            reply.success(null)
+            return true
+        }
+        if (kind == "audio_multiple") {
+            importMultipleAudioUris(reply, data)
+            return true
+        }
+        val uri = data?.data"""
+if activity_result_anchor not in kt: raise RuntimeError("Audio SAF activity-result insertion point missing")
+kt = kt.replace(activity_result_anchor, activity_result_replacement, 1)
+
+audio_picker_methods = r'''
+    private fun pickAndImportAudioFiles(result: Result) {
+        val activity = activityBinding?.activity
+        if (activity == null) {
+            result.error("PICKER_UNAVAILABLE", "Android document picker is not attached.", null)
+            return
+        }
+        if (pendingDocumentPickerResult != null) {
+            result.error("PICKER_BUSY", "Another document selection is already open.", null)
+            return
+        }
+        pendingDocumentPickerResult = result
+        pendingDocumentPickerKind = "audio_multiple"
+        try {
+            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = "audio/*"
+                putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            activity.startActivityForResult(intent, documentPickerRequestCode)
+        } catch (error: Throwable) {
+            pendingDocumentPickerResult = null
+            pendingDocumentPickerKind = null
+            result.error("PICKER_LAUNCH_FAILED", error.message, null)
+        }
+    }
+
+    private fun importMultipleAudioUris(reply: Result, data: Intent?) {
+        val uris = mutableListOf<Uri>()
+        val clip = data?.clipData
+        if (clip != null) {
+            for (i in 0 until clip.itemCount) {
+                clip.getItemAt(i).uri?.let { uris.add(it) }
+            }
+        } else {
+            data?.data?.let { uris.add(it) }
+        }
+        if (uris.isEmpty()) {
+            reply.success(emptyList<Any>())
+            return
+        }
+        scope.launch {
+            val manager = TempWorkspaceManager(appContext.filesDir, appContext.cacheDir)
+            val imported = mutableListOf<ManagedImportedFile>()
+            try {
+                uris.forEach { imported.add(importDocumentUri("audio", it)) }
+                withContext(Dispatchers.Main) {
+                    reply.success(imported.map {
+                        mapOf(
+                            "path" to it.path,
+                            "referenceCount" to it.referenceCount,
+                            "lastUpdatedAtMs" to it.lastUpdatedAtMs,
+                        )
+                    })
+                }
+            } catch (error: Throwable) {
+                imported.forEach { handle ->
+                    runCatching {
+                        val released = manager.releaseReference(handle.path)
+                        if (released.referenceCount == 0) manager.deleteIfUnused(handle.path)
+                    }
+                }
+                withContext(Dispatchers.Main) {
+                    reply.error("AUDIO_IMPORT_FAILED", error.message ?: "Could not import the selected audio.", null)
+                }
+            }
+        }
+    }
+'''
+audio_method_anchor = "    private fun pickAndImportFile(call: MethodCall, result: Result) {"
+if "private fun pickAndImportAudioFiles" not in kt:
+    if kt.count(audio_method_anchor) != 1: raise RuntimeError("Audio SAF methods insertion point missing")
+    kt = kt.replace(audio_method_anchor, audio_picker_methods + "\n" + audio_method_anchor, 1)
+
+# Single-file picker also accepts local audio. Preserve unrestricted model/index
+# selection; use audio/* only for the audio path.
+kt = kt.replace(
+    'if (kind != "model" && kind != "index") {',
+    'if (kind != "model" && kind != "index" && kind != "audio") {',
+    1
+)
+kt = kt.replace(
+    'type = "*/*"\n                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)',
+    'type = if (kind == "audio") "audio/*" else "*/*"\n                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)',
+    1
+)
+
+# Extend validation and destination routing for audio files.
+old_valid = """        val valid = if (kind == "model") {
+            listOf(".onnx", ".pth", ".pt", ".zip").any { lowerName.endsWith(it) }
+        } else {
+            lowerName.endsWith(".mobile.index") || lowerName.endsWith(".index")
+        }
+        require(valid) {
+            if (kind == "model") "Choose an RVC model file: .onnx, .pth, .pt or .zip."
+            else "Choose an RVC index file: .index or .mobile.index."
+        }"""
+new_valid = """        val valid = when (kind) {
+            "model" -> listOf(".onnx", ".pth", ".pt", ".zip").any { lowerName.endsWith(it) }
+            "index" -> lowerName.endsWith(".mobile.index") || lowerName.endsWith(".index")
+            "audio" -> listOf(".wav", ".flac", ".mp3", ".m4a", ".ogg", ".aac", ".aiff").any { lowerName.endsWith(it) }
+            else -> false
+        }
+        require(valid) {
+            when (kind) {
+                "model" -> "Choose an RVC model file: .onnx, .pth, .pt or .zip."
+                "index" -> "Choose an RVC index file: .index or .mobile.index."
+                else -> "Choose an audio file: WAV, FLAC, MP3, M4A, OGG, AAC or AIFF."
+            }
+        }"""
+if old_valid not in kt: raise RuntimeError("Audio extension validation block missing")
+kt = kt.replace(old_valid, new_valid, 1)
+old_kind = """            val fileKind = when (kind) {
+                "model" -> ImportedFileKind.MODEL
+                "index" -> ImportedFileKind.INDEX
+                else -> error("Unsupported import type.")
+            }"""
+new_kind = """            val fileKind = when (kind) {
+                "model" -> ImportedFileKind.MODEL
+                "index" -> ImportedFileKind.INDEX
+                "audio" -> ImportedFileKind.AUDIO
+                else -> error("Unsupported import type.")
+            }"""
+if old_kind not in kt: raise RuntimeError("Audio destination mapping block missing")
+kt = kt.replace(old_kind,new_kind,1)
+plugin.write_text(kt,encoding="utf-8")
+
+bt = bridge.read_text(encoding="utf-8")
+audio_bridge = """  /// Opens Android's native multi-select audio picker and imports every selection.
+  Future<List<ImportedFileHandle>> pickAndImportAudioFiles() async {
+    final result = await _channel.invokeMethod<List<dynamic>>('pickAndImportAudioFiles');
+    if (result == null) return <ImportedFileHandle>[];
+    return result.map((item) => ImportedFileHandle.fromMap(
+      Map<String, dynamic>.from(item as Map),
+    )).toList();
+  }
+
+"""
+if "Future<List<ImportedFileHandle>> pickAndImportAudioFiles" not in bt:
+    bridge_anchor = "  Future<ImportedFileHandle?> pickAndImportFile({required String kind}) async {"
+    if bridge_anchor not in bt: raise RuntimeError("Audio SAF Dart bridge insertion point missing")
+    bt = bt.replace(bridge_anchor,audio_bridge+bridge_anchor,1)
+bridge.write_text(bt,encoding="utf-8")
+
+# Use the native single-file audio importer for conversion input.
+song_screen = root / "lib/screens/song_picker_screen.dart"
+song = song_screen.read_text(encoding="utf-8")
+song = song.replace("import 'package:file_picker/file_picker.dart';\n","")
+old_song = """      final result = await FilePicker.platform.pickFiles(
+        type: FileType.audio,
+        allowMultiple: false,
+      );
+
+      if (result != null && result.files.isNotEmpty) {
+        final filePath = result.files.single.path;
+        if (filePath != null) {
+          await widget.onSongSelected(filePath);
+        }
+      }"""
+new_song = """      final imported = await _rvcBridge.pickAndImportFile(kind: 'audio');
+      if (imported != null) {
+        await widget.onSongSelected(imported.path);
+      }"""
+if old_song not in song: raise RuntimeError("Song picker import callback missing")
+song = song.replace(old_song,new_song,1)
+song_screen.write_text(song,encoding="utf-8")
+
+# Avoid importing an already app-managed audio file a second time.
+mt = main.read_text(encoding="utf-8")
+old_direct = "final useDirectPath = normalizedPath.contains('/recordings/') || normalizedPath.contains('/TEMP/');"
+new_direct = "final useDirectPath = normalizedPath.contains('/recordings/') || normalizedPath.contains('/TEMP/') || normalizedPath.contains('/file_picker/audio/');"
+if old_direct in mt: mt = mt.replace(old_direct,new_direct,1)
+main.write_text(mt,encoding="utf-8")
+
+# Dataset samples now use Android's native multi-select picker rather than
+# temporary plugin-generated paths.
+training = root / "lib/screens/training_screen.dart"
+tr = training.read_text(encoding="utf-8")
+tr = tr.replace("import 'package:file_picker/file_picker.dart';\n","")
+tr = tr.replace("  final List<String> _samples = [];", "  final List<String> _samples = [];\n  final Set<String> _importedSamples = {};")
+old_add = """      final result = await FilePicker.platform.pickFiles(
+        type: FileType.any, allowMultiple: true, withData: false,
+      );
+      if (result == null) return;
+      final paths = result.files.map((f) => f.path).whereType<String>()
+        .where((p) => File(p).existsSync())
+        .where((p) => ['.wav','.flac','.mp3','.m4a','.ogg','.aac']
+          .any((e) => p.toLowerCase().endsWith(e))).toList();"""
+new_add = """      final handles = await _bridge.pickAndImportAudioFiles();
+      if (handles.isEmpty) return;
+      final paths = handles.map((handle) => handle.path)
+        .where((p) => File(p).existsSync()).toList();"""
+if old_add not in tr: raise RuntimeError("Dataset audio import callback missing")
+tr = tr.replace(old_add,new_add,1)
+tr = tr.replace(
+    "for (final p in paths) { if (!_samples.contains(p)) _samples.add(p); }",
+    "for (final p in paths) { if (!_samples.contains(p)) _samples.add(p); _importedSamples.add(p); }",
+    1
+)
+tr = tr.replace(
+    """  Future<void> _clear() async {
+    if (_datasetPath != null) {""",
+    """  Future<void> _clear() async {
+    for (final path in _importedSamples.toList()) {
+      try { await _bridge.releaseImportedFile(path); } catch (_) {}
+    }
+    _importedSamples.clear();
+    if (_datasetPath != null) {""",
+    1
+)
+training.write_text(tr,encoding="utf-8")
+
+if "pickAndImportAudioFiles" not in kt or "pickAndImportAudioFiles" not in bt or "pickAndImportAudioFiles" not in tr:
+    raise RuntimeError("Audio SAF patch did not reach native, bridge and dataset UI.")
+
+
+
 # Confirm the generated native and Dart source gets the new SAF code.
 for name, check in [
     ("native Android SAF", "pickAndImportFile" in kt and "ACTION_OPEN_DOCUMENT" in kt and "ActivityAware" in kt),
