@@ -1117,6 +1117,117 @@ for name, check in [
         raise RuntimeError("Missing required finalization component: " + name)
 
 
+
+# ---------------------------------------------------------------------------
+# Honest on-phone index tools. The native runtime can validate/install the
+# mobile index signature; it cannot parse a standard FAISS .index file.
+# ---------------------------------------------------------------------------
+index_screen = root / "lib/screens/index_converter_screen.dart"
+index_screen.write_text(r'''import 'package:flutter/material.dart';
+import '../services/rvc_bridge.dart';
+
+class IndexConverterScreen extends StatefulWidget {
+  const IndexConverterScreen({super.key});
+
+  @override
+  State<IndexConverterScreen> createState() => _IndexConverterScreenState();
+}
+
+class _IndexConverterScreenState extends State<IndexConverterScreen> {
+  final RVCBridge _bridge = RVCBridge();
+  bool _busy = false;
+  String _status = 'Select a mobile.index file to validate and install.';
+
+  Future<void> _selectAndValidate() async {
+    if (_busy) return;
+    setState(() { _busy = true; _status = 'Opening Android file picker…'; });
+    try {
+      final imported = await _bridge.pickAndImportFile(kind: 'index');
+      if (imported == null) {
+        if (mounted) setState(() => _status = 'No file selected.');
+        return;
+      }
+      final name = imported.path.split('/').last;
+      if (!name.toLowerCase().endsWith('.mobile.index')) {
+        if (mounted) {
+          setState(() => _status =
+            '$name was imported and stored safely, but it is a standard FAISS index. This build does not yet contain the on-phone FAISS vector extractor, so it cannot be used by the mobile inference engine.');
+        }
+        return;
+      }
+      final installed = await _bridge.convertIndex(imported.path);
+      if (mounted) {
+        setState(() => _status =
+          'VALIDATION COMPLETE\n\n$name passed the mobile-index format check and was installed at:\n$installed');
+      }
+    } catch (e) {
+      if (mounted) setState(() => _status = 'INDEX CHECK FAILED\n\n$e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: const Color(0xFF07070A),
+    appBar: AppBar(
+      backgroundColor: const Color(0xFF09090D),
+      title: const Text("RED'S ULTIMATE RVC — INDEX TOOLS"),
+      centerTitle: true,
+    ),
+    body: ListView(
+      padding: const EdgeInsets.all(18),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: const Color(0xFF111117),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFF62202B)),
+          ),
+          child: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.data_object, color: Color(0xFFFF334F), size: 38),
+              SizedBox(height: 12),
+              Text('MOBILE INDEX CHECKER', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900)),
+              SizedBox(height: 8),
+              Text('The on-phone inference engine accepts a mobile.index file with the URVCIDX1 signature. This tool checks and installs that mobile format locally.', style: TextStyle(height: 1.4, color: Color(0xFFD0D0D8))),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 52,
+          child: ElevatedButton.icon(
+            onPressed: _busy ? null : _selectAndValidate,
+            icon: const Icon(Icons.folder_open),
+            label: Text(_busy ? 'CHECKING…' : 'SELECT & CHECK INDEX'),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF111117),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFF292932)),
+          ),
+          child: SelectableText(_status, style: const TextStyle(height: 1.45)),
+        ),
+        const SizedBox(height: 12),
+        const Text(
+          'IMPORTANT: A standard desktop .index file is not the same format as mobile.index. Standard FAISS-to-mobile conversion is not implemented in this offline build. The app will store the source file but will not falsely mark it as ready for inference.',
+          style: TextStyle(color: Color(0xFFFFA3AE), height: 1.4, fontSize: 12.5),
+        ),
+      ],
+    ),
+  );
+}
+''', encoding="utf-8")
+
+# Final static sanity checks.
+
 # Final static sanity checks. Fail the build before producing an APK if the
 # custom UI/navigation layer was not actually installed.
 # ---------------------------------------------------------------------------
