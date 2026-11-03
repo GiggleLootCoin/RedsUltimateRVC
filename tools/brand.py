@@ -1107,6 +1107,193 @@ pt = pt.replace(
 )
 picker.write_text(pt, encoding="utf-8")
 
+
+# ---------------------------------------------------------------------------
+# Safe on-device RVC ZIP extraction. Supported model/index entries are streamed
+# to a temporary location and imported using the persistent model manager.
+# Partial installs are rolled back on any error.
+# ---------------------------------------------------------------------------
+kt = plugin.read_text(encoding="utf-8")
+zip_import = "import java.util.UUID\n"
+if "import java.util.zip.ZipInputStream" not in kt:
+    if zip_import not in kt: raise RuntimeError("ZIP import position missing")
+    kt = kt.replace(zip_import, zip_import + "import java.util.zip.ZipInputStream\n", 1)
+handler_line = '            "pickAndImportFile" -> pickAndImportFile(call, result)\n'
+if '"extractModelArchive" -> extractModelArchive(call, result)' not in kt:
+    if handler_line not in kt: raise RuntimeError("ZIP method handler position missing")
+    kt = kt.replace(handler_line, handler_line + '            "extractModelArchive" -> extractModelArchive(call, result)\n', 1)
+
+zip_method = r'''
+    private fun extractModelArchive(call: MethodCall, result: Result) {
+        val archivePath = call.argument<String>("path")
+        if (archivePath.isNullOrBlank()) {
+            result.error("INVALID_ARGUMENTS", "Missing archive path.", null)
+            return
+        }
+        val archive = File(archivePath)
+        if (!archive.isFile || !archive.name.lowercase(Locale.ROOT).endsWith(".zip")) {
+            result.error("INVALID_ARCHIVE", "Choose an installed ZIP model archive.", null)
+            return
+        }
+        scope.launch {
+            val manager = TempWorkspaceManager(appContext.filesDir, appContext.cacheDir)
+            val staging = File(appContext.cacheDir, "rvc_zip_extract_" + UUID.randomUUID().toString())
+            val imported = mutableListOf<ManagedImportedFile>()
+            try {
+                require(staging.mkdirs()) { "Could not create a temporary extraction folder." }
+                var totalBytes = 0L
+                var supportedEntries = 0
+                ZipInputStream(FileInputStream(archive).buffered()).use { zip ->
+                    var entry = zip.nextEntry
+                    while (entry != null) {
+                        if (!entry.isDirectory) {
+                            val baseName = File(entry.name.replace('\\', '/')).name
+                            val lower = baseName.lowercase(Locale.ROOT)
+                            val fileKind = when {
+                                lower.endsWith(".mobile.index") || lower.endsWith(".index") -> ImportedFileKind.INDEX
+                                lower.endsWith(".onnx") || lower.endsWith(".pth") || lower.endsWith(".pt") -> ImportedFileKind.MODEL
+                                else -> null
+                            }
+                            if (fileKind != null) {
+                                supportedEntries += 1
+                                require(supportedEntries <= 128) { "ZIP contains too many model/index files." }
+                                val safeName = baseName
+                                    .replace(Regex("[^A-Za-z0-9._() -]"), "_")
+                                    .take(180)
+                                    .ifBlank { "rvc_model_" + supportedEntries }
+                                val entryDir = File(staging, "entry_" + supportedEntries)
+                                require(entryDir.mkdirs()) { "Could not prepare a ZIP entry." }
+                                val destination = File(entryDir, safeName)
+                                var entryBytes = 0L
+                                FileOutputStream(destination).buffered().use { output ->
+                                    val buffer = ByteArray(64 * 1024)
+                                    while (true) {
+                                        val count = zip.read(buffer)
+                                        if (count < 0) break
+                                        if (count == 0) continue
+                                        entryBytes += count.toLong()
+                                        totalBytes += count.toLong()
+                                        require(entryBytes <= 1_500_000_000L && totalBytes <= 2_000_000_000L) {
+                                            "ZIP expands beyond the safe on-device import limit."
+                                        }
+                                        output.write(buffer, 0, count)
+                                    }
+                                }
+                                require(entryBytes > 0L && destination.isFile) {
+                                    "ZIP entry is empty: " + safeName
+                                }
+                                imported.add(manager.importPickedFile(fileKind, destination.absolutePath))
+                            }
+                        }
+                        zip.closeEntry()
+                        entry = zip.nextEntry
+                    }
+                }
+                require(imported.isNotEmpty()) {
+                    "ZIP contains no supported .onnx, .pth, .pt or .index files."
+                }
+                withContext(Dispatchers.Main) {
+                    result.success(imported.map {
+                        mapOf(
+                            "path" to it.path,
+                            "referenceCount" to it.referenceCount,
+                            "lastUpdatedAtMs" to it.lastUpdatedAtMs,
+                        )
+                    })
+                }
+            } catch (error: Throwable) {
+                imported.forEach { handle ->
+                    runCatching {
+                        val released = manager.releaseReference(handle.path)
+                        if (released.referenceCount == 0) manager.deleteIfUnused(handle.path)
+                    }
+                }
+                withContext(Dispatchers.Main) {
+                    result.error("ARCHIVE_EXTRACT_FAILED", error.message ?: "Could not extract this model archive.", null)
+                }
+            } finally {
+                staging.deleteRecursively()
+            }
+        }
+    }
+'''
+zip_needle = "    private fun pickAndImportFile(call: MethodCall, result: Result) {"
+if kt.count(zip_needle) != 1: raise RuntimeError("ZIP extractor insertion point missing")
+if "private fun extractModelArchive" not in kt:
+    kt = kt.replace(zip_needle, zip_method + "\n" + zip_needle, 1)
+
+bt = bridge.read_text(encoding="utf-8")
+pick_method_end = """  Future<ImportedFileHandle> importPickedFile({
+    required String kind,
+    required String sourcePath,
+  }) async {"""
+archive_bridge = """  /// Extracts model/index files from an installed ZIP inside app-private storage.
+  Future<List<ImportedFileHandle>> extractModelArchive(String path) async {
+    final result = await _channel.invokeMethod<List<dynamic>>(
+      'extractModelArchive',
+      {'path': path},
+    );
+    if (result == null) return <ImportedFileHandle>[];
+    return result.map((item) => ImportedFileHandle.fromMap(
+      Map<String, dynamic>.from(item as Map),
+    )).toList();
+  }
+
+"""
+if "Future<List<ImportedFileHandle>> extractModelArchive" not in bt:
+    if pick_method_end not in bt: raise RuntimeError("ZIP bridge insertion point missing")
+    bt = bt.replace(pick_method_end, archive_bridge + pick_method_end, 1)
+bridge.write_text(bt, encoding="utf-8")
+
+pt = picker.read_text(encoding="utf-8")
+zip_anchor = """      final ext = _ext(imported.path);
+      if (!_library.contains(imported.path)) _library.insert(0, imported.path);"""
+zip_handler = """      final ext = _ext(imported.path);
+      if (ext == 'zip') {
+        List<ImportedFileHandle> unpacked;
+        try {
+          unpacked = await _bridge.extractModelArchive(imported.path);
+        } finally {
+          await _bridge.releaseImportedFile(imported.path);
+        }
+        String? readyModelPath;
+        String? readyIndexPath;
+        for (final item in unpacked) {
+          final itemExt = _ext(item.path);
+          if (['onnx', 'pth', 'pt'].contains(itemExt) && !_library.contains(item.path)) {
+            _library.insert(0, item.path);
+          }
+          if (itemExt == 'onnx' && readyModelPath == null) readyModelPath = item.path;
+          if (itemExt == 'mobile.index' && readyIndexPath == null) readyIndexPath = item.path;
+        }
+        if (readyModelPath != null) {
+          _selectedModelPath = readyModelPath;
+          _selectedModelDisplayName = readyModelPath.split('/').last;
+          widget.onModelSelected(readyModelPath);
+        }
+        if (readyIndexPath != null) {
+          _selectedIndexPath = readyIndexPath;
+          _selectedIndexDisplayName = readyIndexPath.split('/').last;
+          widget.onIndexSelected(readyIndexPath);
+        }
+        await _saveLibrary();
+        if (!mounted) return;
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('ZIP unpacked: ' + unpacked.length.toString() + ' model/index file(s) imported. ONNX is ready for conversion; PTH/PT source files are stored for future conversion support.')),
+        );
+        return;
+      }
+      if (!_library.contains(imported.path)) _library.insert(0, imported.path);"""
+if (!pt.includes(zip_anchor)) throw new Error("ZIP model callback insertion point missing");
+if (!pt.includes("extractModelArchive(imported.path)")) pt=pt.replace(zip_anchor,zip_handler,1);
+picker.write_text(pt,encoding="utf-8");
+
+if (!kt.includes("private fun extractModelArchive") || !bt.includes("extractModelArchive") || !pt.includes("extractModelArchive(imported.path)")) {
+    throw new Error("ZIP extraction patch did not reach all layers");
+}
+
+
 # Confirm the generated native and Dart source gets the new SAF code.
 for name, check in [
     ("native Android SAF", "pickAndImportFile" in kt and "ACTION_OPEN_DOCUMENT" in kt and "ActivityAware" in kt),
