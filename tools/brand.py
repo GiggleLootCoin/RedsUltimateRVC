@@ -1285,13 +1285,15 @@ zip_handler = """      final ext = _ext(imported.path);
         return;
       }
       if (!_library.contains(imported.path)) _library.insert(0, imported.path);"""
-if (!pt.includes(zip_anchor)) throw new Error("ZIP model callback insertion point missing");
-if (!pt.includes("extractModelArchive(imported.path)")) pt=pt.replace(zip_anchor,zip_handler,1);
+if zip_anchor not in pt:
+    raise RuntimeError("ZIP model callback insertion point missing")
+if "extractModelArchive(imported.path)" not in pt:
+    pt = pt.replace(zip_anchor, zip_handler, 1)
 picker.write_text(pt,encoding="utf-8");
 
-if (!kt.includes("private fun extractModelArchive") || !bt.includes("extractModelArchive") || !pt.includes("extractModelArchive(imported.path)")) {
-    throw new Error("ZIP extraction patch did not reach all layers");
-}
+if "private fun extractModelArchive" not in kt or "extractModelArchive" not in bt or "extractModelArchive(imported.path)" not in pt:
+    raise RuntimeError("ZIP extraction patch did not reach all layers")
+plugin.write_text(kt, encoding="utf-8")
 
 
 # Confirm the generated native and Dart source gets the new SAF code.
