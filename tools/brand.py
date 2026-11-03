@@ -867,7 +867,7 @@ checks = {
     "Android document picker: unrestricted selection then extension validation": "type: FileType.any" in final_picker and "Select an RVC model" in final_picker,
     "PTH support": ".pth" in final_picker,
     "Mobile index support": ".mobile.index" in final_picker,
-    "Persistent model storage": workspace.exists() and "MODEL, ImportedFileKind.INDEX" in workspace.read_text(encoding="utf-8") if workspace.exists() else False,
+    "Persistent model storage": workspace.exists() and "File(File(appFilesDir, IMPORTS_DIRECTORY_NAME)" in workspace.read_text(encoding="utf-8") and "File(File(appFilesDir, IMPORTS_DIRECTORY_NAME), REGISTRY_FILE_NAME)" in workspace.read_text(encoding="utf-8") if workspace.exists() else False,
 }
 failed = [name for name, ok in checks.items() if not ok]
 if failed:
