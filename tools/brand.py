@@ -360,8 +360,9 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      // Use the explicit RVC extension list required by the Android picker.
-      // Validate again after selection because providers can return unusual URIs.
+      // Use Android's unrestricted document picker: custom extension filters can
+      // grey out legitimate .pth/.pt/.index files in Samsung My Files.
+      // Validate the selected extension after the user chooses the file.
       final result = await FilePicker.platform.pickFiles(
         type: FileType.any,
         allowMultiple: false,
