@@ -1239,9 +1239,12 @@ checks = {
     "Full RVC screen": (root / "lib" / "screens" / "full_rvc_screen.dart").exists() and "FullRvcScreen(" in final_main,
     "PTH conversion limitation disclosed": "PTH → ONNX conversion is not included" in final_picker,
     "Dashboard first": "final moduleScreens = [" in final_main and "RedHomeScreen(" in final_main.split("final moduleScreens = [",1)[1].split("GestureDetector(",1)[0],
-    "Android document picker: unrestricted selection then extension validation": "type: FileType.any" in final_picker and "Select an RVC model" in final_picker,
+    "Native Android SAF picker": "pickAndImportFile" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8") and "ACTION_OPEN_DOCUMENT" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8"),
+    "Dart native SAF bridge": "pickAndImportFile" in (root / "lib/services/rvc_bridge.dart").read_text(encoding="utf-8"),
+    "Model picker uses native SAF": "pickAndImportFile(kind: 'model')" in final_picker and "FilePicker.platform.pickFiles" not in final_picker,
     "PTH support": ".pth" in final_picker,
     "Mobile index support": ".mobile.index" in final_picker,
+    "Index tools have no computer handoff": "on-phone FAISS vector extractor" in (root / "lib/screens/index_converter_screen.dart").read_text(encoding="utf-8"),
     "Persistent model storage": workspace.exists() and "File(File(appFilesDir, IMPORTS_DIRECTORY_NAME)" in workspace.read_text(encoding="utf-8") and "File(File(appFilesDir, IMPORTS_DIRECTORY_NAME), REGISTRY_FILE_NAME)" in workspace.read_text(encoding="utf-8") if workspace.exists() else False,
 }
 failed = [name for name, ok in checks.items() if not ok]
