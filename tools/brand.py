@@ -363,8 +363,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
       // Use the explicit RVC extension list required by the Android picker.
       // Validate again after selection because providers can return unusual URIs.
       final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['onnx', 'pth', 'pt', 'zip'],
+        type: FileType.any,
         allowMultiple: false,
         withData: false,
       );
@@ -405,8 +404,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
     setState(() => _busy = true);
     try {
       final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['index'],
+        type: FileType.any,
         allowMultiple: false,
         withData: false,
       );
@@ -846,7 +844,7 @@ checks = {
     "Full RVC screen": (root / "lib" / "screens" / "full_rvc_screen.dart").exists() and "FullRvcScreen(" in final_main,
     "PTH conversion limitation disclosed": "PTH → ONNX conversion is not included" in final_picker,
     "Dashboard first": "final moduleScreens = [" in final_main and "RedHomeScreen(" in final_main.split("final moduleScreens = [",1)[1].split("GestureDetector(",1)[0],
-    "Samsung-safe model picker": "type: FileType.custom" in final_picker and "allowedExtensions: ['onnx', 'pth', 'pt', 'zip']" in final_picker,
+    "Android document picker: unrestricted selection then extension validation": "type: FileType.any" in final_picker and "Select an RVC model" in final_picker,
     "PTH support": ".pth" in final_picker,
     "Mobile index support": ".mobile.index" in final_picker,
     "Persistent model storage": workspace.exists() and "MODEL, ImportedFileKind.INDEX" in workspace.read_text(encoding="utf-8") if workspace.exists() else False,
