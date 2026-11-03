@@ -23,6 +23,25 @@ for name in ("red_home_screen.dart", "training_screen.dart", "full_rvc_screen.da
     dst.parent.mkdir(parents=True, exist_ok=True)
     dst.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
 
+# Keep user-imported models and indexes in persistent app-private storage.
+# The upstream manager originally used appCacheDir, which Android may clear.
+# Keep the temporary FilePicker staging directory in cache, but put the actual
+# imported library and its reference registry under filesDir.
+workspace_manager = root / "android" / "app" / "src" / "main" / "kotlin" / "com" / "ultimatervc" / "mobile" / "TempWorkspaceManager.kt"
+if workspace_manager.exists():
+    manager_text = workspace_manager.read_text(encoding="utf-8")
+    old_import_root = 'return File(File(appCacheDir, IMPORTS_DIRECTORY_NAME), kind.directoryName).also { it.mkdirs() }'
+    new_import_root = 'return File(File(appFilesDir, IMPORTS_DIRECTORY_NAME), kind.directoryName).also { it.mkdirs() }'
+    old_registry = 'return File(File(appCacheDir, IMPORTS_DIRECTORY_NAME), REGISTRY_FILE_NAME)'
+    new_registry = 'return File(File(appFilesDir, IMPORTS_DIRECTORY_NAME), REGISTRY_FILE_NAME)'
+    if old_import_root not in manager_text or old_registry not in manager_text:
+        raise RuntimeError("TempWorkspaceManager storage layout changed; review persistent model-library patch")
+    manager_text = manager_text.replace(old_import_root, new_import_root, 1)
+    manager_text = manager_text.replace(old_registry, new_registry, 1)
+    workspace_manager.write_text(manager_text, encoding="utf-8")
+else:
+    raise RuntimeError("TempWorkspaceManager.kt missing; cannot guarantee persistent model imports")
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
