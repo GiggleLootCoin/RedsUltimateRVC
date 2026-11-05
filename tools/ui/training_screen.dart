@@ -118,14 +118,12 @@ class _TrainingScreenState extends State<TrainingScreen> {
       final root = Directory('${docs.path}/rvc_datasets/${safe.isEmpty ? 'voice' : safe}');
       final data = Directory('${root.path}/audio');
       await data.create(recursive: true);
-      var copied = 0;
       for (var i = 0; i < _samples.length; i++) {
         final src = File(_samples[i]);
         if (!await src.exists()) continue;
         if (src.absolute.path.startsWith(data.absolute.path + Platform.pathSeparator)) continue;
         final base = src.uri.pathSegments.last.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
         await src.copy('${data.path}/${i.toString().padLeft(4, '0')}_$base');
-        copied++;
       }
       final totalSamples = await data.list().where((entity) => entity is File).length;
       await File('${root.path}/README.txt').writeAsString(
