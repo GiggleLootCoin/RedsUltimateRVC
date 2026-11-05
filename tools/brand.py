@@ -683,7 +683,7 @@ for a,b in {
     "变声器模式":"Voice Changer",
     "分贝仪":"dB Meter",
     "音高检测":"Pitch Detection",
-    "参数解释":"RVC Controls",
+    "参数解释":"RVC Control Guide",
     "mobile.index 转换教程":"Index Checker",
 }.items():
     mt = mt.replace(a,b)
@@ -819,7 +819,7 @@ drawer = r'''  Future<void> _openCreatorYouTube() async {
           ListTile(leading: const Icon(Icons.settings_voice), title: const Text('Realtime RVC'), selected: _moduleIndex == 2, onTap: _openRealtimeInference),
           ListTile(leading: const Icon(Icons.record_voice_over), title: const Text('Voice Changer'), selected: _moduleIndex == 3, onTap: _openVoiceChanger),
           ListTile(leading: const Icon(Icons.sync_alt), title: const Text('Index Tools'), selected: _moduleIndex == 4, onTap: _openIndexConverter),
-          ListTile(leading: const Icon(Icons.tune), title: const Text('RVC Controls'), selected: _moduleIndex == 5, onTap: _openParameterGuide),
+          ListTile(leading: const Icon(Icons.tune), title: const Text('RVC Control Guide'), selected: _moduleIndex == 5, onTap: _openParameterGuide),
           ListTile(leading: const Icon(Icons.speed), title: const Text('dB Meter'), selected: _moduleIndex == 6, onTap: _openDecibelMeter),
           ListTile(leading: const Icon(Icons.multitrack_audio), title: const Text('Pitch Detection'), selected: _moduleIndex == 7, onTap: _openPitchDetection),
           const Divider(color: Color(0xFF282832)),
