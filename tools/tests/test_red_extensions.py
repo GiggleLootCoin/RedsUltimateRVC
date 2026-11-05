@@ -71,3 +71,21 @@ def test_workflow_runs_tests_and_supports_private_persistent_signing():
     ):
         assert secret in source
     assert "temporary GitHub runner debug key" in source
+
+
+def test_upstream_song_picker_is_translated_to_english_before_build():
+    source = BRAND.read_text(encoding="utf-8")
+    for text in (
+        '"选择音频": "Select Audio"',
+        '"已选择：": "Selected: "',
+        '"未选择": "No audio selected"',
+        '"选择音频失败：$e": "Audio selection failed: $e"',
+        '"需要麦克风权限": "Microphone permission is required"',
+        '"录音失败：$e": "Recording failed: $e"',
+        '"停止录音": "Stop Recording"',
+        '"直接录音": "Record Audio"',
+        '"支持：MP3、WAV、M4A、FLAC、OGG": "Supported: MP3, WAV, M4A, FLAC, OGG"',
+    ):
+        assert text in source
+    assert "song_picker_text = song_picker_text.replace(source_text, english_text)" in source
+    assert "FileType.audio" in source

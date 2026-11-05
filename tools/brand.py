@@ -23,6 +23,36 @@ for name in ("red_home_screen.dart", "training_screen.dart", "full_rvc_screen.da
     dst.parent.mkdir(parents=True, exist_ok=True)
     dst.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
 
+# The upstream song picker was not part of the custom UI replacement above.
+# Translate its visible labels and permission/error messages before the final
+# English-only source audit. Keep its audio-only picker behaviour unchanged.
+song_picker = root / "lib" / "screens" / "song_picker_screen.dart"
+if not song_picker.exists():
+    raise RuntimeError("Upstream song picker is missing; cannot guarantee English-only UI")
+song_picker_text = song_picker.read_text(encoding="utf-8")
+song_picker_translations = {
+    "选择音频失败：$e": "Audio selection failed: $e",
+    "需要麦克风权限": "Microphone permission is required",
+    "录音失败：$e": "Recording failed: $e",
+    "录音时长：": "Recording duration: ",
+    "支持：MP3、WAV、M4A、FLAC、OGG": "Supported: MP3, WAV, M4A, FLAC, OGG",
+    "选择音频": "Select Audio",
+    "已选择：": "Selected: ",
+    "未选择": "No audio selected",
+    "更换音频": "Change Audio",
+    "清除音频": "Clear audio",
+    "暂停": "Pause",
+    "播放": "Play",
+    "停止录音": "Stop Recording",
+    "直接录音": "Record Audio",
+}
+for source_text, english_text in song_picker_translations.items():
+    if source_text not in song_picker_text:
+        raise RuntimeError(f"Expected upstream song-picker text changed: {source_text}")
+    song_picker_text = song_picker_text.replace(source_text, english_text)
+song_picker.write_text(song_picker_text, encoding="utf-8")
+
+
 # Keep user-imported models and indexes in persistent app-private storage.
 # The upstream manager originally used appCacheDir, which Android may clear.
 # Keep the temporary FilePicker staging directory in cache, but put the actual
