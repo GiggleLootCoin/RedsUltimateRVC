@@ -8,6 +8,7 @@ A branded Android build of Red's Ultimate RVC.
 - Long-audio processing with recovery/chunking
 - Android file picker for audio, ONNX voice models and indexes
 - Pitch, index rate, protect, RMS, formant and other RVC controls
+- Mobile-index validation; standard FAISS-to-mobile conversion is not currently included in the Android app
 - Playback, saving and sharing of generated audio
 - Progress and recovery
 - No mandatory cloud inference
