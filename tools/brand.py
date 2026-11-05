@@ -1091,7 +1091,10 @@ translations ={
   "$status，推理 ${lastInferMs}ms": "$status, inference: ${lastInferMs} ms",
   "$status，峰值 入 $lastInputPeak / 原 $lastRawOutputPeak / 出 $lastOutputPeak": "$status, peak levels — input $lastInputPeak / raw $lastRawOutputPeak / output $lastOutputPeak",
   "floating control直径：": "Floating control size: ",
-  "floating control不透明度：": "Floating control opacity: "
+  "floating control不透明度：": "Floating control opacity: ",
+  "$status，播放 ${audioTrackStarted ? '已启动' : '待启动'}，写入 $audioTrackWriteCount/$audioTrackWrittenSamples": "$status, playback ${audioTrackStarted ? 'started' : 'waiting'}, writes $audioTrackWriteCount/$audioTrackWrittenSamples",
+  "悬浮窗直径：": "Floating control size: ",
+  "悬浮窗不透明度：": "Floating control opacity: "
 }
 for dart in (root / "lib").rglob("*.dart"):
     t = dart.read_text(encoding="utf-8")
