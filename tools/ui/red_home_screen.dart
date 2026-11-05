@@ -66,7 +66,7 @@ class RedHomeScreen extends StatelessWidget {
             _grid([
               _Action(Icons.library_music, 'MODEL LIBRARY', 'Import and manage voices', onModels),
               _Action(Icons.model_training, 'VOICE DATASET LAB', 'Record and organise voice samples', onTrain),
-              _Action(Icons.tune, 'AUDIO TOOLS', 'Indexes, pitch and level tools', onAudioTools),
+              _Action(Icons.tune, 'INDEX TOOLS', 'Manage compatible mobile index files', onAudioTools),
               _Action(Icons.settings, 'RVC CONTROLS', 'Pitch, F0, index, RMS and protection', onSettings),
             ]),
             const SizedBox(height: 18),
