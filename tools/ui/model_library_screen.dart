@@ -7,7 +7,14 @@ import 'package:share_plus/share_plus.dart';
 
 /// Stores source files safely without treating .pth/.pt/.zip as runnable ONNX.
 class ModelLibraryScreen extends StatefulWidget {
-  const ModelLibraryScreen({super.key});
+  final ValueChanged<String>? onModelSelected;
+  final ValueChanged<String?>? onIndexSelected;
+
+  const ModelLibraryScreen({
+    super.key,
+    this.onModelSelected,
+    this.onIndexSelected,
+  });
 
   @override
   State<ModelLibraryScreen> createState() => _ModelLibraryScreenState();
@@ -173,11 +180,26 @@ class _ModelLibraryScreenState extends State<ModelLibraryScreen> {
                     onSelected: (value) {
                       if (value == 'share') _share(file);
                       if (value == 'delete') _delete(file);
+                      if (value == 'use-model' && widget.onModelSelected != null) {
+                        widget.onModelSelected!(file.path);
+                        Navigator.of(context).pop();
+                      }
+                      if (value == 'use-index' && widget.onIndexSelected != null) {
+                        widget.onIndexSelected!(file.path);
+                        Navigator.of(context).pop();
+                      }
                     },
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(value: 'share', child: Text('Share')),
-                      PopupMenuItem(value: 'delete', child: Text('Delete')),
-                    ],
+                    itemBuilder: (_) {
+                      final lower = file.path.toLowerCase();
+                      return [
+                        if (lower.endsWith('.onnx') && widget.onModelSelected != null)
+                          const PopupMenuItem(value: 'use-model', child: Text('Use as active ONNX model')),
+                        if (lower.endsWith('.mobile.index') && widget.onIndexSelected != null)
+                          const PopupMenuItem(value: 'use-index', child: Text('Use as conversion index')),
+                        const PopupMenuItem(value: 'share', child: Text('Share')),
+                        const PopupMenuItem(value: 'delete', child: Text('Delete')),
+                      ];
+                    },
                   ),
                 ),
               ),
