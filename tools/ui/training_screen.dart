@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/rvc_bridge.dart';
 
 /// Local dataset preparation only. The bundled Android RVC engine has no
@@ -22,6 +23,29 @@ class _TrainingScreenState extends State<TrainingScreen> {
   bool _recording = false;
   String _status = 'Add clean voice samples to begin';
   String? _datasetPath;
+
+  @override
+  void initState() {
+    super.initState();
+    _restorePreparedDataset();
+  }
+
+  Future<void> _restorePreparedDataset() async {
+    final prefs = await SharedPreferences.getInstance();
+    final path = prefs.getString('red_rvc_last_dataset_path');
+    final name = prefs.getString('red_rvc_last_dataset_name');
+    if (!mounted) return;
+    if (name != null && name.isNotEmpty) _name.text = name;
+    if (path != null && await Directory(path).exists()) {
+      setState(() {
+        _datasetPath = path;
+        _status = 'Prepared dataset restored. You can export it or continue adding samples.';
+      });
+    } else {
+      await prefs.remove('red_rvc_last_dataset_path');
+      await prefs.remove('red_rvc_last_dataset_name');
+    }
+  }
 
   @override
   void dispose() {
@@ -98,6 +122,9 @@ class _TrainingScreenState extends State<TrainingScreen> {
       await File('${root.path}/README.txt').writeAsString(
         "RED'S ULTIMATE RVC — DATASET\nVoice: ${_name.text.trim()}\nAudio files: $copied\n\nThis is prepared training data only. It has NOT trained a voice model. The bundled Android engine currently supports ONNX inference and does not contain an RVC training engine.\n",
       );
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('red_rvc_last_dataset_path', root.path);
+      await prefs.setString('red_rvc_last_dataset_name', _name.text.trim());
       if (mounted) setState(() {
         _datasetPath = root.path;
         _status = '$copied sample(s) safely copied. Dataset prepared; no model has been trained.';
@@ -134,6 +161,9 @@ class _TrainingScreenState extends State<TrainingScreen> {
       final d = Directory(_datasetPath!);
       if (await d.exists()) await d.delete(recursive: true);
     }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('red_rvc_last_dataset_path');
+    await prefs.remove('red_rvc_last_dataset_name');
     if (mounted) setState(() { _datasetPath = null; _samples.clear(); _status = 'Workspace cleared'; });
   }
 
