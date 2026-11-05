@@ -102,7 +102,7 @@ jobs:
         working-directory: buildsrc
         run: |
           python3 -m pip install --quiet pytest
-          python3 -m pytest -q python/tests/*_static.py
+          python3 -m pytest -q python/tests/*_static.py tools/tests
 
       - name: Build ARM64 release APK
         working-directory: buildsrc
