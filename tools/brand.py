@@ -467,7 +467,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(ext == 'mobile.index' ? 'mobile.index imported and ready.' : 'Standard .index imported. Use Index Tools to convert it for mobile use.')),
+          SnackBar(content: Text(ext == 'mobile.index' ? 'mobile.index imported and ready.' : 'Standard .index stored in your Index Library. This offline Android build does not include FAISS-to-mobile conversion.')),
         );
       }
     } catch (e) {
@@ -564,7 +564,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
               Text(_selectedIndexDisplayName ?? (_selectedIndexPath == null ? 'No index selected' : File(_selectedIndexPath!).uri.pathSegments.last),
                 style: const TextStyle(fontWeight: FontWeight.w800)),
               const SizedBox(height: 8),
-              const Text('mobile.index is directly usable. Standard .index files can be converted with Index Tools.', style: TextStyle(color: Color(0xFF9E9EA8), height: 1.3)),
+              const Text('mobile.index files can be used directly. Standard FAISS .index files require conversion, which is not included in this offline Android build.', style: TextStyle(color: Color(0xFF9E9EA8), height: 1.3)),
               const SizedBox(height: 12),
               OutlinedButton.icon(onPressed: _busy || !_libraryLoaded ? null : _pickIndex, icon: const Icon(Icons.upload_file), label: const Text('IMPORT INDEX')),
               if (_indexLibrary.isNotEmpty) ...[
@@ -674,7 +674,7 @@ for a,b in {
     "分贝仪":"dB Meter",
     "音高检测":"Pitch Detection",
     "参数解释":"RVC Controls",
-    "mobile.index 转换教程":"Index Tools",
+    "mobile.index 转换教程":"Index Checker",
 }.items():
     mt = mt.replace(a,b)
 
