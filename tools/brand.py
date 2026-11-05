@@ -510,11 +510,19 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
       ));
       return;
     }
-    await _bridge.convertIndex(path);
-    _selectedIndexPath = path;
-    _selectedIndexDisplayName = File(path).uri.pathSegments.last;
-    widget.onIndexSelected(path);
-    if (mounted) setState(() {});
+    try {
+      await _bridge.convertIndex(path);
+      _selectedIndexPath = path;
+      _selectedIndexDisplayName = File(path).uri.pathSegments.last;
+      widget.onIndexSelected(path);
+      if (mounted) setState(() {});
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('INDEX VALIDATION FAILED: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _deleteIndex(String path) async {
