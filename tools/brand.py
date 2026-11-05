@@ -2636,6 +2636,16 @@ for kotlin in (root / "android/app/src/main/kotlin").rglob("*.kt"):
         kt_text = kt_text.replace(a, b)
     kotlin.write_text(kt_text, encoding="utf-8")
 
+# Keep upstream widget tests aligned with the English-only UI strings above.
+widget_test = root / "test/main_screen_test.dart"
+if widget_test.exists():
+    wt = widget_test.read_text(encoding="utf-8")
+    wt = wt.replace("find.text('已选择：')", "find.textContaining('Selected:')")
+    wt = wt.replace("find.text('选择音频')", "find.text('Select audio')")
+    wt = wt.replace("find.text('索引文件（可选）')", "find.text('Index file (optional)')")
+    wt = wt.replace("find.text('未选择')", "find.text('Not selected')")
+    widget_test.write_text(wt, encoding="utf-8")
+
 # Final guard: never ship CJK text in visible Dart or native Android source.
 for source_file in list((root / "lib").rglob("*.dart")) + list((root / "android/app/src/main/kotlin").rglob("*.kt")):
     source = source_file.read_text(encoding="utf-8")
