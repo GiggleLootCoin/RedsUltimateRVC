@@ -1522,6 +1522,32 @@ if app_gradle.exists():
     if old_version not in ag:
         raise RuntimeError("Android version fields changed; cannot guarantee upgrade-safe APK versions")
     ag = ag.replace(old_version, new_version, 1)
+    old_signing = """    buildTypes {
+        release {
+            signingConfig signingConfigs.debug"""
+    new_signing = """    def redSigningProperties = new Properties()
+    def redSigningFile = rootProject.file('key.properties')
+    if (redSigningFile.exists()) {
+        redSigningFile.withInputStream { redSigningProperties.load(it) }
+    }
+
+    signingConfigs {
+        redRelease {
+            if (redSigningFile.exists()) {
+                storeFile file(redSigningProperties.getProperty('storeFile'))
+                storePassword redSigningProperties.getProperty('storePassword')
+                keyAlias redSigningProperties.getProperty('keyAlias')
+                keyPassword redSigningProperties.getProperty('keyPassword')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig redSigningFile.exists() ? signingConfigs.redRelease : signingConfigs.debug"""
+    if old_signing not in ag:
+        raise RuntimeError("Release signing configuration anchor changed")
+    ag = ag.replace(old_signing, new_signing, 1)
     app_gradle.write_text(ag, encoding="utf-8")
 else:
     raise RuntimeError("android/app/build.gradle missing; cannot set upgrade-safe version")
