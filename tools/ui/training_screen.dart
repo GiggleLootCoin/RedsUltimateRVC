@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../services/rvc_bridge.dart';
 
 /// Local dataset preparation only. The bundled Android RVC engine has no
@@ -108,6 +109,26 @@ class _TrainingScreenState extends State<TrainingScreen> {
     }
   }
 
+  Future<void> _shareDataset() async {
+    if (_datasetPath == null || _busy || _recording) return;
+    setState(() { _busy = true; _status = 'Preparing dataset for sharing…'; });
+    try {
+      final audio = Directory('$_datasetPath/audio');
+      if (!await audio.exists()) throw Exception('Prepared audio folder is missing.');
+      final files = await audio.list().where((entity) => entity is File).cast<File>().toList();
+      if (files.isEmpty) throw Exception('There are no prepared audio samples to export.');
+      await Share.shareXFiles(
+        files.map((file) => XFile(file.path)).toList(),
+        text: 'Red’s Ultimate RVC voice dataset — ${_name.text.trim()}',
+      );
+      if (mounted) setState(() => _status = '${files.length} prepared sample(s) sent to Android sharing.');
+    } catch (e) {
+      if (mounted) setState(() => _status = 'Dataset export failed: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _clear() async {
     if (_datasetPath != null) {
       final d = Directory(_datasetPath!);
@@ -154,10 +175,21 @@ class _TrainingScreenState extends State<TrainingScreen> {
         onPressed: _busy || _recording || _samples.isEmpty ? null : _prepareDataset,
         icon: const Icon(Icons.folder_copy), label: Text(_busy ? 'PREPARING…' : 'PREPARE LOCAL DATASET'),
       )),
-      if (_datasetPath != null) Padding(
-        padding: const EdgeInsets.only(top: 10),
-        child: SelectableText('Saved privately at: $_datasetPath'),
-      ),
+      if (_datasetPath != null) ...[
+        Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: SelectableText('Saved privately at: $_datasetPath'),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 48,
+          child: ElevatedButton.icon(
+            onPressed: _busy || _recording ? null : _shareDataset,
+            icon: const Icon(Icons.share),
+            label: const Text('EXPORT / SHARE DATASET FILES'),
+          ),
+        ),
+      ],
       const SizedBox(height: 8),
       OutlinedButton.icon(onPressed: _busy || _recording ? null : _clear, icon: const Icon(Icons.delete_outline), label: const Text('CLEAR WORKSPACE')),
     ]),
