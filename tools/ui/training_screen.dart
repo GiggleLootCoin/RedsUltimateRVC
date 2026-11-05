@@ -58,7 +58,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
         _samples
           ..clear()
           ..addAll(restored);
-        _status = path == null
+        _status = !hasDataset
             ? 'Recovered recording sample(s). Prepare a dataset to keep them.'
             : 'Prepared dataset restored. You can export it or continue adding samples.';
       });
