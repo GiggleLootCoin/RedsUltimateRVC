@@ -40,8 +40,9 @@ class _TrainingScreenState extends State<TrainingScreen> {
     await prefs.setStringList('red_rvc_pending_recordings', pending);
     if (!mounted) return;
     if (name != null && name.isNotEmpty) _name.text = name;
+    final hasDataset = path != null && await Directory(path).exists();
     var restored = <String>[];
-    if (path != null && await Directory(path).exists()) {
+    if (hasDataset) {
       final audio = Directory('$path/audio');
       restored = await audio.exists()
           ? await audio.list().where((entity) => entity is File).cast<File>().map((file) => file.path).toList()
@@ -53,7 +54,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
     restored.addAll(pending.where((p) => !restored.contains(p)));
     if (mounted && restored.isNotEmpty) {
       setState(() {
-        _datasetPath = path != null && await Directory(path).exists() ? path : null;
+        _datasetPath = hasDataset ? path : null;
         _samples
           ..clear()
           ..addAll(restored);
