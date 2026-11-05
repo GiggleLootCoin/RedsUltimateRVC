@@ -33,6 +33,8 @@ def test_home_dashboard_has_a_working_official_youtube_channel_button():
     assert "label: const Text('VISIT MY YOUTUBE CHANNEL')" in source
     assert "@Little-Red-Big-Smile • OFFICIAL CHANNEL" in source
     assert "onYouTube: _openCreatorYouTube" in source
+    assert "final VoidCallback onFullRvc;" in source
+    assert "label: const Text('OPEN FULL RVC ENGINE')" in source
     assert "https://www.youtube.com/@Little-Red-Big-Smile" in source
 
 
