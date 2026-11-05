@@ -2017,7 +2017,7 @@ write(main, final_main)
 for dart in (root / "lib").rglob("*.dart"):
     source = dart.read_text(encoding="utf-8")
     visible = re.sub(r"(?s)/\\*.*?\\*/", "", source)
-    visible = re.sub(r"//[^\\n]*", "", visible)
+    visible = re.sub(r"(?m)//.*$", "", visible)
     if any(0x3400 <= ord(ch) <= 0x9FFF for ch in visible):
         raise RuntimeError(f"Untranslated CJK text remains in {dart}")
 
