@@ -65,15 +65,17 @@ class _TrainingScreenState extends State<TrainingScreen> {
     }
   }
 
+  Future<void> _rememberPendingRecording(String path) async {
+    final prefs = await SharedPreferences.getInstance();
+    final pending = prefs.getStringList('red_rvc_pending_recordings') ?? [];
+    if (!pending.contains(path)) pending.add(path);
+    await prefs.setStringList('red_rvc_pending_recordings', pending);
+  }
+
   @override
   void dispose() {
     if (_recording) {
-      unawaited(_bridge.stopRecording().then((path) async {
-        final prefs = await SharedPreferences.getInstance();
-        final pending = prefs.getStringList('red_rvc_pending_recordings') ?? [];
-        if (!pending.contains(path)) pending.add(path);
-        await prefs.setStringList('red_rvc_pending_recordings', pending);
-      }).catchError((_) {}));
+      unawaited(_bridge.stopRecording().then(_rememberPendingRecording).catchError((_) {}));
     }
     _name.dispose();
     super.dispose();
@@ -116,9 +118,13 @@ class _TrainingScreenState extends State<TrainingScreen> {
         await _bridge.startRecording();
         if (mounted) setState(() { _recording = true; _status = 'Recording…'; });
       } else {
+        setState(() => _recording = false);
         final path = await _bridge.stopRecording();
-        if (mounted) setState(() {
-          _recording = false;
+        if (!mounted) {
+          await _rememberPendingRecording(path);
+          return;
+        }
+        setState(() {
           if (!_samples.contains(path)) _samples.add(path);
           _status = '${_samples.length} sample(s) selected';
         });
