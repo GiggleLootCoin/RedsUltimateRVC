@@ -1408,7 +1408,7 @@ if song_picker.exists():
     if "import 'dart:io';" not in sp:
         sp = sp.replace("import 'dart:async';", "import 'dart:async';\nimport 'dart:io';", 1)
     if "bool _recordingStopInProgress" not in sp:
-        sp = sp.replace("bool _isRecording = false;", "bool _isRecording = false;\\n  bool _recordingStopInProgress = false;", 1)
+        sp = sp.replace("bool _isRecording = false;", "bool _isRecording = false;\n  bool _recordingStopInProgress = false;", 1)
     old_dispose = """  void dispose() {
     _recordingTimer?.cancel();
     _positionPersistTimer?.cancel();
