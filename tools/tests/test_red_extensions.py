@@ -36,6 +36,13 @@ def test_home_dashboard_has_a_working_official_youtube_channel_button():
     assert "https://www.youtube.com/@Little-Red-Big-Smile" in source
 
 
+def test_dashboard_discloses_song_cover_and_realtime_limits():
+    source = BRAND.read_text(encoding="utf-8")
+    assert "Convert isolated vocals; no vocal separator included" in source
+    assert "REALTIME RVC — EXPERIMENTAL" in source
+    assert "Limited Android support; may stutter" in source
+
+
 def test_gradle_can_use_a_private_persistent_release_keystore():
     source = BRAND.read_text(encoding="utf-8")
     assert "redSigningProperties" in source
