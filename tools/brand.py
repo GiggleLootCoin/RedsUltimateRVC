@@ -17,7 +17,7 @@ logo = root / "assets" / "images" / "reds-ultimate-rvc-logo.svg"
 logo.parent.mkdir(parents=True, exist_ok=True)
 urllib.request.urlretrieve(logo_url, logo)
 
-for name in ("red_home_screen.dart", "training_screen.dart", "full_rvc_screen.dart", "model_converter_screen.dart", "index_converter_screen.dart", "model_library_screen.dart"):
+for name in ("red_home_screen.dart", "training_screen.dart", "full_rvc_screen.dart", "model_converter_screen.dart", "index_converter_screen.dart"):
     src = repo_root / "tools" / "ui" / name
     dst = root / "lib" / "screens" / name
     dst.parent.mkdir(parents=True, exist_ok=True)
@@ -653,7 +653,7 @@ mt = main.read_text(encoding="utf-8")
 # Add custom imports.
 if "import 'screens/red_home_screen.dart';" not in mt:
     mt = mt.replace("import 'screens/pitch_detection_screen.dart';",
-                    "import 'screens/pitch_detection_screen.dart';\nimport 'screens/red_home_screen.dart';\nimport 'screens/training_screen.dart';\nimport 'screens/full_rvc_screen.dart';\nimport 'screens/model_library_screen.dart';\nimport 'package:url_launcher/url_launcher.dart';")
+                    "import 'screens/pitch_detection_screen.dart';\nimport 'screens/red_home_screen.dart';\nimport 'screens/training_screen.dart';\nimport 'screens/full_rvc_screen.dart';\nimport 'package:url_launcher/url_launcher.dart';")
 
 # The model picker already copies selected files into the app-owned library. Do not import the same path a second time.
 mt = mt.replace("final importedPath = await _importPickedFile(kind: 'model', sourcePath: path);", "final importedPath = File(path).absolute.path;")
@@ -703,12 +703,6 @@ for name, old_index, new_index in [
         raise RuntimeError(f"Could not patch {name}")
     mt = mt.replace(old_line, new_line, 1)
 
-mt = mt.replace(
-    "void _openAudioConversion() {",
-    "void _openModelLibrary() {\n    Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelLibraryScreen(onModelSelected: _onModelSelected, onIndexSelected: _onIndexSelected)));\n  }\n\n  void _openAudioConversion() {",
-    1,
-)
-
 # Whenever normal audio flow returns to the main area, return to audio module 1.
 for method in ("_onSongSelected", "_continueToGenerate", "_onGenerationComplete", "_startNewGeneration"):
     pat = rf"(Future<void>\s+{method}\([^{{]*\{{|void\s+{method}\([^{{]*\{{)"
@@ -739,11 +733,22 @@ dashboard = '''    final moduleScreens = [
         onSongCovers: _openAudioConversion,
         onRealtime: _openRealtimeInference,
         onVoiceChanger: _openVoiceChanger,
-        onModels: _openModelLibrary,
+        onModels: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(
+          onModelSelected: _onModelSelected,
+          onModelCleared: _onModelCleared,
+          onIndexSelected: _onIndexSelected,
+          onContinue: _continueToGenerate,
+          selectedModelPath: _selectedModelPath,
+          selectedModelDisplayName: _selectedModelDisplayName,
+          selectedIndexPath: _selectedIndexPath,
+          selectedIndexDisplayName: _selectedIndexDisplayName,
+          selectedSongPath: _selectedSongPath,
+          selectedSongDisplayName: _selectedSongDisplayName,
+        ))),
         onTrain: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrainingScreen())),
         onAudioTools: _openIndexConverter,
         onSettings: _openParameterGuide,
-        onFullRvc: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => FullRvcScreen(onConvert: _openAudioConversion, onModels: _openModelLibrary, onRealtime: _openRealtimeInference, onVoiceChanger: _openVoiceChanger, onTraining: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrainingScreen())), onIndexTools: _openIndexConverter))),
+        onFullRvc: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => FullRvcScreen(onConvert: _openAudioConversion, onModels: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(onModelSelected: _onModelSelected, onModelCleared: _onModelCleared, onIndexSelected: _onIndexSelected, onContinue: _continueToGenerate, selectedModelPath: _selectedModelPath, selectedModelDisplayName: _selectedModelDisplayName, selectedIndexPath: _selectedIndexPath, selectedIndexDisplayName: _selectedIndexDisplayName, selectedSongPath: _selectedSongPath, selectedSongDisplayName: _selectedSongDisplayName))) onRealtime: _openRealtimeInference, onVoiceChanger: _openVoiceChanger, onTraining: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrainingScreen())), onIndexTools: _openIndexConverter))),
         onYouTube: _openCreatorYouTube,
       ),
       GestureDetector(
