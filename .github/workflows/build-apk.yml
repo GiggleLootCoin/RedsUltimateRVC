@@ -52,6 +52,31 @@ jobs:
           flutter-version: '3.24.5'
           cache: true
 
+      - name: Configure persistent release signing key (optional)
+        if: ${{ secrets.RED_RVC_KEYSTORE_BASE64 != '' }}
+        working-directory: buildsrc
+        env:
+          RED_RVC_KEYSTORE_BASE64: ${{ secrets.RED_RVC_KEYSTORE_BASE64 }}
+          RED_RVC_STORE_PASSWORD: ${{ secrets.RED_RVC_STORE_PASSWORD }}
+          RED_RVC_KEY_ALIAS: ${{ secrets.RED_RVC_KEY_ALIAS }}
+          RED_RVC_KEY_PASSWORD: ${{ secrets.RED_RVC_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          mkdir -p android/app
+          printf '%s' "$RED_RVC_KEYSTORE_BASE64" | base64 --decode > android/app/red-release.jks
+          cat > android/key.properties <<EOF
+          storeFile=red-release.jks
+          storePassword=$RED_RVC_STORE_PASSWORD
+          keyAlias=$RED_RVC_KEY_ALIAS
+          keyPassword=$RED_RVC_KEY_PASSWORD
+          EOF
+          keytool -list -keystore android/app/red-release.jks -storepass "$RED_RVC_STORE_PASSWORD" -alias "$RED_RVC_KEY_ALIAS" >/dev/null
+          echo "Persistent private release signing key configured."
+
+      - name: Warn when persistent release signing is not configured
+        if: ${{ secrets.RED_RVC_KEYSTORE_BASE64 == '' }}
+        run: echo "::warning::Using the temporary GitHub runner debug key. APK upgrades may require uninstalling the previous build. Configure RED_RVC_KEYSTORE_BASE64, RED_RVC_STORE_PASSWORD, RED_RVC_KEY_ALIAS and RED_RVC_KEY_PASSWORD repository secrets for stable signing."
+
       - name: Flutter pub get
         working-directory: buildsrc
         run: flutter pub get
@@ -63,6 +88,17 @@ jobs:
       - name: Analyze final Flutter source
         working-directory: buildsrc
         run: flutter analyze --no-fatal-warnings --no-fatal-infos
+
+      - name: Run Flutter widget and unit tests
+        working-directory: buildsrc
+        run: flutter test --reporter expanded
+
+      - name: Run upstream static regression tests
+        working-directory: buildsrc
+        run: |
+          python3 -m pip install --quiet pytest
+          python3 -m pytest -q python/tests/*_static.py
+
       - name: Build ARM64 release APK
         working-directory: buildsrc
         run: flutter build apk --release --target-platform android-arm64 --verbose
