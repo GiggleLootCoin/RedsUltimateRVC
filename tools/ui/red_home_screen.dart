@@ -58,7 +58,7 @@ class RedHomeScreen extends StatelessWidget {
             _grid([
               _Action(Icons.graphic_eq, 'CONVERT AUDIO', 'Voice conversion with full RVC controls', onGenerate),
               _Action(Icons.music_video, 'SONG COVERS', 'Full-length songs and finished output', onSongCovers),
-              _Action(Icons.settings_voice, 'REALTIME RVC', 'Live microphone conversion', onRealtime),
+              _Action(Icons.settings_voice, 'REALTIME RVC — EXPERIMENTAL', 'Limited Android support; may stutter', onRealtime),
               _Action(Icons.record_voice_over, 'VOICE CHANGER', 'Record through the selected voice', onVoiceChanger),
             ]),
             const SizedBox(height: 16),
