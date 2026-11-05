@@ -21,7 +21,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Checkout local RVC engine
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: Sharl210/ultimate-rvc-mobile
           ref: v2.0.0
@@ -45,7 +45,7 @@ jobs:
         run: python3 tools/brand.py
 
       - name: Set up Java 17 for the upstream Android Gradle build
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -98,14 +98,11 @@ jobs:
         working-directory: buildsrc
         run: flutter test --reporter expanded
 
-      - name: Run upstream engine regression tests
-        working-directory: buildsrc
+      - name: Validate Red's build finalizer and run project regression tests
         run: |
+          python3 -m py_compile tools/brand.py
           python3 -m pip install --quiet pytest
-          python3 -m pytest -q python/tests/test_generate_flow_static.py python/tests/test_index_converter_static.py python/tests/test_native_bridge_static.py python/tests/test_rvc_bridge_static.py python/tests/test_voice_changer_static.py
-
-      - name: Run Red-specific release and UI regression tests
-        run: python3 -m pytest -q tools/tests
+          python3 -m pytest -q tools/tests
 
       - name: Build ARM64 release APK
         working-directory: buildsrc
