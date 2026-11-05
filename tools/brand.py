@@ -1485,6 +1485,7 @@ new_index = """      final imported = await _bridge.pickAndImportFile(kind: 'ind
       if (imported == null) return;
       final ext = _ext(imported.path);"""
 old_select = """      if (ext == 'mobile.index') {
+        await _bridge.convertIndex(imported.path);
         _selectedIndexPath = imported.path;
         _selectedIndexDisplayName = File(imported.path).uri.pathSegments.last;
         widget.onIndexSelected(imported.path);
