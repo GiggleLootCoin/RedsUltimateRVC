@@ -55,7 +55,7 @@ class FullRvcScreen extends StatelessWidget {
           const SizedBox(height: 16),
           _button(Icons.graphic_eq, "AUDIO CONVERSION", "Convert audio with the local RVC engine.", onConvert),
           _button(Icons.library_music, "MODEL LIBRARY", "Import ONNX models and store PTH/PT/ZIP source files.", onModels),
-          _button(Icons.settings_voice, "REALTIME RVC", "Use the local realtime voice-conversion engine.", onRealtime),
+          _button(Icons.settings_voice, "REALTIME RVC — EXPERIMENTAL", "Android audio routing and performance are limited; stuttering may occur.", onRealtime),
           _button(Icons.record_voice_over, "VOICE CHANGER", "Record and process through the selected voice.", onVoiceChanger),
           _button(Icons.sync_alt, "INDEX TOOLS", "Manage mobile index files and conversion tools.", onIndexTools),
           _button(Icons.model_training, "VOICE DATASET LAB", "Prepare and organise voice samples on this phone; this is not model training.", onTraining),
