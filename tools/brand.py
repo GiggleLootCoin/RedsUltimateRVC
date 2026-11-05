@@ -1696,6 +1696,15 @@ if "private fun extractModelArchive" not in kt or "extractModelArchive" not in b
 plugin.write_text(kt, encoding="utf-8")
 
 
+# Validate mobile.index using a bounded header read; never load/copy a large index into RAM.
+plugin_text = plugin.read_text(encoding="utf-8")
+old_mobile_index = "private fun convertMobileIndex(source: File): File {\n        require(source.exists()) { \"索引文件不存在\" }\n        val bytes = source.readBytes()\n        val magic = FEATURE_INDEX_MAGIC.toByteArray(Charsets.US_ASCII)\n        require(bytes.size >= magic.size + Int.SIZE_BYTES) { \"请先在 mobile.index 转换页处理标准 RVC index\" }\n        require(bytes.copyOfRange(0, magic.size).contentEquals(magic)) { \"请先在 mobile.index 转换页处理标准 RVC index\" }\n        val buffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)\n        buffer.position(magic.size)\n        val frameCount = buffer.int\n        require(frameCount > 0) { \"mobile.index 数据无效\" }\n        val outputDir = File(appContext.filesDir, \"indexes\")\n        outputDir.mkdirs()\n        val output = File(outputDir, source.name)\n        source.copyTo(output, overwrite = true)\n        return output\n    }"
+new_mobile_index = "private fun convertMobileIndex(source: File): File {\n        require(source.isFile) { \"Index file does not exist.\" }\n        val magic = FEATURE_INDEX_MAGIC.toByteArray(Charsets.US_ASCII)\n        val header = ByteArray(magic.size + Int.SIZE_BYTES)\n        FileInputStream(source).use { input ->\n            var offset = 0\n            while (offset < header.size) {\n                val count = input.read(header, offset, header.size - offset)\n                require(count > 0) { \"The mobile index header is incomplete.\" }\n                offset += count\n            }\n        }\n        require(header.copyOfRange(0, magic.size).contentEquals(magic)) {\n            \"This is not a mobile.index file. Standard FAISS indexes need conversion first.\"\n        }\n        val frameCount = ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN).getInt(magic.size)\n        require(frameCount > 0) { \"The mobile index contains no feature vectors.\" }\n        val expectedLength = magic.size.toLong() + Int.SIZE_BYTES + frameCount.toLong() * 768L * Float.SIZE_BYTES\n        require(source.length() == expectedLength) { \"The mobile index is truncated or has an invalid feature-vector length.\" }\n        return source\n    }"
+if old_mobile_index not in plugin_text:
+    raise RuntimeError("Mobile index validator source changed; review before patching")
+plugin_text = plugin_text.replace(old_mobile_index, new_mobile_index, 1)
+plugin.write_text(plugin_text, encoding="utf-8")
+
 # ---------------------------------------------------------------------------
 # Native Android SAF audio import: one audio file for conversion and a
 # multi-select audio picker for the private dataset workspace.
@@ -1959,6 +1968,7 @@ for name, check in [
 # ---------------------------------------------------------------------------
 index_screen = root / "lib/screens/index_converter_screen.dart"
 index_screen.write_text(r'''import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/rvc_bridge.dart';
 
 class IndexConverterScreen extends StatefulWidget {
@@ -1983,10 +1993,18 @@ class _IndexConverterScreenState extends State<IndexConverterScreen> {
         return;
       }
       final name = imported.path.split('/').last;
+      final prefs = await SharedPreferences.getInstance();
+      final savedIndexes = prefs.getStringList('red_rvc_index_library') ?? [];
+      if (savedIndexes.contains(imported.path)) {
+        await _bridge.releaseImportedFile(imported.path);
+      } else {
+        savedIndexes.insert(0, imported.path);
+        await prefs.setStringList('red_rvc_index_library', savedIndexes);
+      }
       if (!name.toLowerCase().endsWith('.mobile.index')) {
         if (mounted) {
           setState(() => _status =
-            '$name was imported and stored safely, but it is a standard FAISS index. This build does not yet contain the on-phone FAISS vector extractor, so it cannot be used by the mobile inference engine.');
+            '$name was stored in your Index Library, but it is a standard FAISS index. This offline Android build does not include the FAISS-to-mobile converter, so it cannot be used for inference yet.');
         }
         return;
       }
