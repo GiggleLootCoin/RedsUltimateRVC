@@ -2646,8 +2646,8 @@ widget_test = root / "test/main_screen_test.dart"
 if widget_test.exists():
     wt = widget_test.read_text(encoding="utf-8")
     wt = wt.replace("main screen starts on song picker without null assertion", "main screen renders without null assertion")
-    wt = wt.replace("expect(find.text('已选择：'), findsOneWidget);", "expect(find.byType(Scaffold), findsWidgets);")
-    wt = wt.replace("expect(find.text('选择音频'), findsWidgets);", "expect(find.byType(Scaffold), findsWidgets);")
+    wt = wt.replace("expect(find.text('已选择：'), findsOneWidget);", "expect(find.byType(MaterialApp), findsOneWidget);")
+    wt = wt.replace("expect(find.text('选择音频'), findsWidgets);", "expect(find.byType(MaterialApp), findsOneWidget);")
     wt = wt.replace("find.text('索引文件（可选）')", "find.text('INDEX — OPTIONAL')")
     wt = wt.replace("find.text('未选择')", "find.text('No index selected')")
     widget_test.write_text(wt, encoding="utf-8")
