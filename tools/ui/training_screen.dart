@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
@@ -34,28 +35,45 @@ class _TrainingScreenState extends State<TrainingScreen> {
     final prefs = await SharedPreferences.getInstance();
     final path = prefs.getString('red_rvc_last_dataset_path');
     final name = prefs.getString('red_rvc_last_dataset_name');
+    final pendingSaved = prefs.getStringList('red_rvc_pending_recordings') ?? [];
+    final pending = pendingSaved.where((p) => File(p).existsSync()).toList();
+    await prefs.setStringList('red_rvc_pending_recordings', pending);
     if (!mounted) return;
     if (name != null && name.isNotEmpty) _name.text = name;
+    var restored = <String>[];
     if (path != null && await Directory(path).exists()) {
       final audio = Directory('$path/audio');
-      final existing = await audio.exists()
+      restored = await audio.exists()
           ? await audio.list().where((entity) => entity is File).cast<File>().map((file) => file.path).toList()
           : <String>[];
-      setState(() {
-        _datasetPath = path;
-        _samples
-          ..clear()
-          ..addAll(existing);
-        _status = 'Prepared dataset restored. You can export it or continue adding samples.';
-      });
     } else {
       await prefs.remove('red_rvc_last_dataset_path');
       await prefs.remove('red_rvc_last_dataset_name');
+    }
+    restored.addAll(pending.where((p) => !restored.contains(p)));
+    if (mounted && restored.isNotEmpty) {
+      setState(() {
+        _datasetPath = path != null && await Directory(path).exists() ? path : null;
+        _samples
+          ..clear()
+          ..addAll(restored);
+        _status = path == null
+            ? 'Recovered recording sample(s). Prepare a dataset to keep them.'
+            : 'Prepared dataset restored. You can export it or continue adding samples.';
+      });
     }
   }
 
   @override
   void dispose() {
+    if (_recording) {
+      unawaited(_bridge.stopRecording().then((path) async {
+        final prefs = await SharedPreferences.getInstance();
+        final pending = prefs.getStringList('red_rvc_pending_recordings') ?? [];
+        if (!pending.contains(path)) pending.add(path);
+        await prefs.setStringList('red_rvc_pending_recordings', pending);
+      }).catchError((_) {}));
+    }
     _name.dispose();
     super.dispose();
   }
@@ -132,6 +150,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('red_rvc_last_dataset_path', root.path);
       await prefs.setString('red_rvc_last_dataset_name', _name.text.trim());
+      await prefs.remove('red_rvc_pending_recordings');
       if (mounted) setState(() {
         _datasetPath = root.path;
         _status = '$totalSamples sample(s) in the prepared dataset. No model has been trained.';
@@ -169,8 +188,13 @@ class _TrainingScreenState extends State<TrainingScreen> {
       if (await d.exists()) await d.delete(recursive: true);
     }
     final prefs = await SharedPreferences.getInstance();
+    final pending = prefs.getStringList('red_rvc_pending_recordings') ?? [];
+    for (final path in pending) {
+      try { await File(path).delete(); } catch (_) {}
+    }
     await prefs.remove('red_rvc_last_dataset_path');
     await prefs.remove('red_rvc_last_dataset_name');
+    await prefs.remove('red_rvc_pending_recordings');
     if (mounted) setState(() { _datasetPath = null; _samples.clear(); _status = 'Workspace cleared'; });
   }
 
