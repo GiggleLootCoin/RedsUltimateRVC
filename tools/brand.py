@@ -1474,16 +1474,13 @@ old_index = """      final result = await FilePicker.platform.pickFiles(
 new_index = """      final imported = await _bridge.pickAndImportFile(kind: 'index');
       if (imported == null) return;
       final ext = _ext(imported.path);"""
-old_select = """      _selectedIndexPath = imported.path;
-      _selectedIndexDisplayName = File(imported.path).uri.pathSegments.last;
-      if (mounted) setState(() {});
-      widget.onIndexSelected(imported.path);"""
-new_select = """      if (ext == 'mobile.index') {
+old_select = """      if (ext == 'mobile.index') {
         _selectedIndexPath = imported.path;
         _selectedIndexDisplayName = File(imported.path).uri.pathSegments.last;
         widget.onIndexSelected(imported.path);
       }
       if (mounted) setState(() {});"""
+new_select = old_select
 for old, new in [(old_model,new_model),(old_index,new_index),(old_select,new_select)]:
     if old not in pt:
         raise RuntimeError("Model/index picker source changed; cannot apply SAF patch")
