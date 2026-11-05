@@ -97,6 +97,7 @@ class RedHomeScreen extends StatelessWidget {
   final VoidCallback onTrain;
   final VoidCallback onAudioTools;
   final VoidCallback onSettings;
+  final VoidCallback onYouTube;
 
   const RedHomeScreen({
     super.key,
@@ -108,6 +109,7 @@ class RedHomeScreen extends StatelessWidget {
     required this.onTrain,
     required this.onAudioTools,
     required this.onSettings,
+    required this.onYouTube,
   });
 
   @override
@@ -203,6 +205,22 @@ class RedHomeScreen extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: onYouTube,
+                icon: const Icon(Icons.smart_display),
+                label: const Text('VISIT MY YOUTUBE CHANNEL'),
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Center(
+              child: Text(
+                '@Little-Red-Big-Smile • OFFICIAL CHANNEL',
+                style: TextStyle(color: Color(0xFFB0B0BA), fontSize: 10.5, fontWeight: FontWeight.w700, letterSpacing: .45),
               ),
             ),
           ],
@@ -748,6 +766,7 @@ dashboard = '''    final moduleScreens = [
         onTrain: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrainingScreen())),
         onAudioTools: _openIndexConverter,
         onSettings: _openParameterGuide,
+        onYouTube: _openCreatorYouTube,
         onFullRvc: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => FullRvcScreen(onConvert: _openAudioConversion, onModels: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(onModelSelected: _onModelSelected, onModelCleared: _onModelCleared, onIndexSelected: _onIndexSelected, onContinue: _continueToGenerate, selectedModelPath: _selectedModelPath, selectedModelDisplayName: _selectedModelDisplayName, selectedIndexPath: _selectedIndexPath, selectedIndexDisplayName: _selectedIndexDisplayName, selectedSongPath: _selectedSongPath, selectedSongDisplayName: _selectedSongDisplayName))), onRealtime: _openRealtimeInference, onVoiceChanger: _openVoiceChanger, onTraining: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const TrainingScreen())), onIndexTools: _openIndexConverter))),
         onYouTube: _openCreatorYouTube,
       ),
