@@ -2097,7 +2097,7 @@ checks = {
     "Model picker uses native SAF": "pickAndImportFile(kind: 'model')" in final_picker and "FilePicker.platform.pickFiles" not in final_picker,
     "PTH support": ".pth" in final_picker,
     "Mobile index support": ".mobile.index" in final_picker,
-    "Index tools have no computer handoff": "on-phone FAISS vector extractor" in (root / "lib/screens/index_converter_screen.dart").read_text(encoding="utf-8"),
+    "Index tools clearly disclose the missing FAISS converter": "FAISS-to-mobile converter" in (root / "lib/screens/index_converter_screen.dart").read_text(encoding="utf-8"),
     "ZIP archive extractor": "private fun extractModelArchive" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8") and "extractModelArchive" in (root / "lib/services/rvc_bridge.dart").read_text(encoding="utf-8") and "extractModelArchive(imported.path)" in final_picker,
     "Persistent model storage": workspace.exists() and "File(File(appFilesDir, IMPORTS_DIRECTORY_NAME)" in workspace.read_text(encoding="utf-8") and "File(File(appFilesDir, IMPORTS_DIRECTORY_NAME), REGISTRY_FILE_NAME)" in workspace.read_text(encoding="utf-8") if workspace.exists() else False,
 }
