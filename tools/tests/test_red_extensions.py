@@ -23,7 +23,7 @@ def test_integrated_index_library_accepts_faiss_and_mobile_indexes_without_fake_
 
 def test_dashboard_and_full_engine_open_the_integrated_model_picker():
     source = BRAND.read_text(encoding="utf-8")
-    assert source.count("onModels: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(") == 2
+    assert source.count("onModels: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(") == 3
     assert "onModels: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(onModelSelected:" in source
 
 
