@@ -705,7 +705,7 @@ for name, old_index, new_index in [
 
 mt = mt.replace(
     "void _openAudioConversion() {",
-    "void _openModelLibrary() {\\n    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ModelLibraryScreen()));\\n  }\\n\\n  void _openAudioConversion() {",
+    "void _openModelLibrary() {\\n    Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelLibraryScreen(onModelSelected: _onModelSelected, onIndexSelected: _onIndexSelected)));\\n  }\\n\\n  void _openAudioConversion() {",
     1,
 )
 
