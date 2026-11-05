@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Red's Ultimate RVC
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Checkout local RVC engine
         uses: actions/checkout@v4
@@ -26,6 +26,7 @@ jobs:
         run: |
           mkdir -p buildsrc/assets/models
           curl -L --fail --retry 3 -o upstream.apk https://github.com/Sharl210/ultimate-rvc-mobile/releases/download/v2.0.0/app-release.apk
+          echo "2821b659bd113a8df7281b5ec2db1cccd3c524fcde68c93a7e46be44dba8e4b6  upstream.apk" | sha256sum --check
           unzip -q upstream.apk -d upstream_apk
           find upstream_apk -type f -name 'hubert.onnx' -exec cp {} buildsrc/assets/models/hubert.onnx \;
           find upstream_apk -type f -name 'rmvpe.onnx' -exec cp {} buildsrc/assets/models/rmvpe.onnx \;
@@ -72,8 +73,32 @@ jobs:
           cp buildsrc/build/app/outputs/flutter-apk/app-release.apk "release/Red-Ultimate-RVC.apk"
           sha256sum "release/Red-Ultimate-RVC.apk" > release/SHA256SUMS.txt
 
+      - name: Verify APK alignment, signature and packaged size
+        run: |
+          APK="release/Red-Ultimate-RVC.apk"
+          ZIPALIGN="$(find "$ANDROID_HOME/build-tools" -type f -name zipalign | sort -V | tail -n 1)"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$ZIPALIGN"
+          test -x "$APKSIGNER"
+          "$ZIPALIGN" -c -v 4 "$APK"
+          "$APKSIGNER" verify --verbose "$APK"
+          python3 - "$APK" <<'PY'
+          import sys, zipfile
+          from pathlib import Path
+          apk = Path(sys.argv[1])
+          with zipfile.ZipFile(apk) as z:
+              files = sorted(((i.file_size, i.filename) for i in z.infolist() if not i.is_dir()), reverse=True)
+              print(f"APK size: {apk.stat().st_size:,} bytes")
+              print("Largest packaged files:")
+              for size, name in files[:20]:
+                  print(f"{size:>14,}  {name}")
+              for required in ("assets/flutter_assets/assets/models/hubert.onnx", "assets/flutter_assets/assets/models/rmvpe.onnx"):
+                  if not any(i.filename.endswith(required) for i in z.infolist()):
+                      raise SystemExit(f"Required offline inference asset missing: {required}")
+          PY
+
       - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: Red-Ultimate-RVC-APK
           path: release/*
