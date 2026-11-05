@@ -35,6 +35,7 @@ song_picker_translations = {
     "需要麦克风权限": "Microphone permission is required",
     "录音失败：$e": "Recording failed: $e",
     "录音时长：": "Recording duration: ",
+    "支持：MP3、WAV、M4A、FLAC、OGG": "Supported: MP3, WAV, M4A, FLAC, OGG",
     "选择音频": "Select Audio",
     "已选择：": "Selected: ",
     "未选择": "No audio selected",
