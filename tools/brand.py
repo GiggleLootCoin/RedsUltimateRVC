@@ -459,6 +459,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
       }
       await _saveIndexLibrary();
       if (ext == 'mobile.index') {
+        await _bridge.convertIndex(imported.path);
         _selectedIndexPath = imported.path;
         _selectedIndexDisplayName = File(imported.path).uri.pathSegments.last;
         widget.onIndexSelected(imported.path);
@@ -509,6 +510,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
       ));
       return;
     }
+    await _bridge.convertIndex(path);
     _selectedIndexPath = path;
     _selectedIndexDisplayName = File(path).uri.pathSegments.last;
     widget.onIndexSelected(path);
@@ -577,7 +579,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
                     leading: Icon(mobile ? Icons.check_circle : Icons.inventory_2,
                       color: mobile ? const Color(0xFF5DE58A) : const Color(0xFFFFA3AE)),
                     title: Text(File(p).uri.pathSegments.last, maxLines: 1, overflow: TextOverflow.ellipsis),
-                    subtitle: Text(mobile ? 'READY FOR MOBILE INFERENCE' : 'STANDARD FAISS INDEX — CONVERSION REQUIRED'),
+                    subtitle: Text(mobile ? 'MOBILE INDEX — VALIDATED WHEN SELECTED' : 'STANDARD FAISS INDEX — CONVERSION REQUIRED'),
                     trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                       if (mobile) IconButton(onPressed: () => _useIndex(p), icon: const Icon(Icons.check), tooltip: 'Use index'),
                       IconButton(onPressed: () => _deleteIndex(p), icon: const Icon(Icons.delete_outline), tooltip: 'Delete index'),
@@ -1663,7 +1665,14 @@ zip_handler = """      final ext = _ext(imported.path);
             }
           }
           if (itemExt == 'onnx' && readyModelPath == null) readyModelPath = item.path;
-          if (itemExt == 'mobile.index' && readyIndexPath == null) readyIndexPath = item.path;
+          if (itemExt == 'mobile.index' && readyIndexPath == null) {
+            try {
+              await _bridge.convertIndex(item.path);
+              readyIndexPath = item.path;
+            } catch (_) {
+              // Keep the invalid index in the library so the user can remove it.
+            }
+          }
         }
         if (readyModelPath != null) {
           _selectedModelPath = readyModelPath;
