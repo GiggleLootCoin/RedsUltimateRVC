@@ -387,7 +387,6 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
 
   bool _sourceModel(String path) => ['pth', 'pt', 'zip'].contains(_ext(path));
 
-  bool _index(String path) => ['index', 'mobile.index'].contains(_ext(path));
 
   Future<void> _pickModel() async {
     if (_busy) return;
