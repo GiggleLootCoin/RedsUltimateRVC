@@ -1635,7 +1635,11 @@ bridge.write_text(bt, encoding="utf-8")
 
 pt = picker.read_text(encoding="utf-8")
 zip_anchor = """      final ext = _ext(imported.path);
-      if (!_library.contains(imported.path)) _library.insert(0, imported.path);"""
+      if (_library.contains(imported.path)) {
+        await _bridge.releaseImportedFile(imported.path);
+      } else {
+        _library.insert(0, imported.path);
+      }"""
 zip_handler = """      final ext = _ext(imported.path);
       if (ext == 'zip') {
         List<ImportedFileHandle> unpacked;
@@ -1648,8 +1652,18 @@ zip_handler = """      final ext = _ext(imported.path);
         String? readyIndexPath;
         for (final item in unpacked) {
           final itemExt = _ext(item.path);
-          if (['onnx', 'pth', 'pt'].contains(itemExt) && !_library.contains(item.path)) {
-            _library.insert(0, item.path);
+          if (['onnx', 'pth', 'pt'].contains(itemExt)) {
+            if (_library.contains(item.path)) {
+              await _bridge.releaseImportedFile(item.path);
+            } else {
+              _library.insert(0, item.path);
+            }
+          } else if (['index', 'mobile.index'].contains(itemExt)) {
+            if (_indexLibrary.contains(item.path)) {
+              await _bridge.releaseImportedFile(item.path);
+            } else {
+              _indexLibrary.insert(0, item.path);
+            }
           }
           if (itemExt == 'onnx' && readyModelPath == null) readyModelPath = item.path;
           if (itemExt == 'mobile.index' && readyIndexPath == null) readyIndexPath = item.path;
@@ -1665,6 +1679,7 @@ zip_handler = """      final ext = _ext(imported.path);
           widget.onIndexSelected(readyIndexPath);
         }
         await _saveLibrary();
+        await _saveIndexLibrary();
         if (!mounted) return;
         setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(
