@@ -1687,5 +1687,46 @@ failed = [name for name, ok in checks.items() if not ok]
 if failed:
     raise RuntimeError("Finalizer sanity checks failed: " + ", ".join(failed))
 
+# ---------------------------------------------------------------------------
+# Release-build hygiene: remove deprecated Flutter API usage and explicitly
+# document the Play Core references that are unreachable in this standalone APK.
+# This app does not declare Play Feature Delivery modules or deferred components.
+# ---------------------------------------------------------------------------
+final_main = main.read_text(encoding="utf-8")
+old_pop = """      onPopInvoked: (didPop) {
+        if (!didPop) _handleBackPressed();
+      },"""
+new_pop = """      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) _handleBackPressed();
+      },"""
+if old_pop not in final_main:
+    raise RuntimeError("Deprecated PopScope callback not found; review upstream Flutter API")
+final_main = final_main.replace(old_pop, new_pop, 1)
+write(main, final_main)
+
+measurement_chart = root / "lib" / "widgets" / "measurement_chart_card.dart"
+if measurement_chart.exists():
+    chart_text = measurement_chart.read_text(encoding="utf-8")
+    if "colorScheme.surfaceVariant" in chart_text:
+        chart_text = chart_text.replace("colorScheme.surfaceVariant", "colorScheme.surfaceContainerHighest")
+        measurement_chart.write_text(chart_text, encoding="utf-8")
+
+proguard = root / "android" / "app" / "proguard-rules.pro"
+if not proguard.exists():
+    raise RuntimeError("Android ProGuard rules file missing")
+proguard_text = proguard.read_text(encoding="utf-8")
+playcore_rule = """
+# Flutter includes optional Play Feature Delivery hooks. This standalone APK
+# declares no deferred components and does not use Play Core split installation.
+-dontwarn com.google.android.play.core.**
+"""
+if "-dontwarn com.google.android.play.core.**" not in proguard_text:
+    proguard.write_text(proguard_text.rstrip() + "\n" + playcore_rule, encoding="utf-8")
+
+if "onPopInvoked:" in main.read_text(encoding="utf-8"):
+    raise RuntimeError("Deprecated PopScope callback remains in final source")
+if measurement_chart.exists() and "colorScheme.surfaceVariant" in measurement_chart.read_text(encoding="utf-8"):
+    raise RuntimeError("Deprecated surfaceVariant remains in final source")
+
 # Keep main.dart in the expected package after the upstream checkout.
 write(main, final_main)
