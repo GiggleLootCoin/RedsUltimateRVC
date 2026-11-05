@@ -17,7 +17,7 @@ logo = root / "assets" / "images" / "reds-ultimate-rvc-logo.svg"
 logo.parent.mkdir(parents=True, exist_ok=True)
 urllib.request.urlretrieve(logo_url, logo)
 
-for name in ("red_home_screen.dart", "training_screen.dart", "full_rvc_screen.dart", "model_converter_screen.dart"):
+for name in ("red_home_screen.dart", "training_screen.dart", "full_rvc_screen.dart", "model_converter_screen.dart", "index_converter_screen.dart"):
     src = repo_root / "tools" / "ui" / name
     dst = root / "lib" / "screens" / name
     dst.parent.mkdir(parents=True, exist_ok=True)
