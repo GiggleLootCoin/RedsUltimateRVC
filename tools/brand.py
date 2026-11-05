@@ -708,8 +708,13 @@ dend = mt.find("  @override\n  Widget build", dstart)
 if dstart < 0 or dend < 0:
     raise RuntimeError("Drawer block not found")
 drawer = r'''  Future<void> _openCreatorYouTube() async {
-    final uri = Uri.parse('https://youtube.com/@little-red-big-smile?si=U1pBT09zB91GBrW3');
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+    final uri = Uri.parse('https://www.youtube.com/@Little-Red-Big-Smile');
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to open YouTube. Check your connection and try again.')),
+      );
+    }
   }
 
   Drawer _buildDrawer() {
@@ -775,958 +780,544 @@ if testdir.exists():
     for dart in testdir.rglob("*.dart"):
         write(dart, dart.read_text(encoding="utf-8").replace("package:ultimate_rvc_mobile/", "package:reds_ultimate_rvc/"))
 
-# Ensure all source strings are English enough for the user-facing screens.
+# English-only UI translation pass. This runs over every Dart screen, including
+# error messages and tooltips, not just the dashboard.
+translations = {
+  "生成已中止：推理进程已结束": "Generation aborted: the inference process ended",
+  "生成已中止：推理进程已中断": "Generation aborted: the inference process was interrupted",
+  "生成已中止": "Generation aborted",
+  "生成完成": "Generation complete",
+  "初始化失败": "Initialization failed",
+  "RVC 初始化失败：$e": "RVC initialization failed: $e",
+  "再按一次退出": "Press back again to exit",
+  "确定": "OK",
+  "音频推理": "Audio Conversion",
+  "实时推理": "Realtime Inference",
+  "变声器模式": "Voice Changer",
+  "分贝仪": "Decibel Meter",
+  "音高检测": "Pitch Detection",
+  "参数解释": "RVC Controls",
+  "mobile.index 转换教程": "Mobile Index Guide",
+  "音频": "audio",
+  "音色": "voice",
+  "生成": "Generate",
+  "结果": "Results",
+  "未启动": "Not started",
+  "需要麦克风权限": "Microphone permission required",
+  "实时测量中": "Measuring live",
+  "测量失败：$error": "Measurement failed: $error",
+  "已锁定": "Locked",
+  "分贝实时曲线": "Live decibel chart",
+  "解除锁定": "Unlock",
+  "锁定当前数值": "Lock current reading",
+  "准备生成": "Ready to generate",
+  "初始化中...": "Initializing...",
+  "处理出错了，请重新生成": "Processing failed. Please try again.",
+  "恢复进度中": "Restoring progress",
+  "保存进度点": "Saving checkpoint",
+  "无法继续": "Cannot continue",
+  "当前任务与历史不一致，无法继续。\\n不做任何操作。": "This task does not match the saved history. No changes were made.",
+  "推理进程已中断": "Inference process interrupted",
+  "推理进程已断开": "Inference process disconnected",
+  "处理出错：$message": "Processing error: $message",
+  "正在中止生成": "Stopping generation",
+  "正在等待推理进程结束": "Waiting for the inference process to stop",
+  "终止生成失败：$e": "Could not stop generation: $e",
+  "生成音频": "Generate audio",
+  "输入音频：": "Input audio: ",
+  "音色模型：": "Voice model: ",
+  "索引文件：": "Index file: ",
+  "未选择": "Not selected",
+  "参数": "parameters",
+  "Pitch（音调设置）": "Pitch",
+  "Index Rate（索引强度）": "Index Rate",
+  "Index Rate（检索特征占比）": "Index Rate",
+  "Formant（性别因子/声线粗细）": "Formant",
+  "Noise Gate（噪声过滤）": "Noise Gate",
+  "Sample Rate（采样率）": "Sample Rate",
+  "Filter Radius（音高滤波）": "Filter Radius",
+  "RMS Mix（响度因子）": "RMS Mix",
+  "RMS Mix（响度混合）": "RMS Mix",
+  "Protect（辅音保护）": "Protect",
+  "高级参数": "Advanced settings",
+  "降噪优化": "Noise reduction",
+  "只影响处理结果，不改原始录音文件": "Affects processed audio only; the original recording is unchanged.",
+  "音域过滤": "Vocal frequency filter",
+  "恢复默认": "Restore defaults",
+  "生成中...": "Generating...",
+  "生成用时：": "Processing time: ",
+  "正在中止": "Stopping",
+  "终止生成": "Stop generation",
+  "重新生成": "Generate again",
+  "开始生成": "Start generation",
+  "继续未完成": "Resume",
+  "处理时间取决于音频长度": "Processing time depends on audio length",
+  "为什么要先转换": "Why conversion is needed",
+  "手机端当前只读取 mobile.index。标准 RVC/FAISS .index 需要先在电脑上转换，转换后再传到手机选择。": "This Android version reads mobile.index files. Standard FAISS indexes are not supported directly.",
+  "转换命令": "Conversion command",
+  "在仓库目录执行：\\npython3 ultimate_rvc_mobile/python/convert_faiss_index.py input.index output.mobile.index": "Index conversion is not available in this Android version.",
+  "请选择 .onnx 模型文件": "Please select an .onnx model file",
+  "选择模型失败：$e": "Model selection failed: $e",
+  "请选择 mobile.index 文件": "Please select a mobile.index file",
+  "选择索引失败：$e": "Index selection failed: $e",
+  "选择音色模型": "Select voice model",
+  "已选择音色：": "Selected voice: ",
+  "支持：.onnx 模型": "Supported: .onnx models",
+  "更换模型": "Change model",
+  "选择模型": "Select model",
+  "清除模型": "Clear model",
+  "索引文件（可选）": "Index file (optional)",
+  "支持：mobile.index 索引": "Supported: mobile.index files",
+  "更换 mobile.index": "Change mobile.index",
+  "选择 mobile.index": "Select mobile.index",
+  "清除索引": "Clear index",
+  "继续": "Continue",
+  "当前音频：": "Current audio: ",
+  "推荐值：0": "Recommended: 0",
+  "推荐值：3": "Recommended: 3",
+  "推荐值：0.25": "Recommended: 0.25",
+  "推荐值：0.33": "Recommended: 0.33",
+  "推荐值：48000": "Recommended: 48000",
+  "推荐值：6.0": "Recommended: 6.0",
+  "推荐值：0.0": "Recommended: 0",
+  "推荐值：默认开启": "Recommended: enabled by default",
+  "推荐值：默认开启；保留区：60–2500 Hz": "Recommended: enabled; preserve range: 60–2500 Hz",
+  "推荐值：0.5 到 0.7，稳妥从 0.6 开始": "Recommended: 0.5–0.7; start at 0.6",
+  "音频推理推荐值：0；实时推理推荐值：35 dB": "Audio conversion: 0; realtime: 35 dB",
+  "推荐值：10 秒；范围：0 到 60 秒": "Recommended: 10 seconds; range: 0–60 seconds",
+  "推荐值：3 秒；范围：0 到 10 秒": "Recommended: 3 seconds; range: 0–10 seconds",
+  "改变整体音高，范围 -24 到 24 半音。调高适合男声转女声或目标声音更高；调低适合女声转男声或目标声音更低。优先在 -4 到 +4 半音内微调，幅度太大容易失真。": "Changes pitch from -24 to +24 semitones. Small adjustments (around -4 to +4) usually sound more natural; large shifts can distort the voice.",
+  "通过共振峰偏移改变声线粗细和性别感，范围 -4 到 4。调高更细、更亮；调低更粗、更厚。它和 Pitch 可以共存：Pitch 调音调高低，Formant 调声线粗细。": "Changes vocal resonance from -4 to +4. Pitch changes note height; formant changes vocal character and thickness.",
+  "控制检索特征参与程度。调高更像目标音色，但更容易带出底噪和毛刺；调低更干净稳定，但相似度会下降。": "Controls how strongly index features affect the result. Higher values may improve similarity but add noise; lower values may sound cleaner.",
+  "平滑音高波动，减少抖动、破音和细碎毛刺。调高会更平稳，但可能抹掉细节；调低会保留更多细节，但更容易抖。": "Smooths pitch fluctuations. Higher values reduce jitter but may remove detail.",
+  "控制输出保留多少原音的响度起伏。调高更平稳；调低更保留原始情绪和力度。原音底噪明显时不要调得太低。": "Controls how much of the original volume envelope is retained. Lower values preserve more of the original dynamics.",
+  "保护齿音、呼吸声和清辅音，减少发糊和吞字。调高更清晰但不够像；调低更像目标音色，但更容易糊。": "Protects consonants and breaths. Higher values can improve clarity but reduce voice similarity.",
+  "只在处理时生效，不改原始录音文件。0 表示不过滤；更适合压低麦克风底噪、空窗噪声和残留低电平杂音。门限过高会吞掉气声、尾音和弱音，断续时先降低 Noise Gate。": "Applies only to processed audio; the original recording is unchanged. Higher thresholds reduce background noise but may cut off quiet breaths and word endings.",
+  "处理时输入和输出都生效，不改原始录音文件。用于压低底噪、突刺、电流感、包络噪声和刺耳齿音，尽量保住尾音与弱音；如果人声被压得太干，可以关闭。": "Applies to processed input and output; the original recording is unchanged. Reduces background noise and harsh sibilance while preserving quiet details.",
+  "只在处理时生效，不改原始录音文件。50–60 Hz 以下轻收低频轰鸣；60–2500 Hz 保持主体；2500–4500 Hz 保留咬字清晰度并逐步收高频；4500 Hz 以上用柔和高架衰减压毛刺，避免声音发闷。二次录制的人声会带扬声器、房间和麦克风噪声，这个开关用于清理明显越界的低频轰鸣和高频毛刺。": "Applies to processed audio only. Reduces low-frequency rumble and harsh high-frequency artifacts while preserving speech clarity.",
+  "决定导出音频规格。默认使用 48000，便于和模型输出及常见视频音频流程保持一致。": "Sets the export audio format. The default is 48 kHz.",
+  "采样长度": "Chunk length",
+  "实时推理每次处理的音频块长度。调大更稳但延迟更高；调小延迟更低，但更容易卡顿或音色不稳定。": "Length of each realtime audio chunk. Longer chunks may be steadier but increase latency.",
+  "淡入淡出长度": "Crossfade length",
+  "实时推理块之间的衔接长度。调高能减少断裂和爆音，但会增加拖尾；调低响应更快，但更容易听到接缝。": "Smooths transitions between realtime chunks. Higher values reduce clicks but can add trailing audio.",
+  "额外推理时长": "Extra inference context",
+  "给实时推理保留的上下文长度。调高更稳定，但会增加延迟和计算量；设备性能不足时应适当降低。": "Additional context for realtime inference. Higher values may improve stability but increase latency and processing load.",
+  "延时缓冲": "Delay buffer",
+  "实时推理会先缓存一段输出再播放。调高更稳但延迟更长；调到 0 会尽快播放，设备性能不足时更容易断续。": "Realtime output is buffered before playback. More buffering may improve stability but increases latency.",
+  "播放延迟": "Playback delay",
+  "变声器悬浮窗在正常播放和试听前显示倒计时。0 秒表示立即播放；需要留出切回目标应用或准备录入环境时可调高。": "The voice-changer floating control counts down before playback. Set to 0 for immediate playback.",
+  "中断生成": "Stop generation",
+  "需要停止时手动触发": "Use this control when you need to stop a task",
+  "离线生成时可点红色“终止生成”。变声器橙色处理阶段可长按悬浮按钮中断。": "During offline conversion, use Stop Generation. During voice-changer processing, long-press the floating control to cancel.",
+  "稳定": "stable",
+  "灵敏": "Sensitive",
+  "极灵敏": "Very sensitive",
+  "实时检测中": "Detecting pitch",
+  "检测失败：$error": "Detection failed: $error",
+  "已将当前音高设为相对音高基准 0": "Current pitch set as relative reference 0",
+  "音高检测设置": "Pitch detection settings",
+  "基准音高（留空默认 C4）": "Reference pitch (leave blank for C4)",
+  "图表 Y 轴模式": "Chart Y-axis mode",
+  "相对半音值": "Relative semitones",
+  "频率 Hz": "Frequency (Hz)",
+  "音名（A2/C4）": "Note name (A2/C4)",
+  "检测灵敏度": "Detection sensitivity",
+  "取消": "Cancel",
+  "基准音高格式无效，请使用 C4 / F#3 这类格式": "Invalid reference pitch. Use a format such as C4 or F#3.",
+  "保存": "Save",
+  "音高实时曲线": "Live pitch chart",
+  "音名": "Note",
+  "半音": "semitones",
+  "将当前音高设为相对 0": "Set current pitch as relative zero",
+  "锁定当前音高": "Lock current pitch",
+  "手机端限制": "Android limitations",
+  "这个页面仅供演示。": "This screen is experimental and is not a reliable realtime feature yet.",
+  "手机端实时推理性能和系统音频能力限制很大。": "Realtime inference is heavily limited by phone performance and Android audio routing.",
+  "当前无法指定输入输出设备。": "Input and output audio devices cannot currently be selected.",
+  "实际效果可能大约每 6 秒卡一次，没有实际用途。": "Audio may stutter about every six seconds; this feature is not ready for dependable use.",
+  "知道了": "Got it",
+  "正在停止实时推理": "Stopping realtime inference",
+  "已停止": "Stopped",
+  "正在启动实时推理": "Starting realtime inference",
+  "实时推理失败：$error": "Realtime inference failed: $error",
+  "实时推理中": "Realtime inference running",
+  "启动失败：$e": "Startup failed: $e",
+  "状态：$_status": "Status: $_status",
+  "选择 .onnx 模型": "Select .onnx model",
+  "更换 .onnx 模型": "Change .onnx model",
+  "延时缓冲：": "Delay buffer: ",
+  "音频采样率": "Audio sample rate",
+  "采样长度：": "Chunk length: ",
+  "淡入淡出长度：": "Crossfade length: ",
+  "额外推理时长：": "Extra inference context: ",
+  "停止实时推理": "Stop realtime inference",
+  "启动实时推理": "Start realtime inference",
+  "Ultimate RVC 生成音频": "Audio generated by Red's Ultimate RVC",
+  "这是 Ultimate RVC 生成的音频。": "This audio was generated by Red's Ultimate RVC.",
+  "分享失败：$e": "Share failed: $e",
+  "已保存：$savedPath": "Saved: $savedPath",
+  "保存失败：$e": "Save failed: $e",
+  "生成结果": "Conversion result",
+  "音频已生成": "Audio generated",
+  "暂停": "Pause",
+  "播放": "Play",
+  "分享": "Share",
+  "选择音频失败：$e": "Audio selection failed: $e",
+  "录音失败：$e": "Recording failed: $e",
+  "选择音频": "Select audio",
+  "已选择：": "Selected: ",
+  "支持：MP3、WAV、M4A、FLAC、OGG": "Supported formats: MP3, WAV, M4A, FLAC, OGG",
+  "更换音频": "Change audio",
+  "清除音频": "Clear audio",
+  "停止录音": "Stop recording",
+  "直接录音": "Record audio",
+  "录音时长：": "Recording duration: ",
+  "请先选择 .onnx 音色模型": "Please select an .onnx voice model first",
+  "录制模式": "Recording mode",
+  "灰色：待机。点一下开始录音，长按关闭悬浮窗。": "Gray: idle. Tap to start recording; long-press to close the floating control.",
+  "绿色：录音中，并显示录制时长。点一下停止录音并开始处理，长按取消录音并回到灰色。": "Green: recording. Tap to stop and process; long-press to cancel and return to idle.",
+  "橙色：处理中，并显示处理进度。点一下进入亮黄色暂停态，长按取消处理并清空临时文件，回到灰色初始态。": "Orange: processing. Tap to pause; long-press to cancel and clear temporary files.",
+  "亮黄色：处理已暂停。点一下继续处理，长按放弃本轮处理并清空临时文件，回到灰色初始态。": "Yellow: paused. Tap to resume; long-press to discard this session and clear temporary files.",
+  "蓝色：处理完成，显示处理后总时长。点一下进入天蓝色试听倒计时。": "Blue: processing complete. Tap to start the preview countdown.",
+  "蓝色长按：结束本轮并清理文件，回到灰色。": "Long-press blue to end the session and clean up its files.",
+  "天蓝色：显示播放或试听倒计时。": "Light blue: playback or preview countdown.",
+  "红色：试听播放中，显示剩余时间。点一下暂停并变成青绿色，再点一下继续后恢复红色，长按直接结束试听。": "Red: preview playing. Tap to pause; tap again to resume; long-press to end the preview.",
+  "青绿色：播放已暂停。": "Teal: playback paused.",
+  "蓝色和红色：都可以双击保存处理后的音频。": "Double-tap blue or red to save the converted audio.",
+  "蓝色和红色：都可以三击保存本轮原始录音。": "Triple-tap blue or red to save the original recording.",
+  "手势一触发会先弹出提示，再执行保存、暂停、继续、取消等耗时操作。": "A short notice appears before save, pause, resume or cancel actions.",
+  "录制和处理会占用推理资源；如果音频推理或实时推理正在运行，点击开始录音会提示暂时不能用。": "Recording and conversion share inference resources. Recording is unavailable while another inference task is running.",
+  "音色模型": "Voice model",
+  "索引文件": "Index file",
+  "移除索引": "Remove index",
+  "处理声线参数": "Voice processing controls",
+  "悬浮控制": "Floating control",
+  "关闭悬浮窗": "Close floating control",
+  "打开悬浮窗": "Open floating control",
+  "RVC 初始化失败：${e.message}": "RVC initialization failed: ${e.message}",
+  "检查模型失败：${e.message}": "Model check failed: ${e.message}",
+  "显示提示失败：${e.message}": "Could not display notice: ${e.message}",
+  "RVC 推理失败：${e.message}": "RVC inference failed: ${e.message}",
+  "终止生成失败：${e.message}": "Could not stop generation: ${e.message}",
+  "获取版本失败：${e.message}": "Could not get version: ${e.message}",
+  "开始录音失败：${e.message}": "Could not start recording: ${e.message}",
+  "启动实时推理失败：${e.message}": "Could not start realtime inference: ${e.message}",
+  "停止实时推理失败：${e.message}": "Could not stop realtime inference: ${e.message}",
+  "停止录音失败：${e.message}": "Could not stop recording: ${e.message}",
+  "保存失败：${e.message}": "Save failed: ${e.message}",
+  "读取音频时长失败：${e.message}": "Could not read audio duration: ${e.message}",
+  "转换失败：${e.message}": "Conversion failed: ${e.message}",
+  "启动变声器失败：${e.message}": "Could not start voice changer: ${e.message}",
+  "停止变声器失败：${e.message}": "Could not stop voice changer: ${e.message}",
+  "退出全屏": "Exit full screen",
+  "清空曲线": "Clear chart",
+  "放大图表": "Enlarge chart",
+  "时间": "Time",
+  "暂无数据": "No data yet",
+  "相对半音值：": "Relative semitones: ",
+  "输入音频": "Input audio",
+  "当前音频": "Current audio",
+  "音高": "Pitch",
+  "音调": "Pitch",
+  "推荐值": "Recommended",
+  "样本": "sample",
+  "时长": "duration",
+  "麦克风权限": "microphone permission",
+  "需要": "required",
+  "实时": "realtime",
+  "推理": "inference",
+  "模型": "model",
+  "索引": "index",
+  "选择": "Select",
+  "更换": "Change",
+  "清除": "Clear",
+  "已选择": "Selected",
+  "正在": "In progress",
+  "停止": "Stop",
+  "恢复": "Restore",
+  "默认": "default",
+  "处理": "Processing",
+  "录音": "recording",
+  "曲线": "chart",
+  "锁定": "Lock",
+  "频率": "Frequency",
+  "关闭": "Close",
+  "打开": "Open",
+  "悬浮窗": "floating control",
+  "本轮": "this session",
+  "清空": "clear",
+  "临时文件": "temporary files",
+  "延迟": "latency",
+  "秒": "sec",
+  "失败": "failed",
+  "错误": "error",
+  "已": "Done",
+  "当前": "current",
+  "设置": "settings",
+  "相对": "relative",
+  "基准": "reference",
+  "检测": "detection",
+  "启动": "Start",
+  "退出": "Exit",
+  "按钮": "button",
+  "权限": "permission",
+  "格式": "format",
+  "无效": "invalid",
+  "请": "Please",
+  "使用": "Use",
+  "图表": "chart",
+  "输入": "input",
+  "输出": "output",
+  "缓冲": "buffer",
+  "颜色": "color",
+  "结束": "End",
+  "显示": "show",
+  "长按": "Long-press",
+  "点击": "Tap",
+  "双击": "Double-tap",
+  "三击": "Triple-tap",
+  "状态": "Status",
+  "手机端": "Android",
+  "限制": "limitations",
+  "演示": "demo",
+  "没有": "no",
+  "实际": "actual",
+  "无法": "cannot",
+  "为什么": "Why",
+  "转换": "conversion",
+  "教程": "guide",
+  "电脑": "computer",
+  "上传": "upload",
+  "标准": "standard",
+  "读取": "read",
+  "先": "first",
+  "范围": "range",
+  "改变": "change",
+  "整体": "overall",
+  "调高": "increase",
+  "调低": "decrease",
+  "适合": "suitable",
+  "优先": "prefer",
+  "微调": "fine-tune",
+  "幅度": "amount",
+  "太大": "too large",
+  "容易": "likely",
+  "失真": "distortion",
+  "通过": "using",
+  "共振峰": "formant",
+  "偏移": "shift",
+  "声线": "voice character",
+  "粗细": "thickness",
+  "性别感": "gender character",
+  "更细": "thinner",
+  "更亮": "brighter",
+  "更粗": "thicker",
+  "更厚": "fuller",
+  "它和": "It and",
+  "可以": "can",
+  "共存": "coexist",
+  "调": "adjust",
+  "控制": "Controls",
+  "参与": "participation",
+  "程度": "level",
+  "更像": "more similar",
+  "目标": "target",
+  "但": "but",
+  "带出": "introduce",
+  "底噪": "background noise",
+  "毛刺": "artifacts",
+  "更干净": "cleaner",
+  "相似度": "similarity",
+  "平滑": "smooth",
+  "波动": "fluctuation",
+  "减少": "reduce",
+  "抖动": "jitter",
+  "破音": "crackling",
+  "细碎": "small",
+  "可能": "may",
+  "抹掉": "remove",
+  "细节": "detail",
+  "保留": "preserve",
+  "多少": "how much",
+  "原音": "original audio",
+  "响度": "loudness",
+  "起伏": "variation",
+  "更平稳": "steadier",
+  "情绪": "expression",
+  "力度": "intensity",
+  "明显": "noticeable",
+  "不要": "do not",
+  "保护": "protect",
+  "齿音": "sibilance",
+  "呼吸声": "breaths",
+  "清辅音": "unvoiced consonants",
+  "发糊": "muddiness",
+  "吞字": "swallowed words",
+  "清晰": "clear",
+  "不够": "less",
+  "容易糊": "may sound muddy",
+  "门限": "threshold",
+  "过高": "too high",
+  "会": "may",
+  "吞掉": "cut off",
+  "气声": "breaths",
+  "尾音": "word endings",
+  "弱音": "quiet sounds",
+  "断续": "intermittent",
+  "降低": "lower",
+  "开启": "enabled",
+  "处理时": "during processing",
+  "输入和输出": "input and output",
+  "用于": "used to",
+  "压低": "reduce",
+  "突刺": "transients",
+  "电流感": "electrical noise",
+  "包络噪声": "envelope noise",
+  "刺耳": "harsh",
+  "尽量": "as much as possible",
+  "如果": "if",
+  "人声": "voice",
+  "太干": "too dry",
+  "可以关闭": "can be turned off",
+  "保留区": "preserve range",
+  "以下": "below",
+  "保持主体": "preserve the core",
+  "保留咬字清晰度": "preserve speech clarity",
+  "逐步收高频": "gradually reduce high frequencies",
+  "以上": "above",
+  "柔和": "gentle",
+  "高架衰减": "high-shelf attenuation",
+  "避免": "avoid",
+  "发闷": "muffled sound",
+  "二次录制": "re-recorded",
+  "会带": "may include",
+  "扬声器": "speaker",
+  "房间": "room",
+  "麦克风噪声": "microphone noise",
+  "这个开关": "This switch",
+  "用于清理": "helps clean",
+  "明显越界": "out-of-range",
+  "低频轰鸣": "low-frequency rumble",
+  "高频毛刺": "high-frequency artifacts",
+  "决定": "Determines",
+  "导出": "export",
+  "规格": "format",
+  "便于": "to help",
+  "模型输出": "model output",
+  "常见": "common",
+  "视频音频流程": "video and audio workflows",
+  "每次": "each time",
+  "音频块": "audio chunk",
+  "调大": "increase",
+  "更稳": "more stable",
+  "延迟更高": "higher latency",
+  "调小": "decrease",
+  "延迟更低": "lower latency",
+  "卡顿": "stuttering",
+  "音色不稳定": "unstable voice tone",
+  "块之间": "between chunks",
+  "衔接": "transition",
+  "减少断裂": "reduce breaks",
+  "爆音": "pops",
+  "拖尾": "trailing audio",
+  "响应更快": "faster response",
+  "接缝": "seams",
+  "保留的上下文长度": "reserved context length",
+  "更稳定": "more stable",
+  "增加": "increase",
+  "计算量": "processing load",
+  "设备性能不足时": "on lower-powered devices",
+  "适当降低": "reduce as needed",
+  "先缓存": "buffers first",
+  "一段输出再播放": "output before playback",
+  "更稳但": "more stable but",
+  "尽快播放": "play as soon as possible",
+  "更容易断续": "more likely to stutter",
+  "悬浮窗在正常播放": "floating control before playback",
+  "显示倒计时": "shows a countdown",
+  "立即播放": "play immediately",
+  "需要留出": "allow time",
+  "切回目标应用": "switch back to the target app",
+  "准备录入环境": "prepare the recording environment",
+  "手动触发": "trigger manually",
+  "离线生成时": "during offline conversion",
+  "可点红色": "tap the red",
+  "橙色处理阶段": "orange processing state",
+  "可长按": "long-press to",
+  "中断": "stop",
+  "当前音高": "current pitch",
+  "设为": "set as",
+  "相对音高基准": "relative pitch reference",
+  "留空默认": "leave blank for default",
+  "格式无效": "format is invalid",
+  "请使用": "use",
+  "这类格式": "format",
+  "将当前音高": "Set current pitch",
+  "设为相对 0": "as relative zero",
+  "灰色": "Gray",
+  "待机": "idle",
+  "点一下": "Tap once",
+  "开始录音": "start recording",
+  "长按关闭": "long-press to close",
+  "绿色": "Green",
+  "录音中": "recording",
+  "并显示录制时长": "and shows recording time",
+  "停止录音并开始处理": "stop recording and process",
+  "取消录音并回到灰色": "cancel recording and return to idle",
+  "橙色": "Orange",
+  "处理中": "processing",
+  "并显示处理进度": "and shows progress",
+  "进入亮黄色暂停态": "pause",
+  "取消处理并清空临时文件": "cancel and clear temporary files",
+  "回到灰色初始态": "return to idle",
+  "亮黄色": "Yellow",
+  "处理已暂停": "processing paused",
+  "继续处理": "resume processing",
+  "放弃本轮处理": "discard this session",
+  "蓝色": "Blue",
+  "处理完成": "processing complete",
+  "显示处理后总时长": "shows converted duration",
+  "进入天蓝色试听倒计时": "start the preview countdown",
+  "蓝色长按": "Long-press blue",
+  "结束本轮并清理文件": "end this session and clean up files",
+  "天蓝色": "Light blue",
+  "显示播放或试听倒计时": "shows playback or preview countdown",
+  "红色": "Red",
+  "试听播放中": "preview playing",
+  "显示剩余时间": "shows time remaining",
+  "暂停并变成青绿色": "pause and turn teal",
+  "再点一下继续后恢复红色": "tap again to resume",
+  "长按直接结束试听": "long-press to end the preview",
+  "青绿色": "Teal",
+  "播放已暂停": "playback paused",
+  "蓝色和红色": "Blue and red",
+  "都可以双击保存处理后的音频": "can be double-tapped to save converted audio",
+  "都可以三击保存本轮原始录音": "can be triple-tapped to save the original recording",
+  "手势一触发": "When a gesture is triggered",
+  "先弹出提示": "a notice appears first",
+  "再执行": "before running",
+  "保存、暂停、继续、取消": "save, pause, resume or cancel",
+  "等耗时操作": "long-running actions",
+  "录制和处理": "Recording and conversion",
+  "会占用推理资源": "use inference resources",
+  "如果音频推理或实时推理正在运行": "if audio or realtime inference is running",
+  "点击开始录音": "tapping Record",
+  "会提示暂时不能用": "will show that recording is unavailable",
+  "显示提示失败": "Could not display notice",
+  "读取音频时长失败": "Could not read audio duration"
+}
 for dart in (root / "lib").rglob("*.dart"):
     t = dart.read_text(encoding="utf-8")
-    replacements = {
-        "选择模型":"Select model", "更换模型":"Change model", "清除模型":"Clear model",
-        "未选择":"Not selected", "选择音色":"Select voice", "选择索引":"Select index",
-        "音频推理":"Audio Conversion", "实时推理":"Realtime RVC", "变声器模式":"Voice Changer",
-        "分贝仪":"dB Meter", "音高检测":"Pitch Detection", "参数解释":"RVC Controls",
-        "选择歌曲":"Select audio", "生成":"Generate", "结果":"Result",
-    }
-    for a,b in replacements.items():
-        t = t.replace(a,b)
-    write(dart,t)
+    for a, b in sorted(translations.items(), key=lambda item: len(item[0]), reverse=True):
+        t = t.replace(a, b)
+    write(dart, t)
 
-# ---------------------------------------------------------------------------
-# Persistent storage for imported models/indexes.
-# ---------------------------------------------------------------------------
-workspace = root / "android/app/src/main/kotlin/com/ultimatervc/mobile/TempWorkspaceManager.kt"
-if workspace.exists():
-    wt = workspace.read_text(encoding="utf-8")
-    old = """    fun resolveImportRoot(kind: ImportedFileKind): File {
-        return File(File(appCacheDir, IMPORTS_DIRECTORY_NAME), kind.directoryName).also { it.mkdirs() }
-    }"""
-    new = """    fun resolveImportRoot(kind: ImportedFileKind): File {
-        val baseDir = when (kind) {
-            ImportedFileKind.MODEL, ImportedFileKind.INDEX -> appFilesDir
-            ImportedFileKind.AUDIO -> appCacheDir
-        }
-        return File(File(baseDir, IMPORTS_DIRECTORY_NAME), kind.directoryName).also { it.mkdirs() }
-    }"""
-    if old in wt:
-        wt = wt.replace(old,new)
-        write(workspace,wt)
+# Fail the build rather than shipping any untranslated CJK UI strings.
+string_literal = re.compile(r"""(?s)(?:r)?(['"])(?:\\\\.|(?!\\1).)*?\\1""")
+for dart in (root / "lib").rglob("*.dart"):
+    t = dart.read_text(encoding="utf-8")
+    for match in string_literal.finditer(t):
+        if re.search(r"[\\u3400-\\u9fff]", match.group(0)):
+            line = t.count("\\n", 0, match.start()) + 1
+            raise RuntimeError(f"Non-English UI string remains in {dart}:{line}: {match.group(0)[:120]}")
 
-# Remove upstream's machine-specific Java home. GitHub Actions supplies a valid JDK 17.
-gradle_props = root / "android/gradle.properties"
-if gradle_props.exists():
-    gp = gradle_props.read_text(encoding="utf-8")
-    gp = re.sub(r"^org\.gradle\.java\.home=.*\n?", "", gp, flags=re.M)
-    write(gradle_props, gp)
-
-# ---------------------------------------------------------------------------
-# Android branding / app icon.
-# ---------------------------------------------------------------------------
-manifest = root / "android/app/src/main/AndroidManifest.xml"
-if manifest.exists():
-    m = manifest.read_text(encoding="utf-8")
-    m = re.sub(r'android:label="[^"]+"', 'android:label="Red\'s Ultimate RVC"', m, count=1)
-    if 'android.permission.INTERNET' not in m:
-        m = m.replace('<manifest xmlns:android="http://schemas.android.com/apk/res/android">', '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <uses-permission android:name="android.permission.INTERNET" />', 1)
-    if 'android:icon="' in m:
-        m = re.sub(r'android:icon="[^"]+"', 'android:icon="@drawable/reds_ultimate_rvc_logo"', m, count=1)
-    else:
-        m = m.replace('<application', '<application android:icon="@drawable/reds_ultimate_rvc_logo"', 1)
-    write(manifest,m)
-
-# Render SVG icon into a drawable for Android.
-try:
-    import cairosvg
-    out = root / "android/app/src/main/res/drawable/reds_ultimate_rvc_logo.png"
-    out.parent.mkdir(parents=True, exist_ok=True)
-    cairosvg.svg2png(url=str(logo), write_to=str(out), output_width=512, output_height=512)
-except Exception as exc:
-    raise RuntimeError(f"Could not render approved logo: {exc}")
-
-# Ensure every custom screen referenced by the dashboard is imported in main.dart.
-final_main_pre = main.read_text(encoding="utf-8")
-for imp, token in [
-    ("import 'screens/red_home_screen.dart';", "RedHomeScreen("),
-    ("import 'screens/training_screen.dart';", "TrainingScreen("),
-    ("import 'screens/full_rvc_screen.dart';", "FullRvcScreen("),
-    ("import 'screens/model_converter_screen.dart';", "ModelConverterScreen("),
-]:
-    if token in final_main_pre and imp not in final_main_pre:
-        final_main_pre = imp + "\n" + final_main_pre
-write(main, final_main_pre)
-
-# ---------------------------------------------------------------------------
-
-# ---------------------------------------------------------------------------
-# Direct Android SAF import for RVC models and indexes.
-# Samsung My Files returns content:// URIs; this avoids relying on FilePicker
-# to materialize those URIs as temporary filesystem paths.
-# ---------------------------------------------------------------------------
-plugin = root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt"
-kt = plugin.read_text(encoding="utf-8")
-imports = [
-    ("import android.content.ContentValues\n", "import android.app.Activity\nimport android.content.ContentValues\nimport android.content.Intent\n"),
-    ("import android.provider.MediaStore\n", "import android.provider.MediaStore\nimport android.provider.OpenableColumns\n"),
-    ("import io.flutter.embedding.engine.plugins.FlutterPlugin\n", "import io.flutter.embedding.engine.plugins.FlutterPlugin\nimport io.flutter.embedding.engine.plugins.activity.ActivityAware\nimport io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding\n"),
-    ("import io.flutter.plugin.common.MethodCall\n", "import io.flutter.plugin.common.MethodCall\nimport io.flutter.plugin.common.PluginRegistry\n"),
-    ("import java.util.Locale\n", "import java.util.Locale\nimport java.util.UUID\n"),
-    ("class RVCPlugin : FlutterPlugin, MethodCallHandler, StreamHandler {", "class RVCPlugin : FlutterPlugin, MethodCallHandler, StreamHandler, ActivityAware, PluginRegistry.ActivityResultListener {"),
-    ("    private lateinit var appContext: Context\n", "    private lateinit var appContext: Context\n    private var activityBinding: ActivityPluginBinding? = null\n    private var pendingDocumentPickerResult: Result? = null\n    private var pendingDocumentPickerKind: String? = null\n    private val documentPickerRequestCode = 48173\n"),
-    ("            \"importPickedFile\" -> importPickedFile(call, result)\n", "            \"importPickedFile\" -> importPickedFile(call, result)\n            \"pickAndImportFile\" -> pickAndImportFile(call, result)\n"),
-]
-for old, new in imports:
-    if old not in kt:
-        raise RuntimeError("SAF import patch did not match: " + old[:90])
-    kt = kt.replace(old, new, 1)
-
-activity_methods = r'''
-    override fun onAttachedToActivity(binding: ActivityPluginBinding) {
-        activityBinding = binding
-        binding.addActivityResultListener(this)
-    }
-
-    override fun onDetachedFromActivityForConfigChanges() {
-        activityBinding?.removeActivityResultListener(this)
-        activityBinding = null
-    }
-
-    override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
-        activityBinding = binding
-        binding.addActivityResultListener(this)
-    }
-
-    override fun onDetachedFromActivity() {
-        activityBinding?.removeActivityResultListener(this)
-        activityBinding = null
-        pendingDocumentPickerResult?.error("PICKER_UNAVAILABLE", "Android document picker was detached.", null)
-        pendingDocumentPickerResult = null
-        pendingDocumentPickerKind = null
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
-        if (requestCode != documentPickerRequestCode) return false
-        val reply = pendingDocumentPickerResult
-        val kind = pendingDocumentPickerKind
-        pendingDocumentPickerResult = null
-        pendingDocumentPickerKind = null
-        if (reply == null || kind == null) return true
-        if (resultCode != Activity.RESULT_OK) {
-            reply.success(null)
-            return true
-        }
-        val uri = data?.data
-        if (uri == null) {
-            reply.error("PICKER_EMPTY", "Android returned no selected document.", null)
-            return true
-        }
-        scope.launch {
-            try {
-                val imported = importDocumentUri(kind, uri)
-                withContext(Dispatchers.Main) {
-                    reply.success(mapOf(
-                        "path" to imported.path,
-                        "referenceCount" to imported.referenceCount,
-                        "lastUpdatedAtMs" to imported.lastUpdatedAtMs,
-                    ))
-                }
-            } catch (error: Throwable) {
-                withContext(Dispatchers.Main) {
-                    reply.error("PICKER_IMPORT_FAILED", error.message ?: "Could not import the selected document.", null)
-                }
-            }
-        }
-        return true
-    }
-
-    private fun pickAndImportFile(call: MethodCall, result: Result) {
-        val kind = call.argument<String>("kind")
-        if (kind != "model" && kind != "index") {
-            result.error("INVALID_ARGUMENTS", "Import kind must be model or index.", null)
-            return
-        }
-        val activity = activityBinding?.activity
-        if (activity == null) {
-            result.error("PICKER_UNAVAILABLE", "Android document picker is not attached.", null)
-            return
-        }
-        if (pendingDocumentPickerResult != null) {
-            result.error("PICKER_BUSY", "Another document selection is already open.", null)
-            return
-        }
-        pendingDocumentPickerResult = result
-        pendingDocumentPickerKind = kind
-        try {
-            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                addCategory(Intent.CATEGORY_OPENABLE)
-                type = "*/*"
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            activity.startActivityForResult(intent, documentPickerRequestCode)
-        } catch (error: Throwable) {
-            pendingDocumentPickerResult = null
-            pendingDocumentPickerKind = null
-            result.error("PICKER_LAUNCH_FAILED", error.message, null)
-        }
-    }
-
-    private fun importDocumentUri(kind: String, uri: Uri): ManagedImportedFile {
-        val resolver = appContext.contentResolver
-        val displayName = resolver.query(
-            uri,
-            arrayOf(OpenableColumns.DISPLAY_NAME),
-            null,
-            null,
-            null,
-        )?.use { cursor ->
-            if (cursor.moveToFirst()) {
-                val column = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (column >= 0) cursor.getString(column) else null
-            } else null
-        }?.takeIf { it.isNotBlank() } ?: (uri.lastPathSegment ?: "rvc_import")
-
-        val lowerName = displayName.lowercase(Locale.ROOT)
-        val valid = if (kind == "model") {
-            listOf(".onnx", ".pth", ".pt", ".zip").any { lowerName.endsWith(it) }
-        } else {
-            lowerName.endsWith(".mobile.index") || lowerName.endsWith(".index")
-        }
-        require(valid) {
-            if (kind == "model") "Choose an RVC model file: .onnx, .pth, .pt or .zip."
-            else "Choose an RVC index file: .index or .mobile.index."
-        }
-
-        val safeName = displayName
-            .replace(Regex("[^A-Za-z0-9._() -]"), "_")
-            .take(180)
-            .ifBlank { "rvc_import" }
-        val stagingDir = File(appContext.cacheDir, "rvc_document_import_" + UUID.randomUUID().toString())
-        require(stagingDir.mkdirs()) { "Could not create a temporary import folder." }
-        val stagedFile = File(stagingDir, safeName)
-        try {
-            val input = resolver.openInputStream(uri)
-                ?: error("Android could not open the selected document.")
-            input.use { source ->
-                stagedFile.outputStream().buffered().use { output ->
-                    source.copyTo(output, 1024 * 1024)
-                }
-            }
-            require(stagedFile.isFile && stagedFile.length() > 0L) {
-                "The selected file is empty or could not be copied."
-            }
-            val fileKind = when (kind) {
-                "model" -> ImportedFileKind.MODEL
-                "index" -> ImportedFileKind.INDEX
-                else -> error("Unsupported import type.")
-            }
-            return TempWorkspaceManager(appContext.filesDir, appContext.cacheDir)
-                .importPickedFile(fileKind, stagedFile.absolutePath)
-        } finally {
-            stagingDir.deleteRecursively()
-        }
-    }
-'''
-needle = "    private fun importPickedFile(call: MethodCall, result: Result) {"
-if kt.count(needle) != 1:
-    raise RuntimeError("Native import function insertion point missing")
-kt = kt.replace(needle, activity_methods + "\n" + needle, 1)
-cleanup = "        scope.cancel()\n"
-if cleanup not in kt:
-    raise RuntimeError("Plugin cleanup insertion point missing")
-kt = kt.replace(cleanup, "        pendingDocumentPickerResult?.error(\"PICKER_UNAVAILABLE\", \"App closed before import completed.\", null)\n        pendingDocumentPickerResult = null\n        pendingDocumentPickerKind = null\n        scope.cancel()\n", 1)
-plugin.write_text(kt, encoding="utf-8")
-
-bridge = root / "lib/services/rvc_bridge.dart"
-bt = bridge.read_text(encoding="utf-8")
-bridge_needle = """  Future<ImportedFileHandle> importPickedFile({
-    required String kind,
-    required String sourcePath,
-  }) async {"""
-bridge_method = """  /// Native Android document picker; null means the user cancelled.
-  Future<ImportedFileHandle?> pickAndImportFile({required String kind}) async {
-    final result = await _channel.invokeMethod<Map<dynamic, dynamic>>(
-      'pickAndImportFile',
-      {'kind': kind},
-    );
-    if (result == null) return null;
-    return ImportedFileHandle.fromMap(Map<String, dynamic>.from(result));
-  }
-
-"""
-if bridge_needle not in bt:
-    raise RuntimeError("RVCBridge import method insertion point missing")
-bt = bt.replace(bridge_needle, bridge_method + bridge_needle, 1)
-bridge.write_text(bt, encoding="utf-8")
-
-picker = root / "lib/screens/model_picker_screen.dart"
-pt = picker.read_text(encoding="utf-8").replace("import 'package:file_picker/file_picker.dart';\n", "")
-old_model = """      final result = await FilePicker.platform.pickFiles(
-        type: FileType.any,
-        allowMultiple: false,
-        withData: false,
-      );
-      final source = result?.files.single.path;
-      if (source == null || source.isEmpty) return;
-      final ext = _ext(source);
-      if (!['onnx', 'pth', 'pt', 'zip'].contains(ext)) {
-        throw Exception('Select an RVC model: .onnx, .pth, .pt or .zip');
-      }
-
-      final imported = await _bridge.importPickedFile(kind: 'model', sourcePath: source);"""
-new_model = """      final imported = await _bridge.pickAndImportFile(kind: 'model');
-      if (imported == null) return;
-      final ext = _ext(imported.path);"""
-old_index = """      final result = await FilePicker.platform.pickFiles(
-        type: FileType.any,
-        allowMultiple: false,
-        withData: false,
-      );
-      final source = result?.files.single.path;
-      if (source == null || source.isEmpty) return;
-      final ext = _ext(source);
-      if (!_index(source)) throw Exception('Select an RVC .index or .mobile.index file');
-
-      final imported = await _bridge.importPickedFile(kind: 'index', sourcePath: source);"""
-new_index = """      final imported = await _bridge.pickAndImportFile(kind: 'index');
-      if (imported == null) return;
-      final ext = _ext(imported.path);"""
-old_select = """      _selectedIndexPath = imported.path;
-      _selectedIndexDisplayName = File(imported.path).uri.pathSegments.last;
-      if (mounted) setState(() {});
-      widget.onIndexSelected(imported.path);"""
-new_select = """      if (ext == 'mobile.index') {
-        _selectedIndexPath = imported.path;
-        _selectedIndexDisplayName = File(imported.path).uri.pathSegments.last;
-        widget.onIndexSelected(imported.path);
-      }
-      if (mounted) setState(() {});"""
-for old, new in [(old_model,new_model),(old_index,new_index),(old_select,new_select)]:
-    if old not in pt:
-        raise RuntimeError("Model/index picker source changed; cannot apply SAF patch")
-    pt = pt.replace(old,new,1)
-pt = pt.replace(
-    "Standard .index imported. Use Index Tools to convert it for mobile use.",
-    "Standard .index stored. It is not runtime-ready; an on-phone FAISS converter is not included yet.",
-    1
-)
-picker.write_text(pt, encoding="utf-8")
-
-
-# ---------------------------------------------------------------------------
-# Safe on-device RVC ZIP extraction. Supported model/index entries are streamed
-# to a temporary location and imported using the persistent model manager.
-# Partial installs are rolled back on any error.
-# ---------------------------------------------------------------------------
-kt = plugin.read_text(encoding="utf-8")
-zip_import = "import java.util.UUID\n"
-if "import java.util.zip.ZipInputStream" not in kt:
-    if zip_import not in kt: raise RuntimeError("ZIP import position missing")
-    kt = kt.replace(zip_import, zip_import + "import java.util.zip.ZipInputStream\n", 1)
-handler_line = '            "pickAndImportFile" -> pickAndImportFile(call, result)\n'
-if '"extractModelArchive" -> extractModelArchive(call, result)' not in kt:
-    if handler_line not in kt: raise RuntimeError("ZIP method handler position missing")
-    kt = kt.replace(handler_line, handler_line + '            "extractModelArchive" -> extractModelArchive(call, result)\n', 1)
-
-zip_method = r'''
-    private fun extractModelArchive(call: MethodCall, result: Result) {
-        val archivePath = call.argument<String>("path")
-        if (archivePath.isNullOrBlank()) {
-            result.error("INVALID_ARGUMENTS", "Missing archive path.", null)
-            return
-        }
-        val archive = File(archivePath)
-        if (!archive.isFile || !archive.name.lowercase(Locale.ROOT).endsWith(".zip")) {
-            result.error("INVALID_ARCHIVE", "Choose an installed ZIP model archive.", null)
-            return
-        }
-        scope.launch {
-            val manager = TempWorkspaceManager(appContext.filesDir, appContext.cacheDir)
-            val staging = File(appContext.cacheDir, "rvc_zip_extract_" + UUID.randomUUID().toString())
-            val imported = mutableListOf<ManagedImportedFile>()
-            try {
-                require(staging.mkdirs()) { "Could not create a temporary extraction folder." }
-                var totalBytes = 0L
-                var supportedEntries = 0
-                ZipInputStream(FileInputStream(archive).buffered()).use { zip ->
-                    var entry = zip.nextEntry
-                    while (entry != null) {
-                        if (!entry.isDirectory) {
-                            val baseName = File(entry.name.replace('\\', '/')).name
-                            val lower = baseName.lowercase(Locale.ROOT)
-                            val fileKind = when {
-                                lower.endsWith(".mobile.index") || lower.endsWith(".index") -> ImportedFileKind.INDEX
-                                lower.endsWith(".onnx") || lower.endsWith(".pth") || lower.endsWith(".pt") -> ImportedFileKind.MODEL
-                                else -> null
-                            }
-                            if (fileKind != null) {
-                                supportedEntries += 1
-                                require(supportedEntries <= 128) { "ZIP contains too many model/index files." }
-                                val safeName = baseName
-                                    .replace(Regex("[^A-Za-z0-9._() -]"), "_")
-                                    .take(180)
-                                    .ifBlank { "rvc_model_" + supportedEntries }
-                                val entryDir = File(staging, "entry_" + supportedEntries)
-                                require(entryDir.mkdirs()) { "Could not prepare a ZIP entry." }
-                                val destination = File(entryDir, safeName)
-                                var entryBytes = 0L
-                                FileOutputStream(destination).buffered().use { output ->
-                                    val buffer = ByteArray(64 * 1024)
-                                    while (true) {
-                                        val count = zip.read(buffer)
-                                        if (count < 0) break
-                                        if (count == 0) continue
-                                        entryBytes += count.toLong()
-                                        totalBytes += count.toLong()
-                                        require(entryBytes <= 1_500_000_000L && totalBytes <= 2_000_000_000L) {
-                                            "ZIP expands beyond the safe on-device import limit."
-                                        }
-                                        output.write(buffer, 0, count)
-                                    }
-                                }
-                                require(entryBytes > 0L && destination.isFile) {
-                                    "ZIP entry is empty: " + safeName
-                                }
-                                imported.add(manager.importPickedFile(fileKind, destination.absolutePath))
-                            }
-                        }
-                        zip.closeEntry()
-                        entry = zip.nextEntry
-                    }
-                }
-                require(imported.isNotEmpty()) {
-                    "ZIP contains no supported .onnx, .pth, .pt or .index files."
-                }
-                withContext(Dispatchers.Main) {
-                    result.success(imported.map {
-                        mapOf(
-                            "path" to it.path,
-                            "referenceCount" to it.referenceCount,
-                            "lastUpdatedAtMs" to it.lastUpdatedAtMs,
-                        )
-                    })
-                }
-            } catch (error: Throwable) {
-                imported.forEach { handle ->
-                    runCatching {
-                        val released = manager.releaseReference(handle.path)
-                        if (released.referenceCount == 0) manager.deleteIfUnused(handle.path)
-                    }
-                }
-                withContext(Dispatchers.Main) {
-                    result.error("ARCHIVE_EXTRACT_FAILED", error.message ?: "Could not extract this model archive.", null)
-                }
-            } finally {
-                staging.deleteRecursively()
-            }
-        }
-    }
-'''
-zip_needle = "    private fun pickAndImportFile(call: MethodCall, result: Result) {"
-if kt.count(zip_needle) != 1: raise RuntimeError("ZIP extractor insertion point missing")
-if "private fun extractModelArchive" not in kt:
-    kt = kt.replace(zip_needle, zip_method + "\n" + zip_needle, 1)
-
-bt = bridge.read_text(encoding="utf-8")
-pick_method_end = """  Future<ImportedFileHandle> importPickedFile({
-    required String kind,
-    required String sourcePath,
-  }) async {"""
-archive_bridge = """  /// Extracts model/index files from an installed ZIP inside app-private storage.
-  Future<List<ImportedFileHandle>> extractModelArchive(String path) async {
-    final result = await _channel.invokeMethod<List<dynamic>>(
-      'extractModelArchive',
-      {'path': path},
-    );
-    if (result == null) return <ImportedFileHandle>[];
-    return result.map((item) => ImportedFileHandle.fromMap(
-      Map<String, dynamic>.from(item as Map),
-    )).toList();
-  }
-
-"""
-if "Future<List<ImportedFileHandle>> extractModelArchive" not in bt:
-    if pick_method_end not in bt: raise RuntimeError("ZIP bridge insertion point missing")
-    bt = bt.replace(pick_method_end, archive_bridge + pick_method_end, 1)
-bridge.write_text(bt, encoding="utf-8")
-
-pt = picker.read_text(encoding="utf-8")
-zip_anchor = """      final ext = _ext(imported.path);
-      if (!_library.contains(imported.path)) _library.insert(0, imported.path);"""
-zip_handler = """      final ext = _ext(imported.path);
-      if (ext == 'zip') {
-        List<ImportedFileHandle> unpacked;
-        try {
-          unpacked = await _bridge.extractModelArchive(imported.path);
-        } finally {
-          await _bridge.releaseImportedFile(imported.path);
-        }
-        String? readyModelPath;
-        String? readyIndexPath;
-        for (final item in unpacked) {
-          final itemExt = _ext(item.path);
-          if (['onnx', 'pth', 'pt'].contains(itemExt) && !_library.contains(item.path)) {
-            _library.insert(0, item.path);
-          }
-          if (itemExt == 'onnx' && readyModelPath == null) readyModelPath = item.path;
-          if (itemExt == 'mobile.index' && readyIndexPath == null) readyIndexPath = item.path;
-        }
-        if (readyModelPath != null) {
-          _selectedModelPath = readyModelPath;
-          _selectedModelDisplayName = readyModelPath.split('/').last;
-          widget.onModelSelected(readyModelPath);
-        }
-        if (readyIndexPath != null) {
-          _selectedIndexPath = readyIndexPath;
-          _selectedIndexDisplayName = readyIndexPath.split('/').last;
-          widget.onIndexSelected(readyIndexPath);
-        }
-        await _saveLibrary();
-        if (!mounted) return;
-        setState(() {});
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('ZIP unpacked: ' + unpacked.length.toString() + ' model/index file(s) imported. ONNX is ready for conversion; PTH/PT source files are stored for future conversion support.')),
-        );
-        return;
-      }
-      if (!_library.contains(imported.path)) _library.insert(0, imported.path);"""
-if zip_anchor not in pt:
-    raise RuntimeError("ZIP model callback insertion point missing")
-if "extractModelArchive(imported.path)" not in pt:
-    pt = pt.replace(zip_anchor, zip_handler, 1)
-picker.write_text(pt,encoding="utf-8");
-
-if "private fun extractModelArchive" not in kt or "extractModelArchive" not in bt or "extractModelArchive(imported.path)" not in pt:
-    raise RuntimeError("ZIP extraction patch did not reach all layers")
-plugin.write_text(kt, encoding="utf-8")
-
-
-# ---------------------------------------------------------------------------
-# Native Android SAF audio import: one audio file for conversion and a
-# multi-select audio picker for the private dataset workspace.
-# ---------------------------------------------------------------------------
-kt = plugin.read_text(encoding="utf-8")
-handler_audio = '            "pickAndImportFile" -> pickAndImportFile(call, result)\n'
-if '"pickAndImportAudioFiles" -> pickAndImportAudioFiles(result)' not in kt:
-    if handler_audio not in kt: raise RuntimeError("Audio SAF handler insertion point missing")
-    kt = kt.replace(handler_audio, handler_audio + '            "pickAndImportAudioFiles" -> pickAndImportAudioFiles(result)\n', 1)
-
-# Route multi-select results through the same streaming importer.
-activity_result_anchor = """        if (resultCode != Activity.RESULT_OK) {
-            reply.success(null)
-            return true
-        }
-        val uri = data?.data"""
-activity_result_replacement = """        if (resultCode != Activity.RESULT_OK) {
-            reply.success(null)
-            return true
-        }
-        if (kind == "audio_multiple") {
-            importMultipleAudioUris(reply, data)
-            return true
-        }
-        val uri = data?.data"""
-if activity_result_anchor not in kt: raise RuntimeError("Audio SAF activity-result insertion point missing")
-kt = kt.replace(activity_result_anchor, activity_result_replacement, 1)
-
-audio_picker_methods = r'''
-    private fun pickAndImportAudioFiles(result: Result) {
-        val activity = activityBinding?.activity
-        if (activity == null) {
-            result.error("PICKER_UNAVAILABLE", "Android document picker is not attached.", null)
-            return
-        }
-        if (pendingDocumentPickerResult != null) {
-            result.error("PICKER_BUSY", "Another document selection is already open.", null)
-            return
-        }
-        pendingDocumentPickerResult = result
-        pendingDocumentPickerKind = "audio_multiple"
-        try {
-            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                addCategory(Intent.CATEGORY_OPENABLE)
-                type = "audio/*"
-                putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            activity.startActivityForResult(intent, documentPickerRequestCode)
-        } catch (error: Throwable) {
-            pendingDocumentPickerResult = null
-            pendingDocumentPickerKind = null
-            result.error("PICKER_LAUNCH_FAILED", error.message, null)
-        }
-    }
-
-    private fun importMultipleAudioUris(reply: Result, data: Intent?) {
-        val uris = mutableListOf<Uri>()
-        val clip = data?.clipData
-        if (clip != null) {
-            for (i in 0 until clip.itemCount) {
-                clip.getItemAt(i).uri?.let { uris.add(it) }
-            }
-        } else {
-            data?.data?.let { uris.add(it) }
-        }
-        if (uris.isEmpty()) {
-            reply.success(emptyList<Any>())
-            return
-        }
-        scope.launch {
-            val manager = TempWorkspaceManager(appContext.filesDir, appContext.cacheDir)
-            val imported = mutableListOf<ManagedImportedFile>()
-            try {
-                uris.forEach { imported.add(importDocumentUri("audio", it)) }
-                withContext(Dispatchers.Main) {
-                    reply.success(imported.map {
-                        mapOf(
-                            "path" to it.path,
-                            "referenceCount" to it.referenceCount,
-                            "lastUpdatedAtMs" to it.lastUpdatedAtMs,
-                        )
-                    })
-                }
-            } catch (error: Throwable) {
-                imported.forEach { handle ->
-                    runCatching {
-                        val released = manager.releaseReference(handle.path)
-                        if (released.referenceCount == 0) manager.deleteIfUnused(handle.path)
-                    }
-                }
-                withContext(Dispatchers.Main) {
-                    reply.error("AUDIO_IMPORT_FAILED", error.message ?: "Could not import the selected audio.", null)
-                }
-            }
-        }
-    }
-'''
-audio_method_anchor = "    private fun pickAndImportFile(call: MethodCall, result: Result) {"
-if "private fun pickAndImportAudioFiles" not in kt:
-    if kt.count(audio_method_anchor) != 1: raise RuntimeError("Audio SAF methods insertion point missing")
-    kt = kt.replace(audio_method_anchor, audio_picker_methods + "\n" + audio_method_anchor, 1)
-
-# Single-file picker also accepts local audio. Preserve unrestricted model/index
-# selection; use audio/* only for the audio path.
-kt = kt.replace(
-    'if (kind != "model" && kind != "index") {',
-    'if (kind != "model" && kind != "index" && kind != "audio") {',
-    1
-)
-kt = kt.replace(
-    'type = "*/*"\n                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)',
-    'type = if (kind == "audio") "audio/*" else "*/*"\n                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)',
-    1
-)
-
-# Extend validation and destination routing for audio files.
-old_valid = """        val valid = if (kind == "model") {
-            listOf(".onnx", ".pth", ".pt", ".zip").any { lowerName.endsWith(it) }
-        } else {
-            lowerName.endsWith(".mobile.index") || lowerName.endsWith(".index")
-        }
-        require(valid) {
-            if (kind == "model") "Choose an RVC model file: .onnx, .pth, .pt or .zip."
-            else "Choose an RVC index file: .index or .mobile.index."
-        }"""
-new_valid = """        val valid = when (kind) {
-            "model" -> listOf(".onnx", ".pth", ".pt", ".zip").any { lowerName.endsWith(it) }
-            "index" -> lowerName.endsWith(".mobile.index") || lowerName.endsWith(".index")
-            "audio" -> listOf(".wav", ".flac", ".mp3", ".m4a", ".ogg", ".aac", ".aiff").any { lowerName.endsWith(it) }
-            else -> false
-        }
-        require(valid) {
-            when (kind) {
-                "model" -> "Choose an RVC model file: .onnx, .pth, .pt or .zip."
-                "index" -> "Choose an RVC index file: .index or .mobile.index."
-                else -> "Choose an audio file: WAV, FLAC, MP3, M4A, OGG, AAC or AIFF."
-            }
-        }"""
-if old_valid not in kt: raise RuntimeError("Audio extension validation block missing")
-kt = kt.replace(old_valid, new_valid, 1)
-old_kind = """            val fileKind = when (kind) {
-                "model" -> ImportedFileKind.MODEL
-                "index" -> ImportedFileKind.INDEX
-                else -> error("Unsupported import type.")
-            }"""
-new_kind = """            val fileKind = when (kind) {
-                "model" -> ImportedFileKind.MODEL
-                "index" -> ImportedFileKind.INDEX
-                "audio" -> ImportedFileKind.AUDIO
-                else -> error("Unsupported import type.")
-            }"""
-if old_kind not in kt: raise RuntimeError("Audio destination mapping block missing")
-kt = kt.replace(old_kind,new_kind,1)
-plugin.write_text(kt,encoding="utf-8")
-
-bt = bridge.read_text(encoding="utf-8")
-audio_bridge = """  /// Opens Android's native multi-select audio picker and imports every selection.
-  Future<List<ImportedFileHandle>> pickAndImportAudioFiles() async {
-    final result = await _channel.invokeMethod<List<dynamic>>('pickAndImportAudioFiles');
-    if (result == null) return <ImportedFileHandle>[];
-    return result.map((item) => ImportedFileHandle.fromMap(
-      Map<String, dynamic>.from(item as Map),
-    )).toList();
-  }
-
-"""
-if "Future<List<ImportedFileHandle>> pickAndImportAudioFiles" not in bt:
-    bridge_anchor = "  Future<ImportedFileHandle?> pickAndImportFile({required String kind}) async {"
-    if bridge_anchor not in bt: raise RuntimeError("Audio SAF Dart bridge insertion point missing")
-    bt = bt.replace(bridge_anchor,audio_bridge+bridge_anchor,1)
-bridge.write_text(bt,encoding="utf-8")
-
-# Use the native single-file audio importer for conversion input.
-song_screen = root / "lib/screens/song_picker_screen.dart"
-song = song_screen.read_text(encoding="utf-8")
-song = song.replace("import 'package:file_picker/file_picker.dart';\n","")
-old_song = """      final result = await FilePicker.platform.pickFiles(
-        type: FileType.audio,
-        allowMultiple: false,
-      );
-
-      if (result != null && result.files.isNotEmpty) {
-        final filePath = result.files.single.path;
-        if (filePath != null) {
-          await widget.onSongSelected(filePath);
-        }
-      }"""
-new_song = """      final imported = await _rvcBridge.pickAndImportFile(kind: 'audio');
-      if (imported != null) {
-        await widget.onSongSelected(imported.path);
-      }"""
-if old_song not in song: raise RuntimeError("Song picker import callback missing")
-song = song.replace(old_song,new_song,1)
-song_screen.write_text(song,encoding="utf-8")
-
-# Avoid importing an already app-managed audio file a second time.
-mt = main.read_text(encoding="utf-8")
-old_direct = "final useDirectPath = normalizedPath.contains('/recordings/') || normalizedPath.contains('/TEMP/');"
-new_direct = "final useDirectPath = normalizedPath.contains('/recordings/') || normalizedPath.contains('/TEMP/') || normalizedPath.contains('/file_picker/audio/');"
-if old_direct in mt: mt = mt.replace(old_direct,new_direct,1)
-main.write_text(mt,encoding="utf-8")
-
-# Dataset samples now use Android's native multi-select picker rather than
-# temporary plugin-generated paths.
-training = root / "lib/screens/training_screen.dart"
-tr = training.read_text(encoding="utf-8")
-tr = tr.replace("import 'package:file_picker/file_picker.dart';\n","")
-tr = tr.replace("  final List<String> _samples = [];", "  final List<String> _samples = [];\n  final Set<String> _importedSamples = {};")
-old_add = """      final result = await FilePicker.platform.pickFiles(
-        type: FileType.any, allowMultiple: true, withData: false,
-      );
-      if (result == null) return;
-      final paths = result.files.map((f) => f.path).whereType<String>()
-        .where((p) => File(p).existsSync())
-        .where((p) => ['.wav','.flac','.mp3','.m4a','.ogg','.aac']
-          .any((e) => p.toLowerCase().endsWith(e))).toList();"""
-new_add = """      final handles = await _bridge.pickAndImportAudioFiles();
-      if (handles.isEmpty) return;
-      final paths = handles.map((handle) => handle.path)
-        .where((p) => File(p).existsSync()).toList();"""
-if old_add not in tr: raise RuntimeError("Dataset audio import callback missing")
-tr = tr.replace(old_add,new_add,1)
-tr = tr.replace(
-    "for (final p in paths) { if (!_samples.contains(p)) _samples.add(p); }",
-    "for (final p in paths) { if (!_samples.contains(p)) _samples.add(p); _importedSamples.add(p); }",
-    1
-)
-tr = tr.replace(
-    """  Future<void> _clear() async {
-    if (_datasetPath != null) {""",
-    """  Future<void> _clear() async {
-    for (final path in _importedSamples.toList()) {
-      try { await _bridge.releaseImportedFile(path); } catch (_) {}
-    }
-    _importedSamples.clear();
-    if (_datasetPath != null) {""",
-    1
-)
-training.write_text(tr,encoding="utf-8")
-
-if "pickAndImportAudioFiles" not in kt or "pickAndImportAudioFiles" not in bt or "pickAndImportAudioFiles" not in tr:
-    raise RuntimeError("Audio SAF patch did not reach native, bridge and dataset UI.")
-
-
-
-# Confirm the generated native and Dart source gets the new SAF code.
-for name, check in [
-    ("native Android SAF", "pickAndImportFile" in kt and "ACTION_OPEN_DOCUMENT" in kt and "ActivityAware" in kt),
-    ("Dart SAF bridge", "pickAndImportFile" in bt),
-    ("model screen SAF", "pickAndImportFile(kind: 'model')" in pt and "FilePicker.platform.pickFiles" not in pt),
-]:
-    if not check:
-        raise RuntimeError("Missing required finalization component: " + name)
-
-
-
-# ---------------------------------------------------------------------------
-# Honest on-phone index tools. The native runtime can validate/install the
-# mobile index signature; it cannot parse a standard FAISS .index file.
-# ---------------------------------------------------------------------------
-index_screen = root / "lib/screens/index_converter_screen.dart"
-index_screen.write_text(r'''import 'package:flutter/material.dart';
-import '../services/rvc_bridge.dart';
-
-class IndexConverterScreen extends StatefulWidget {
-  const IndexConverterScreen({super.key});
-
-  @override
-  State<IndexConverterScreen> createState() => _IndexConverterScreenState();
-}
-
-class _IndexConverterScreenState extends State<IndexConverterScreen> {
-  final RVCBridge _bridge = RVCBridge();
-  bool _busy = false;
-  String _status = 'Select a mobile.index file to validate and install.';
-
-  Future<void> _selectAndValidate() async {
-    if (_busy) return;
-    setState(() { _busy = true; _status = 'Opening Android file picker…'; });
-    try {
-      final imported = await _bridge.pickAndImportFile(kind: 'index');
-      if (imported == null) {
-        if (mounted) setState(() => _status = 'No file selected.');
-        return;
-      }
-      final name = imported.path.split('/').last;
-      if (!name.toLowerCase().endsWith('.mobile.index')) {
-        if (mounted) {
-          setState(() => _status =
-            '$name was imported and stored safely, but it is a standard FAISS index. This build does not yet contain the on-phone FAISS vector extractor, so it cannot be used by the mobile inference engine.');
-        }
-        return;
-      }
-      final installed = await _bridge.convertIndex(imported.path);
-      if (mounted) {
-        setState(() => _status =
-          'VALIDATION COMPLETE\n\n$name passed the mobile-index format check and was installed at:\n$installed');
-      }
-    } catch (e) {
-      if (mounted) setState(() => _status = 'INDEX CHECK FAILED\n\n$e');
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFF07070A),
-    appBar: AppBar(
-      backgroundColor: const Color(0xFF09090D),
-      title: const Text("RED'S ULTIMATE RVC — INDEX TOOLS"),
-      centerTitle: true,
-    ),
-    body: ListView(
-      padding: const EdgeInsets.all(18),
-      children: [
-        Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: const Color(0xFF111117),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFF62202B)),
-          ),
-          child: const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.data_object, color: Color(0xFFFF334F), size: 38),
-              SizedBox(height: 12),
-              Text('MOBILE INDEX CHECKER', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900)),
-              SizedBox(height: 8),
-              Text('The on-phone inference engine accepts a mobile.index file with the URVCIDX1 signature. This tool checks and installs that mobile format locally.', style: TextStyle(height: 1.4, color: Color(0xFFD0D0D8))),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 52,
-          child: ElevatedButton.icon(
-            onPressed: _busy ? null : _selectAndValidate,
-            icon: const Icon(Icons.folder_open),
-            label: Text(_busy ? 'CHECKING…' : 'SELECT & CHECK INDEX'),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF111117),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFF292932)),
-          ),
-          child: SelectableText(_status, style: const TextStyle(height: 1.45)),
-        ),
-        const SizedBox(height: 12),
-        const Text(
-          'IMPORTANT: A standard desktop .index file is not the same format as mobile.index. Standard FAISS-to-mobile conversion is not implemented in this offline build. The app will store the source file but will not falsely mark it as ready for inference.',
-          style: TextStyle(color: Color(0xFFFFA3AE), height: 1.4, fontSize: 12.5),
-        ),
-      ],
-    ),
-  );
-}
-''', encoding="utf-8")
-
-# Final static sanity checks.
-
-# Final static sanity checks. Fail the build before producing an APK if the
-# custom UI/navigation layer was not actually installed.
-# ---------------------------------------------------------------------------
-final_main = main.read_text(encoding="utf-8")
-final_picker = picker.read_text(encoding="utf-8")
-checks = {
-    "Red dashboard": "RedHomeScreen(" in final_main,
-    "Training screen": (root / "lib" / "screens" / "training_screen.dart").exists() and "TrainingScreen()" in final_main,
-    "Full RVC screen": (root / "lib" / "screens" / "full_rvc_screen.dart").exists() and "FullRvcScreen(" in final_main,
-    "PTH conversion limitation disclosed": "PTH → ONNX conversion is not included" in final_picker,
-    "Dashboard first": "final moduleScreens = [" in final_main and "RedHomeScreen(" in final_main.split("final moduleScreens = [",1)[1].split("GestureDetector(",1)[0],
-    "Native Android SAF picker": "pickAndImportFile" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8") and "ACTION_OPEN_DOCUMENT" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8"),
-    "Dart native SAF bridge": "pickAndImportFile" in (root / "lib/services/rvc_bridge.dart").read_text(encoding="utf-8"),
-    "Model picker uses native SAF": "pickAndImportFile(kind: 'model')" in final_picker and "FilePicker.platform.pickFiles" not in final_picker,
-    "PTH support": ".pth" in final_picker,
-    "Mobile index support": ".mobile.index" in final_picker,
-    "Index tools have no computer handoff": "on-phone FAISS vector extractor" in (root / "lib/screens/index_converter_screen.dart").read_text(encoding="utf-8"),
-    "ZIP archive extractor": "private fun extractModelArchive" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8") and "extractModelArchive" in (root / "lib/services/rvc_bridge.dart").read_text(encoding="utf-8") and "extractModelArchive(imported.path)" in final_picker,
-    "Persistent model storage": workspace.exists() and "File(File(appFilesDir, IMPORTS_DIRECTORY_NAME)" in workspace.read_text(encoding="utf-8") and "File(File(appFilesDir, IMPORTS_DIRECTORY_NAME), REGISTRY_FILE_NAME)" in workspace.read_text(encoding="utf-8") if workspace.exists() else False,
-}
-failed = [name for name, ok in checks.items() if not ok]
-if failed:
-    raise RuntimeError("Finalizer sanity checks failed: " + ", ".join(failed))
-
-# ---------------------------------------------------------------------------
-# Release-build hygiene: remove deprecated Flutter API usage and explicitly
-# document the Play Core references that are unreachable in this standalone APK.
-# This app does not declare Play Feature Delivery modules or deferred components.
-# ---------------------------------------------------------------------------
-final_main = main.read_text(encoding="utf-8")
-old_pop = """      onPopInvoked: (didPop) {
-        if (!didPop) _handleBackPressed();
-      },"""
-new_pop = """      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) _handleBackPressed();
-      },"""
-if old_pop not in final_main:
-    raise RuntimeError("Deprecated PopScope callback not found; review upstream Flutter API")
-final_main = final_main.replace(old_pop, new_pop, 1)
-write(main, final_main)
-
-measurement_chart = root / "lib" / "widgets" / "measurement_chart_card.dart"
-if measurement_chart.exists():
-    chart_text = measurement_chart.read_text(encoding="utf-8")
-    if "colorScheme.surfaceVariant" in chart_text:
-        chart_text = chart_text.replace("colorScheme.surfaceVariant", "colorScheme.surfaceContainerHighest")
-        measurement_chart.write_text(chart_text, encoding="utf-8")
-
-proguard = root / "android" / "app" / "proguard-rules.pro"
-if not proguard.exists():
-    raise RuntimeError("Android ProGuard rules file missing")
-proguard_text = proguard.read_text(encoding="utf-8")
-playcore_rule = """
-# Flutter includes optional Play Feature Delivery hooks. This standalone APK
-# declares no deferred components and does not use Play Core split installation.
--dontwarn com.google.android.play.core.**
-"""
-if "-dontwarn com.google.android.play.core.**" not in proguard_text:
-    proguard.write_text(proguard_text.rstrip() + "\n" + playcore_rule, encoding="utf-8")
-
-if "onPopInvoked:" in main.read_text(encoding="utf-8"):
-    raise RuntimeError("Deprecated PopScope callback remains in final source")
-if measurement_chart.exists() and "colorScheme.surfaceVariant" in measurement_chart.read_text(encoding="utf-8"):
-    raise RuntimeError("Deprecated surfaceVariant remains in final source")
-
-# Keep main.dart in the expected package after the upstream checkout.
-write(main, final_main)
