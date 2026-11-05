@@ -1400,6 +1400,38 @@ if plugin_modes.exists():
         raise RuntimeError("Recording teardown cleanup patch did not match")
     plugin_modes.write_text(pm, encoding="utf-8")
 
+# Stop an unfinished Song Picker recording when its route is closed; do not
+# leave the microphone open with no screen available to stop it.
+song_picker = root / "lib/screens/song_picker_screen.dart"
+if song_picker.exists():
+    sp = song_picker.read_text(encoding="utf-8")
+    if "import 'dart:io';" not in sp:
+        sp = sp.replace("import 'dart:async';", "import 'dart:async';\nimport 'dart:io';", 1)
+    old_dispose = """  void dispose() {
+    _recordingTimer?.cancel();
+    _positionPersistTimer?.cancel();
+    _persistPlaybackPosition();
+    _audioPlayer.dispose();
+    super.dispose();
+  }"""
+    new_dispose = """  void dispose() {
+    _recordingTimer?.cancel();
+    if (_isRecording) {
+      unawaited(_rvcBridge.stopRecording().then((path) async {
+        try { await File(path).delete(); } catch (_) {}
+      }).catchError((_) {}));
+    }
+    _positionPersistTimer?.cancel();
+    _persistPlaybackPosition();
+    _audioPlayer.dispose();
+    super.dispose();
+  }"""
+    if old_dispose in sp:
+        sp = sp.replace(old_dispose, new_dispose, 1)
+    elif "unawaited(_rvcBridge.stopRecording()" not in sp:
+        raise RuntimeError("Song Picker recording teardown patch did not match")
+    song_picker.write_text(sp, encoding="utf-8")
+
 # ---------------------------------------------------------------------------
 # Persistent storage for imported models/indexes.
 # ---------------------------------------------------------------------------
@@ -2345,6 +2377,7 @@ checks = {
     "Red dashboard": "RedHomeScreen(" in final_main,
     "Training screen": (root / "lib" / "screens" / "training_screen.dart").exists() and "TrainingScreen()" in final_main,
     "Dataset recording requests microphone permission": "Permission.microphone.request()" in (root / "lib/screens/training_screen.dart").read_text(encoding="utf-8"),
+    "Song Picker closes an unfinished recording": "unawaited(_rvcBridge.stopRecording()" in (root / "lib/screens/song_picker_screen.dart").read_text(encoding="utf-8"),
     "Prepared dataset survives app restart": "red_rvc_last_dataset_path" in (root / "lib/screens/training_screen.dart").read_text(encoding="utf-8"),
     "Prepared dataset can be exported": "Share.shareXFiles" in (root / "lib/screens/training_screen.dart").read_text(encoding="utf-8"),
     "Index library is persistent and removable": "red_rvc_index_library" in final_picker and "_deleteIndex" in final_picker,
