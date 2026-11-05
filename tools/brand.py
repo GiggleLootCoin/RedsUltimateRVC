@@ -1203,6 +1203,23 @@ if workspace.exists():
         wt = wt.replace(old,new)
         write(workspace,wt)
 
+# Give each GitHub release a monotonically increasing Android versionCode so
+# users can install fixes as updates instead of uninstalling the previous APK.
+app_gradle = root / "android/app/build.gradle"
+if app_gradle.exists():
+    ag = app_gradle.read_text(encoding="utf-8")
+    old_version = """        versionCode flutterVersionCode.toInteger()
+        versionName flutterVersionName"""
+    new_version = """        def redBuildNumber = (System.getenv("GITHUB_RUN_NUMBER") ?: flutterVersionCode).toInteger()
+        versionCode Math.max(flutterVersionCode.toInteger(), redBuildNumber)
+        versionName "0.2.0-final-" + redBuildNumber"""
+    if old_version not in ag:
+        raise RuntimeError("Android version fields changed; cannot guarantee upgrade-safe APK versions")
+    ag = ag.replace(old_version, new_version, 1)
+    app_gradle.write_text(ag, encoding="utf-8")
+else:
+    raise RuntimeError("android/app/build.gradle missing; cannot set upgrade-safe version")
+
 # Remove upstream's machine-specific Java home. GitHub Actions supplies a valid JDK 17.
 gradle_props = root / "android/gradle.properties"
 if gradle_props.exists():
@@ -2105,6 +2122,7 @@ class _IndexConverterScreenState extends State<IndexConverterScreen> {
 final_main = main.read_text(encoding="utf-8")
 final_picker = picker.read_text(encoding="utf-8")
 checks = {
+    "Upgrade-safe Android version": "versionCode Math.max" in (root / "android/app/build.gradle").read_text(encoding="utf-8") and "0.2.0-final-" in (root / "android/app/build.gradle").read_text(encoding="utf-8"),
     "Red dashboard": "RedHomeScreen(" in final_main,
     "Training screen": (root / "lib" / "screens" / "training_screen.dart").exists() and "TrainingScreen()" in final_main,
     "Dataset recording requests microphone permission": "Permission.microphone.request()" in (root / "lib/screens/training_screen.dart").read_text(encoding="utf-8"),
