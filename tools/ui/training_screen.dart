@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
 import '../services/rvc_bridge.dart';
 
@@ -52,6 +53,15 @@ class _TrainingScreenState extends State<TrainingScreen> {
     if (_busy) return;
     try {
       if (!_recording) {
+        final permission = await Permission.microphone.request();
+        if (!permission.isGranted) {
+          if (mounted) {
+            setState(() => _status = permission.isPermanentlyDenied
+                ? 'Microphone permission is blocked. Enable it in Android App settings.'
+                : 'Microphone permission is required to record a voice sample.');
+          }
+          return;
+        }
         await _bridge.startRecording();
         if (mounted) setState(() { _recording = true; _status = 'Recording…'; });
       } else {
@@ -149,7 +159,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
         child: SelectableText('Saved privately at: $_datasetPath'),
       ),
       const SizedBox(height: 8),
-      OutlinedButton.icon(onPressed: _busy ? null : _clear, icon: const Icon(Icons.delete_outline), label: const Text('CLEAR WORKSPACE')),
+      OutlinedButton.icon(onPressed: _busy || _recording ? null : _clear, icon: const Icon(Icons.delete_outline), label: const Text('CLEAR WORKSPACE')),
     ]),
   );
 }
