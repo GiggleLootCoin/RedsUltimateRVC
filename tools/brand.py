@@ -320,6 +320,7 @@ class ModelPickerScreen extends StatefulWidget {
 class _ModelPickerScreenState extends State<ModelPickerScreen> {
   final RVCBridge _bridge = RVCBridge();
   List<String> _library = [];
+  List<String> _indexLibrary = [];
   String? _selectedModelPath;
   String? _selectedModelDisplayName;
   String? _selectedIndexPath;
@@ -352,14 +353,25 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
   Future<void> _loadLibrary() async {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getStringList('red_rvc_model_library') ?? [];
+    final savedIndexes = prefs.getStringList('red_rvc_index_library') ?? [];
     final valid = saved.where((p) => File(p).existsSync()).toList();
+    final validIndexes = savedIndexes.where((p) => File(p).existsSync()).toList();
     await prefs.setStringList('red_rvc_model_library', valid);
-    if (mounted) setState(() => _library = valid);
+    await prefs.setStringList('red_rvc_index_library', validIndexes);
+    if (mounted) setState(() {
+      _library = valid;
+      _indexLibrary = validIndexes;
+    });
   }
 
   Future<void> _saveLibrary() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList('red_rvc_model_library', _library);
+  }
+
+  Future<void> _saveIndexLibrary() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('red_rvc_index_library', _indexLibrary);
   }
 
   String _ext(String path) {
@@ -434,10 +446,14 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
       if (!_index(source)) throw Exception('Select an RVC .index or .mobile.index file');
 
       final imported = await _bridge.importPickedFile(kind: 'index', sourcePath: source);
-      _selectedIndexPath = imported.path;
-      _selectedIndexDisplayName = File(imported.path).uri.pathSegments.last;
+      if (!_indexLibrary.contains(imported.path)) _indexLibrary.insert(0, imported.path);
+      await _saveIndexLibrary();
+      if (ext == 'mobile.index') {
+        _selectedIndexPath = imported.path;
+        _selectedIndexDisplayName = File(imported.path).uri.pathSegments.last;
+        widget.onIndexSelected(imported.path);
+      }
       if (mounted) setState(() {});
-      widget.onIndexSelected(imported.path);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -473,6 +489,33 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
       widget.onModelCleared?.call();
     }
     await _saveLibrary();
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _useIndex(String path) async {
+    if (_ext(path) != 'mobile.index') {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Standard .index files require FAISS conversion before mobile inference.'),
+      ));
+      return;
+    }
+    _selectedIndexPath = path;
+    _selectedIndexDisplayName = File(path).uri.pathSegments.last;
+    widget.onIndexSelected(path);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _deleteIndex(String path) async {
+    try {
+      await _bridge.releaseImportedFile(path);
+    } catch (_) {}
+    _indexLibrary.remove(path);
+    if (_selectedIndexPath == path) {
+      _selectedIndexPath = null;
+      _selectedIndexDisplayName = null;
+      widget.onIndexSelected(null);
+    }
+    await _saveIndexLibrary();
     if (mounted) setState(() {});
   }
 
@@ -514,6 +557,24 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
               const Text('mobile.index is directly usable. Standard .index files can be converted with Index Tools.', style: TextStyle(color: Color(0xFF9E9EA8), height: 1.3)),
               const SizedBox(height: 12),
               OutlinedButton.icon(onPressed: _busy ? null : _pickIndex, icon: const Icon(Icons.upload_file), label: const Text('IMPORT INDEX')),
+              if (_indexLibrary.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                const Text('IMPORTED INDEX FILES', style: TextStyle(color: Color(0xFFE00022), fontSize: 11, fontWeight: FontWeight.w900)),
+                ..._indexLibrary.map((p) {
+                  final mobile = _ext(p) == 'mobile.index';
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(mobile ? Icons.check_circle : Icons.inventory_2,
+                      color: mobile ? const Color(0xFF5DE58A) : const Color(0xFFFFA3AE)),
+                    title: Text(File(p).uri.pathSegments.last, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    subtitle: Text(mobile ? 'READY FOR MOBILE INFERENCE' : 'STANDARD FAISS INDEX — CONVERSION REQUIRED'),
+                    trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                      if (mobile) IconButton(onPressed: () => _useIndex(p), icon: const Icon(Icons.check), tooltip: 'Use index'),
+                      IconButton(onPressed: () => _deleteIndex(p), icon: const Icon(Icons.delete_outline), tooltip: 'Delete index'),
+                    ]),
+                  );
+                }),
+              ],
               const SizedBox(height: 9),
               const Text('PTH → ONNX conversion is not included in this offline mobile engine. Imported PTH files remain stored safely, but cannot be selected for inference until a genuine converter is integrated.', style: TextStyle(color: Color(0xFFFFA3AE), height: 1.35)),
             ]),
