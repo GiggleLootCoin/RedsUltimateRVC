@@ -1407,6 +1407,8 @@ if song_picker.exists():
     sp = song_picker.read_text(encoding="utf-8")
     if "import 'dart:io';" not in sp:
         sp = sp.replace("import 'dart:async';", "import 'dart:async';\nimport 'dart:io';", 1)
+    if "bool _recordingStopInProgress" not in sp:
+        sp = sp.replace("bool _isRecording = false;", "bool _isRecording = false;\\n  bool _recordingStopInProgress = false;", 1)
     old_dispose = """  void dispose() {
     _recordingTimer?.cancel();
     _positionPersistTimer?.cancel();
@@ -1416,7 +1418,7 @@ if song_picker.exists():
   }"""
     new_dispose = """  void dispose() {
     _recordingTimer?.cancel();
-    if (_isRecording) {
+    if (_isRecording && !_recordingStopInProgress) {
       unawaited(_rvcBridge.stopRecording().then((path) async {
         try { await File(path).delete(); } catch (_) {}
       }).catchError((_) {}));
@@ -1430,6 +1432,62 @@ if song_picker.exists():
         sp = sp.replace(old_dispose, new_dispose, 1)
     elif "unawaited(_rvcBridge.stopRecording()" not in sp:
         raise RuntimeError("Song Picker recording teardown patch did not match")
+
+    toggle_start = sp.find("  Future<void> _toggleRecording(BuildContext context) async {")
+    toggle_end = sp.find("  Future<void> _playPause()", toggle_start)
+    if toggle_start < 0 or toggle_end < 0:
+        raise RuntimeError("Song Picker recording method anchors changed")
+    safe_toggle = """  Future<void> _toggleRecording(BuildContext context) async {
+    if (_recordingStopInProgress) return;
+    try {
+      if (_isRecording) {
+        _recordingStopInProgress = true;
+        final recordingPath = await _rvcBridge.stopRecording();
+        _recordingStopInProgress = false;
+        _stopRecordingTimer();
+        if (!mounted) {
+          try { await File(recordingPath).delete(); } catch (_) {}
+          return;
+        }
+        setState(() => _isRecording = false);
+        await widget.onSongSelected(recordingPath);
+        if (!mounted) return;
+        await _loadSelectedAudioDuration();
+        _resetRecordingTimer();
+        return;
+      }
+
+      final permission = await Permission.microphone.request();
+      if (!mounted) return;
+      if (!permission.isGranted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Microphone permission is required.')),
+        );
+        return;
+      }
+      await _rvcBridge.startRecording();
+      if (!mounted) {
+        try {
+          final abandonedPath = await _rvcBridge.stopRecording();
+          await File(abandonedPath).delete();
+        } catch (_) {}
+        return;
+      }
+      setState(() => _isRecording = true);
+      _startRecordingTimer();
+    } catch (e) {
+      _recordingStopInProgress = false;
+      if (!mounted) return;
+      _resetRecordingTimer();
+      setState(() => _isRecording = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Recording failed: $e')),
+      );
+    }
+  }
+
+"""
+    sp = sp[:toggle_start] + safe_toggle + sp[toggle_end:]
     song_picker.write_text(sp, encoding="utf-8")
 
 # ---------------------------------------------------------------------------
