@@ -31,6 +31,7 @@ def test_branding_installs_library_and_routes_dashboard_to_it():
     assert "import 'screens/model_library_screen.dart';" in source
     assert "ModelLibraryScreen(onModelSelected: _onModelSelected, onIndexSelected: _onIndexSelected)" in source
     assert source.count("onModels: _openModelLibrary") == 2
+    assert r"\\n    Navigator" not in source
 
 
 def test_index_tools_discloses_faiss_conversion_is_not_on_device():
