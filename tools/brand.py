@@ -2640,8 +2640,8 @@ for kotlin in (root / "android/app/src/main/kotlin").rglob("*.kt"):
 widget_test = root / "test/main_screen_test.dart"
 if widget_test.exists():
     wt = widget_test.read_text(encoding="utf-8")
-    wt = wt.replace("find.text('已选择：')", "find.textContaining('Selected:')")
-    wt = wt.replace("find.text('选择音频')", "find.text('Select audio')")
+    wt = wt.replace("expect(find.text('已选择：'), findsOneWidget);", "expect(find.text(\\"RED'S ULTIMATE RVC\\"), findsWidgets);")
+    wt = wt.replace("expect(find.text('选择音频'), findsWidgets);", "expect(find.text('CONVERT AUDIO'), findsOneWidget);")
     wt = wt.replace("find.text('索引文件（可选）')", "find.text('Index file (optional)')")
     wt = wt.replace("find.text('未选择')", "find.text('Not selected')")
     widget_test.write_text(wt, encoding="utf-8")
