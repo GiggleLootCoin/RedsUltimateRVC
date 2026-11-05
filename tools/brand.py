@@ -1133,6 +1133,10 @@ if manifest.exists():
         m = re.sub(r'android:icon="[^"]+"', 'android:icon="@drawable/reds_ultimate_rvc_logo"', m, count=1)
     else:
         m = m.replace('<application', '<application android:icon="@drawable/reds_ultimate_rvc_logo"', 1)
+    if 'android:roundIcon="' in m:
+        m = re.sub(r'android:roundIcon="[^"]+"', 'android:roundIcon="@drawable/reds_ultimate_rvc_logo"', m, count=1)
+    else:
+        m = m.replace('android:icon="@drawable/reds_ultimate_rvc_logo"', 'android:icon="@drawable/reds_ultimate_rvc_logo" android:roundIcon="@drawable/reds_ultimate_rvc_logo"', 1)
     write(manifest,m)
 
 # Render SVG icon into a drawable for Android.
