@@ -107,6 +107,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
     try {
       if (!_recording) {
         final permission = await Permission.microphone.request();
+        if (!mounted) return;
         if (!permission.isGranted) {
           if (mounted) {
             setState(() => _status = permission.isPermanentlyDenied
@@ -116,7 +117,12 @@ class _TrainingScreenState extends State<TrainingScreen> {
           return;
         }
         await _bridge.startRecording();
-        if (mounted) setState(() { _recording = true; _status = 'Recording…'; });
+        if (!mounted) {
+          final path = await _bridge.stopRecording();
+          await _rememberPendingRecording(path);
+          return;
+        }
+        setState(() { _recording = true; _status = 'Recording…'; });
       } else {
         setState(() => _recording = false);
         final path = await _bridge.stopRecording();
