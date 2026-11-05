@@ -1184,6 +1184,203 @@ for dart in (root / "lib").rglob("*.dart"):
     write(dart, t)
 
 # ---------------------------------------------------------------------------
+# Serialize microphone capture and inference modes. The upstream guard checked
+# only the remote process and could overwrite an active in-process mode.
+# ---------------------------------------------------------------------------
+mode_guard = root / "android/app/src/main/kotlin/com/ultimatervc/mobile/NativeModeGuard.kt"
+if mode_guard.exists():
+    mg = mode_guard.read_text(encoding="utf-8")
+    mg = mg.replace(
+        "    VOICE_CHANGER,\n}",
+        "    VOICE_CHANGER,\n    AUDIO_RECORDING,\n    DECIBEL_METER,\n    PITCH_DETECTION,\n}",
+        1,
+    )
+    mg = mg.replace(
+        "            if (isInferenceProcessAlive()) return null",
+        "            if (activeMode != null || isInferenceProcessAlive()) return null",
+        1,
+    )
+    if "activeMode != null || isInferenceProcessAlive()" not in mg:
+        raise RuntimeError("Native mode guard concurrency patch failed")
+    mode_guard.write_text(mg, encoding="utf-8")
+
+plugin_modes = root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt"
+if plugin_modes.exists():
+    pm = plugin_modes.read_text(encoding="utf-8")
+    pm = pm.replace(
+        "    private var pitchSession: PitchDetectionSession? = null\n",
+        "    private var pitchSession: PitchDetectionSession? = null\n"
+        "    private var activeRecordingModeToken: NativeModeGuardToken? = null\n"
+        "    private var activeDecibelModeToken: NativeModeGuardToken? = null\n"
+        "    private var activePitchModeToken: NativeModeGuardToken? = null\n",
+        1,
+    )
+    old_start_record = """    private fun startRecording(result: Result) {
+        try {
+            require(recorder == null && pcmRecorderSession == null) { "正在录音" }
+            val recordingDir = File(appContext.filesDir, "recordings")
+            recordingDir.mkdirs()
+            val file = File(recordingDir, "recording_${readableTimestamp()}.wav")
+            pcmRecorderSession = PcmRecorderSession(file, DEFAULT_OUTPUT_SAMPLE_RATE).also { it.start() }
+            recordingFile = file
+            recordingStartedAtMs = SystemClock.elapsedRealtime()
+            result.success(true)
+        } catch (e: Exception) {
+            recorder?.release()
+            recorder = null
+            pcmRecorderSession?.stop(discard = true)
+            pcmRecorderSession = null
+            recordingFile = null
+            recordingStartedAtMs = 0L
+            result.error("RECORD_FAILED", e.message, null)
+        }
+    }"""
+    new_start_record = """    private fun startRecording(result: Result) {
+        if (recorder != null || pcmRecorderSession != null) {
+            result.error("RECORDING_BUSY", "A recording is already active.", null)
+            return
+        }
+        val modeToken = NativeModeGuard.tryEnter(NativeActiveMode.AUDIO_RECORDING)
+        if (modeToken == null) {
+            result.error("RECORDING_BUSY", NativeModeGuard.busyMessage(), null)
+            return
+        }
+        try {
+            val recordingDir = File(appContext.filesDir, "recordings")
+            recordingDir.mkdirs()
+            val file = File(recordingDir, "recording_${readableTimestamp()}.wav")
+            pcmRecorderSession = PcmRecorderSession(file, DEFAULT_OUTPUT_SAMPLE_RATE).also { it.start() }
+            recordingFile = file
+            recordingStartedAtMs = SystemClock.elapsedRealtime()
+            activeRecordingModeToken = modeToken
+            result.success(true)
+        } catch (e: Exception) {
+            recorder?.release()
+            recorder = null
+            pcmRecorderSession?.stop(discard = true)
+            pcmRecorderSession = null
+            recordingFile = null
+            recordingStartedAtMs = 0L
+            modeToken.release()
+            activeRecordingModeToken = null
+            result.error("RECORD_FAILED", e.message, null)
+        }
+    }"""
+    if old_start_record in pm:
+        pm = pm.replace(old_start_record, new_start_record, 1)
+    elif "NativeModeGuard.tryEnter(NativeActiveMode.AUDIO_RECORDING)" not in pm:
+        raise RuntimeError("Recording mode guard patch did not match")
+
+    old_short = """                file.delete()
+                result.error("RECORD_FAILED", "录音至少需要 1 秒", null)
+                return"""
+    new_short = """                file.delete()
+                activeRecordingModeToken?.release()
+                activeRecordingModeToken = null
+                result.error("RECORD_FAILED", "Recording must be at least one second long.", null)
+                return"""
+    if old_short in pm:
+        pm = pm.replace(old_short, new_short, 1)
+    old_success = """            require(file.length() > 0L) { "录音文件为空" }
+            result.success(file.absolutePath)"""
+    new_success = """            require(file.length() > 0L) { "Recording file is empty." }
+            activeRecordingModeToken?.release()
+            activeRecordingModeToken = null
+            result.success(file.absolutePath)"""
+    if old_success in pm:
+        pm = pm.replace(old_success, new_success, 1)
+    old_catch = """            recordingFile = null
+            recordingStartedAtMs = 0L
+            result.error("RECORD_FAILED", e.message, null)"""
+    new_catch = """            recordingFile = null
+            recordingStartedAtMs = 0L
+            activeRecordingModeToken?.release()
+            activeRecordingModeToken = null
+            result.error("RECORD_FAILED", e.message, null)"""
+    if old_catch in pm:
+        pm = pm.replace(old_catch, new_catch, 1)
+
+    old_decibel = """    private fun startDecibelMeter(events: EventSink?) {
+        stopDecibelMeter()
+        if (events == null) return
+        decibelSession = DecibelMeterSession { value -> runOnMain { events.success(value) } }.also { it.start() }
+    }
+
+    private fun stopDecibelMeter() {
+        decibelSession?.stop()
+        decibelSession = null
+    }
+
+    private fun startPitchDetection(events: EventSink?) {
+        stopPitchDetection()
+        if (events == null) return
+        pitchSession = PitchDetectionSession { payload -> runOnMain { events.success(payload) } }.also { it.start() }
+    }
+
+    private fun stopPitchDetection() {
+        pitchSession?.stop()
+        pitchSession = null
+    }"""
+    new_decibel = """    private fun startDecibelMeter(events: EventSink?) {
+        stopDecibelMeter()
+        if (events == null) return
+        val token = NativeModeGuard.tryEnter(NativeActiveMode.DECIBEL_METER)
+        if (token == null) {
+            events.error("AUDIO_BUSY", NativeModeGuard.busyMessage(), null)
+            return
+        }
+        activeDecibelModeToken = token
+        try {
+            val session = DecibelMeterSession { value -> runOnMain { events.success(value) } }
+            session.start()
+            decibelSession = session
+        } catch (error: Exception) {
+            activeDecibelModeToken?.release()
+            activeDecibelModeToken = null
+            events.error("DECIBEL_METER_FAILED", error.message, null)
+        }
+    }
+
+    private fun stopDecibelMeter() {
+        decibelSession?.stop()
+        decibelSession = null
+        activeDecibelModeToken?.release()
+        activeDecibelModeToken = null
+    }
+
+    private fun startPitchDetection(events: EventSink?) {
+        stopPitchDetection()
+        if (events == null) return
+        val token = NativeModeGuard.tryEnter(NativeActiveMode.PITCH_DETECTION)
+        if (token == null) {
+            events.error("AUDIO_BUSY", NativeModeGuard.busyMessage(), null)
+            return
+        }
+        activePitchModeToken = token
+        try {
+            val session = PitchDetectionSession { payload -> runOnMain { events.success(payload) } }
+            session.start()
+            pitchSession = session
+        } catch (error: Exception) {
+            activePitchModeToken?.release()
+            activePitchModeToken = null
+            events.error("PITCH_DETECTION_FAILED", error.message, null)
+        }
+    }
+
+    private fun stopPitchDetection() {
+        pitchSession?.stop()
+        pitchSession = null
+        activePitchModeToken?.release()
+        activePitchModeToken = null
+    }"""
+    if old_decibel in pm:
+        pm = pm.replace(old_decibel, new_decibel, 1)
+    elif "NativeActiveMode.DECIBEL_METER" not in pm or "NativeActiveMode.PITCH_DETECTION" not in pm:
+        raise RuntimeError("Microphone monitor mode guard patch did not match")
+    plugin_modes.write_text(pm, encoding="utf-8")
+
+# ---------------------------------------------------------------------------
 # Persistent storage for imported models/indexes.
 # ---------------------------------------------------------------------------
 workspace = root / "android/app/src/main/kotlin/com/ultimatervc/mobile/TempWorkspaceManager.kt"
