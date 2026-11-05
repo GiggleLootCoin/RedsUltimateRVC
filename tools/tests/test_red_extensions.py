@@ -27,6 +27,22 @@ def test_dashboard_and_full_engine_open_the_integrated_model_picker():
     assert "onModels: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(onModelSelected:" in source
 
 
+def test_home_dashboard_has_a_working_official_youtube_channel_button():
+    source = BRAND.read_text(encoding="utf-8")
+    assert "final VoidCallback onYouTube;" in source
+    assert "label: const Text('VISIT MY YOUTUBE CHANNEL')" in source
+    assert "@Little-Red-Big-Smile • OFFICIAL CHANNEL" in source
+    assert "onYouTube: _openCreatorYouTube" in source
+    assert "https://www.youtube.com/@Little-Red-Big-Smile" in source
+
+
+def test_gradle_can_use_a_private_persistent_release_keystore():
+    source = BRAND.read_text(encoding="utf-8")
+    assert "redSigningProperties" in source
+    assert "signingConfigs.redRelease" in source
+    assert "signingConfigs.debug" in source
+
+
 def test_index_tools_discloses_faiss_conversion_is_not_on_device():
     source = INDEX_TOOLS.read_text(encoding="utf-8")
     assert "Standard RVC/FAISS .index files are not converted by this Android app yet" in source
