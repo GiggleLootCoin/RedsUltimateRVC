@@ -11,6 +11,11 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      RED_RVC_KEYSTORE_BASE64: ${{ secrets.RED_RVC_KEYSTORE_BASE64 }}
+      RED_RVC_STORE_PASSWORD: ${{ secrets.RED_RVC_STORE_PASSWORD }}
+      RED_RVC_KEY_ALIAS: ${{ secrets.RED_RVC_KEY_ALIAS }}
+      RED_RVC_KEY_PASSWORD: ${{ secrets.RED_RVC_KEY_PASSWORD }}
     steps:
       - name: Checkout Red's Ultimate RVC
         uses: actions/checkout@v5
@@ -53,7 +58,7 @@ jobs:
           cache: true
 
       - name: Configure persistent release signing key (optional)
-        if: ${{ secrets.RED_RVC_KEYSTORE_BASE64 != '' }}
+        if: ${{ env.RED_RVC_KEYSTORE_BASE64 != '' }}
         working-directory: buildsrc
         env:
           RED_RVC_KEYSTORE_BASE64: ${{ secrets.RED_RVC_KEYSTORE_BASE64 }}
@@ -74,7 +79,7 @@ jobs:
           echo "Persistent private release signing key configured."
 
       - name: Warn when persistent release signing is not configured
-        if: ${{ secrets.RED_RVC_KEYSTORE_BASE64 == '' }}
+        if: ${{ env.RED_RVC_KEYSTORE_BASE64 == '' }}
         run: echo "::warning::Using the temporary GitHub runner debug key. APK upgrades may require uninstalling the previous build. Configure RED_RVC_KEYSTORE_BASE64, RED_RVC_STORE_PASSWORD, RED_RVC_KEY_ALIAS and RED_RVC_KEY_PASSWORD repository secrets for stable signing."
 
       - name: Flutter pub get
