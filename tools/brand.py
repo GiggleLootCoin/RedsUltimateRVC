@@ -2089,6 +2089,11 @@ final_picker = picker.read_text(encoding="utf-8")
 checks = {
     "Red dashboard": "RedHomeScreen(" in final_main,
     "Training screen": (root / "lib" / "screens" / "training_screen.dart").exists() and "TrainingScreen()" in final_main,
+    "Dataset recording requests microphone permission": "Permission.microphone.request()" in (root / "lib/screens/training_screen.dart").read_text(encoding="utf-8"),
+    "Prepared dataset survives app restart": "red_rvc_last_dataset_path" in (root / "lib/screens/training_screen.dart").read_text(encoding="utf-8"),
+    "Prepared dataset can be exported": "Share.shareXFiles" in (root / "lib/screens/training_screen.dart").read_text(encoding="utf-8"),
+    "Index library is persistent and removable": "red_rvc_index_library" in final_picker and "_deleteIndex" in final_picker,
+    "Index validator avoids full-file RAM copies": "val expectedLength = magic.size.toLong()" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8"),
     "Full RVC screen": (root / "lib" / "screens" / "full_rvc_screen.dart").exists() and "FullRvcScreen(" in final_main,
     "PTH conversion limitation disclosed": "PTH → ONNX conversion is not included" in final_picker,
     "Dashboard first": "final moduleScreens = [" in final_main and "RedHomeScreen(" in final_main.split("final moduleScreens = [",1)[1].split("GestureDetector(",1)[0],
