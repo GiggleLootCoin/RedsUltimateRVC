@@ -321,6 +321,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
   final RVCBridge _bridge = RVCBridge();
   List<String> _library = [];
   List<String> _indexLibrary = [];
+  bool _libraryLoaded = false;
   String? _selectedModelPath;
   String? _selectedModelDisplayName;
   String? _selectedIndexPath;
@@ -361,6 +362,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
     if (mounted) setState(() {
       _library = valid;
       _indexLibrary = validIndexes;
+      _libraryLoaded = true;
     });
   }
 
@@ -407,7 +409,11 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
       }
 
       final imported = await _bridge.importPickedFile(kind: 'model', sourcePath: source);
-      if (!_library.contains(imported.path)) _library.insert(0, imported.path);
+      if (_library.contains(imported.path)) {
+        await _bridge.releaseImportedFile(imported.path);
+      } else {
+        _library.insert(0, imported.path);
+      }
       if (_runtime(imported.path)) {
         _selectedModelPath = imported.path;
         _selectedModelDisplayName = File(imported.path).uri.pathSegments.last;
@@ -446,7 +452,11 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
       if (!_index(source)) throw Exception('Select an RVC .index or .mobile.index file');
 
       final imported = await _bridge.importPickedFile(kind: 'index', sourcePath: source);
-      if (!_indexLibrary.contains(imported.path)) _indexLibrary.insert(0, imported.path);
+      if (_indexLibrary.contains(imported.path)) {
+        await _bridge.releaseImportedFile(imported.path);
+      } else {
+        _indexLibrary.insert(0, imported.path);
+      }
       await _saveIndexLibrary();
       if (ext == 'mobile.index') {
         _selectedIndexPath = imported.path;
@@ -539,7 +549,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
               Text(ready ? 'READY — ONNX model can be used for conversion.' : 'Choose an ONNX model for conversion. Source RVC models can also be stored below.', style: const TextStyle(color: Color(0xFFAAAAB5))),
               const SizedBox(height: 13),
               Row(children: [
-                Expanded(child: ElevatedButton.icon(onPressed: _busy ? null : _pickModel, icon: const Icon(Icons.upload_file), label: const Text('IMPORT MODEL'))),
+                Expanded(child: ElevatedButton.icon(onPressed: _busy || !_libraryLoaded ? null : _pickModel, icon: const Icon(Icons.upload_file), label: const Text('IMPORT MODEL'))),
                 if (selected != null && widget.onModelCleared != null) ...[
                   const SizedBox(width: 8),
                   IconButton(onPressed: widget.onModelCleared, icon: const Icon(Icons.clear), tooltip: 'Clear selected model'),
@@ -556,7 +566,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
               const SizedBox(height: 8),
               const Text('mobile.index is directly usable. Standard .index files can be converted with Index Tools.', style: TextStyle(color: Color(0xFF9E9EA8), height: 1.3)),
               const SizedBox(height: 12),
-              OutlinedButton.icon(onPressed: _busy ? null : _pickIndex, icon: const Icon(Icons.upload_file), label: const Text('IMPORT INDEX')),
+              OutlinedButton.icon(onPressed: _busy || !_libraryLoaded ? null : _pickIndex, icon: const Icon(Icons.upload_file), label: const Text('IMPORT INDEX')),
               if (_indexLibrary.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 const Text('IMPORTED INDEX FILES', style: TextStyle(color: Color(0xFFE00022), fontSize: 11, fontWeight: FontWeight.w900)),
