@@ -37,8 +37,15 @@ class _TrainingScreenState extends State<TrainingScreen> {
     if (!mounted) return;
     if (name != null && name.isNotEmpty) _name.text = name;
     if (path != null && await Directory(path).exists()) {
+      final audio = Directory('$path/audio');
+      final existing = await audio.exists()
+          ? await audio.list().where((entity) => entity is File).cast<File>().map((file) => file.path).toList()
+          : <String>[];
       setState(() {
         _datasetPath = path;
+        _samples
+          ..clear()
+          ..addAll(existing);
         _status = 'Prepared dataset restored. You can export it or continue adding samples.';
       });
     } else {
@@ -115,19 +122,21 @@ class _TrainingScreenState extends State<TrainingScreen> {
       for (var i = 0; i < _samples.length; i++) {
         final src = File(_samples[i]);
         if (!await src.exists()) continue;
+        if (src.absolute.path.startsWith(data.absolute.path + Platform.pathSeparator)) continue;
         final base = src.uri.pathSegments.last.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
         await src.copy('${data.path}/${i.toString().padLeft(4, '0')}_$base');
         copied++;
       }
+      final totalSamples = await data.list().where((entity) => entity is File).length;
       await File('${root.path}/README.txt').writeAsString(
-        "RED'S ULTIMATE RVC — DATASET\nVoice: ${_name.text.trim()}\nAudio files: $copied\n\nThis is prepared training data only. It has NOT trained a voice model. The bundled Android engine currently supports ONNX inference and does not contain an RVC training engine.\n",
+        "RED'S ULTIMATE RVC — DATASET\nVoice: ${_name.text.trim()}\nAudio files: $totalSamples\n\nThis is prepared training data only. It has NOT trained a voice model. The bundled Android engine currently supports ONNX inference and does not contain an RVC training engine.\n",
       );
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('red_rvc_last_dataset_path', root.path);
       await prefs.setString('red_rvc_last_dataset_name', _name.text.trim());
       if (mounted) setState(() {
         _datasetPath = root.path;
-        _status = '$copied sample(s) safely copied. Dataset prepared; no model has been trained.';
+        _status = '$totalSamples sample(s) in the prepared dataset. No model has been trained.';
       });
     } catch (e) {
       if (mounted) setState(() => _status = 'Dataset preparation failed: $e');
