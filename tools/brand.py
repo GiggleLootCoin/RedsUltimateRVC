@@ -781,7 +781,7 @@ if testdir.exists():
         write(dart, dart.read_text(encoding="utf-8").replace("package:ultimate_rvc_mobile/", "package:reds_ultimate_rvc/"))
 
 # English-only UI translation pass across every Dart screen, dialog, tooltip and error.
-translations = {
+translations ={
   "生成已中止：推理进程已结束": "Generation aborted: the inference process ended",
   "生成已中止：推理进程已中断": "Generation aborted: the inference process was interrupted",
   "生成已中止": "Generation aborted",
@@ -1085,7 +1085,13 @@ translations = {
   "按钮": "button",
   "退出": "Exit",
   "格式": "format",
-  "基准音高": "Reference pitch"
+  "基准音高": "Reference pitch",
+  "$status，丢包 $outputChannelDropCount": "$status, dropped packets: $outputChannelDropCount",
+  "$status，playback ${audioTrackStarted ? '已Start' : '待Start'}，写入 $audioTrackWriteCount/$audioTrackWrittenSamples": "$status, playback ${audioTrackStarted ? 'started' : 'waiting'}, writes $audioTrackWriteCount/$audioTrackWrittenSamples",
+  "$status，推理 ${lastInferMs}ms": "$status, inference: ${lastInferMs} ms",
+  "$status，峰值 入 $lastInputPeak / 原 $lastRawOutputPeak / 出 $lastOutputPeak": "$status, peak levels — input $lastInputPeak / raw $lastRawOutputPeak / output $lastOutputPeak",
+  "floating control直径：": "Floating control size: ",
+  "floating control不透明度：": "Floating control opacity: "
 }
 for dart in (root / "lib").rglob("*.dart"):
     t = dart.read_text(encoding="utf-8")
