@@ -36,7 +36,8 @@ def test_index_tools_discloses_faiss_conversion_is_not_on_device():
 def test_workflow_runs_tests_and_supports_private_persistent_signing():
     source = WORKFLOW.read_text(encoding="utf-8")
     assert "flutter test --reporter expanded" in source
-    assert "python/tests/*_static.py" in source
+    assert "python3 -m py_compile tools/brand.py" in source
+    assert "python3 -m pytest -q tools/tests" in source
     for secret in (
         "RED_RVC_KEYSTORE_BASE64",
         "RED_RVC_STORE_PASSWORD",
