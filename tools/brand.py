@@ -98,6 +98,7 @@ class RedHomeScreen extends StatelessWidget {
   final VoidCallback onAudioTools;
   final VoidCallback onSettings;
   final VoidCallback onYouTube;
+  final VoidCallback onFullRvc;
 
   const RedHomeScreen({
     super.key,
@@ -110,6 +111,7 @@ class RedHomeScreen extends StatelessWidget {
     required this.onAudioTools,
     required this.onSettings,
     required this.onYouTube,
+    required this.onFullRvc,
   });
 
   @override
@@ -208,6 +210,15 @@ class RedHomeScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: onFullRvc,
+                icon: const Icon(Icons.open_in_new),
+                label: const Text('OPEN FULL RVC ENGINE'),
+              ),
+            ),
+            const SizedBox(height: 9),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
