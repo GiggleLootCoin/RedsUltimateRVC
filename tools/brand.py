@@ -1378,6 +1378,26 @@ if plugin_modes.exists():
         pm = pm.replace(old_decibel, new_decibel, 1)
     elif "NativeActiveMode.DECIBEL_METER" not in pm or "NativeActiveMode.PITCH_DETECTION" not in pm:
         raise RuntimeError("Microphone monitor mode guard patch did not match")
+
+    old_detach_cleanup = """        stopDecibelMeter()
+        stopPitchDetection()
+        scope.cancel()"""
+    new_detach_cleanup = """        stopDecibelMeter()
+        stopPitchDetection()
+        runCatching { pcmRecorderSession?.stop(discard = true) }
+        pcmRecorderSession = null
+        runCatching { recorder?.release() }
+        recorder = null
+        recordingFile?.delete()
+        recordingFile = null
+        recordingStartedAtMs = 0L
+        activeRecordingModeToken?.release()
+        activeRecordingModeToken = null
+        scope.cancel()"""
+    if old_detach_cleanup in pm:
+        pm = pm.replace(old_detach_cleanup, new_detach_cleanup, 1)
+    elif "activeRecordingModeToken?.release()" not in pm:
+        raise RuntimeError("Recording teardown cleanup patch did not match")
     plugin_modes.write_text(pm, encoding="utf-8")
 
 # ---------------------------------------------------------------------------
@@ -2320,6 +2340,8 @@ final_main = main.read_text(encoding="utf-8")
 final_picker = picker.read_text(encoding="utf-8")
 checks = {
     "Upgrade-safe Android version": "versionCode Math.max" in (root / "android/app/build.gradle").read_text(encoding="utf-8") and "0.2.0-final-" in (root / "android/app/build.gradle").read_text(encoding="utf-8"),
+    "Mutually exclusive native modes": "activeMode != null || isInferenceProcessAlive()" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/NativeModeGuard.kt").read_text(encoding="utf-8"),
+    "Microphone recording and meters hold mode tokens": all(x in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8") for x in ["NativeActiveMode.AUDIO_RECORDING", "NativeActiveMode.DECIBEL_METER", "NativeActiveMode.PITCH_DETECTION"]),
     "Red dashboard": "RedHomeScreen(" in final_main,
     "Training screen": (root / "lib" / "screens" / "training_screen.dart").exists() and "TrainingScreen()" in final_main,
     "Dataset recording requests microphone permission": "Permission.microphone.request()" in (root / "lib/screens/training_screen.dart").read_text(encoding="utf-8"),
