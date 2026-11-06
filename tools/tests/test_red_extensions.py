@@ -71,6 +71,7 @@ def test_workflow_runs_tests_and_supports_private_persistent_signing():
     ):
         assert secret in source
     assert "temporary GitHub runner debug key" in source
+    assert "if: github.event_name != 'pull_request'" in source
 
 
 def test_upstream_song_picker_is_translated_to_english_before_build():
@@ -89,3 +90,26 @@ def test_upstream_song_picker_is_translated_to_english_before_build():
         assert text in source
     assert "song_picker_text = song_picker_text.replace(source_text, english_text)" in source
     assert "FileType.audio" in source
+
+
+
+
+
+def test_dataset_lab_is_phone_local_and_does_not_advertise_cloud_training():
+    training = (ROOT / "tools/ui/training_screen.dart").read_text(encoding="utf-8")
+    assert "ON-PHONE DATASET WORKSPACE" in training
+    assert "This phone prepares and exports your voice dataset locally" in training
+    assert "It does not train an RVC neural network" in training
+    assert "Kaggle" not in training
+    assert "Colab" not in training
+    assert "url_launcher/url_launcher.dart" not in training
+
+
+def test_dataset_export_creates_a_single_zip_for_android_sharing():
+    training = (ROOT / "tools/ui/training_screen.dart").read_text(encoding="utf-8")
+    brand = BRAND.read_text(encoding="utf-8")
+    assert "import 'package:archive/archive_io.dart';" in training
+    assert "ZipFileEncoder()" in training
+    assert "encoder.addDirectory(audio, includeDirName: true)" in training
+    assert "XFile(zipPath, mimeType: 'application/zip')" in training
+    assert "archive: ^3.6.1" in brand

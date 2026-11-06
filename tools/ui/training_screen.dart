@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:archive/archive_io.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/rvc_bridge.dart';
 
@@ -183,17 +184,28 @@ class _TrainingScreenState extends State<TrainingScreen> {
       if (!await audio.exists()) throw Exception('Prepared audio folder is missing.');
       final files = await audio.list().where((entity) => entity is File).cast<File>().toList();
       if (files.isEmpty) throw Exception('There are no prepared audio samples to export.');
+      final safeName = _name.text.trim().replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
+      final zipPath = '${(await getTemporaryDirectory()).path}/${safeName.isEmpty ? 'voice' : safeName}_rvc_dataset.zip';
+      final encoder = ZipFileEncoder();
+      encoder.create(zipPath);
+      encoder.addDirectory(audio, includeDirName: true);
+      encoder.close();
+      final archive = File(zipPath);
+      if (!await archive.exists() || await archive.length() == 0) {
+        throw Exception('Dataset ZIP could not be created.');
+      }
       await Share.shareXFiles(
-        files.map((file) => XFile(file.path)).toList(),
+        [XFile(zipPath, mimeType: 'application/zip')],
         text: 'Red’s Ultimate RVC voice dataset — ${_name.text.trim()}',
       );
-      if (mounted) setState(() => _status = '${files.length} prepared sample(s) sent to Android sharing.');
+      if (mounted) setState(() => _status = 'Dataset exported as ${archive.uri.pathSegments.last} (${files.length} audio samples).');
     } catch (e) {
       if (mounted) setState(() => _status = 'Dataset export failed: $e');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
+
 
   Future<void> _clear() async {
     if (_datasetPath != null) {
@@ -223,7 +235,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
           SizedBox(height: 8),
           Text('Import or record clean samples and organise them privately on this phone.'),
           SizedBox(height: 10),
-          Text('Important: this build does not include an RVC neural-network trainer. Preparing a dataset is not training. No online training service, Kaggle, Colab or external app is launched.', style: TextStyle(height: 1.35)),
+          Text('This phone prepares and exports your voice dataset locally. It does not train an RVC neural network. Full RVC training needs a supported PyTorch runtime and substantially more memory and compute than this phone provides. No cloud training service is built into this app.', style: TextStyle(height: 1.35)),
         ]),
       )),
       const SizedBox(height: 12),
@@ -264,6 +276,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
           ),
         ),
       ],
+
       const SizedBox(height: 8),
       OutlinedButton.icon(onPressed: _busy || _recording ? null : _clear, icon: const Icon(Icons.delete_outline), label: const Text('CLEAR WORKSPACE')),
     ]),
