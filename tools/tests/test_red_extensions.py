@@ -89,3 +89,14 @@ def test_upstream_song_picker_is_translated_to_english_before_build():
         assert text in source
     assert "song_picker_text = song_picker_text.replace(source_text, english_text)" in source
     assert "FileType.audio" in source
+
+
+
+def test_dataset_export_creates_a_single_zip_for_android_sharing():
+    training = (ROOT / "tools/ui/training_screen.dart").read_text(encoding="utf-8")
+    brand = BRAND.read_text(encoding="utf-8")
+    assert "import 'package:archive/archive_io.dart';" in training
+    assert "ZipFileEncoder()" in training
+    assert "encoder.addDirectory(audio, includeDirName: true)" in training
+    assert "XFile(zipPath, mimeType: 'application/zip')" in training
+    assert "archive: ^3.6.1" in brand
