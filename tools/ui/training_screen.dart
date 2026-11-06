@@ -7,7 +7,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:archive/archive_io.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../services/rvc_bridge.dart';
 
 /// Local dataset preparation only. The bundled Android RVC engine has no
@@ -208,22 +207,6 @@ class _TrainingScreenState extends State<TrainingScreen> {
   }
 
 
-  Future<void> _openFreeTrainingNotebook() async {
-    final uri = Uri.parse(
-      'https://kaggle.com/kernels/welcome?src=https://github.com/juksentang/RVC-Retrieval-based-Voice-Conversion-Colab/blob/main/RVC_CLI.ipynb',
-    );
-    try {
-      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      if (mounted) {
-        setState(() => _status = opened
-            ? 'Opened the free Kaggle RVC training notebook. Upload your exported dataset ZIP as a Kaggle Dataset.'
-            : 'Could not open Kaggle. Check your internet connection and try again.');
-      }
-    } catch (e) {
-      if (mounted) setState(() => _status = 'Could not open Kaggle: $e');
-    }
-  }
-
   Future<void> _clear() async {
     if (_datasetPath != null) {
       final d = Directory(_datasetPath!);
@@ -252,7 +235,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
           SizedBox(height: 8),
           Text('Import or record clean samples and organise them privately on this phone.'),
           SizedBox(height: 10),
-          Text('This phone prepares your dataset but does not train the neural network. For genuine training, use the optional Kaggle CLI notebook below. It runs the RVC training and FAISS index steps on Kaggle GPU, not on this phone. Kaggle availability and free GPU quota are controlled by Kaggle.', style: TextStyle(height: 1.35)),
+          Text('This phone prepares and exports your voice dataset locally. It does not train an RVC neural network. Full RVC training needs a supported PyTorch runtime and substantially more memory and compute than this phone provides. No cloud training service is built into this app.', style: TextStyle(height: 1.35)),
         ]),
       )),
       const SizedBox(height: 12),
@@ -294,22 +277,6 @@ class _TrainingScreenState extends State<TrainingScreen> {
         ),
       ],
 
-      const SizedBox(height: 10),
-      SizedBox(
-        height: 50,
-        child: OutlinedButton.icon(
-          onPressed: _busy || _recording ? null : _openFreeTrainingNotebook,
-          icon: const Icon(Icons.cloud_outlined),
-          label: const Text('OPEN FREE KAGGLE RVC TRAINER'),
-        ),
-      ),
-      const Padding(
-        padding: EdgeInsets.only(top: 6),
-        child: Text(
-          'Prepare your dataset above, export it as a ZIP, then upload it to Kaggle as a Dataset and attach it to the notebook. Kaggle may require account phone verification for GPU access.',
-          style: TextStyle(color: Color(0xFFB7B7C1), fontSize: 12, height: 1.35),
-        ),
-      ),
       const SizedBox(height: 8),
       OutlinedButton.icon(onPressed: _busy || _recording ? null : _clear, icon: const Icon(Icons.delete_outline), label: const Text('CLEAR WORKSPACE')),
     ]),
