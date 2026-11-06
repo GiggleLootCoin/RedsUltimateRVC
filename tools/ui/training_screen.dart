@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:archive/archive_io.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/rvc_bridge.dart';
 
@@ -183,11 +184,21 @@ class _TrainingScreenState extends State<TrainingScreen> {
       if (!await audio.exists()) throw Exception('Prepared audio folder is missing.');
       final files = await audio.list().where((entity) => entity is File).cast<File>().toList();
       if (files.isEmpty) throw Exception('There are no prepared audio samples to export.');
+      final safeName = _name.text.trim().replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
+      final zipPath = '${(await getTemporaryDirectory()).path}/${safeName.isEmpty ? 'voice' : safeName}_rvc_dataset.zip';
+      final encoder = ZipFileEncoder();
+      encoder.create(zipPath);
+      encoder.addDirectory(audio, includeDirName: true);
+      encoder.close();
+      final archive = File(zipPath);
+      if (!await archive.exists() || await archive.length() == 0) {
+        throw Exception('Dataset ZIP could not be created.');
+      }
       await Share.shareXFiles(
-        files.map((file) => XFile(file.path)).toList(),
+        [XFile(zipPath, mimeType: 'application/zip')],
         text: 'Red’s Ultimate RVC voice dataset — ${_name.text.trim()}',
       );
-      if (mounted) setState(() => _status = '${files.length} prepared sample(s) sent to Android sharing.');
+      if (mounted) setState(() => _status = 'Dataset exported as ${archive.uri.pathSegments.last} (${files.length} audio samples).');
     } catch (e) {
       if (mounted) setState(() => _status = 'Dataset export failed: $e');
     } finally {
