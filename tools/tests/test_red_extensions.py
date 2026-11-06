@@ -93,6 +93,17 @@ def test_upstream_song_picker_is_translated_to_english_before_build():
 
 
 
+
+def test_dataset_lab_offers_free_kaggle_training_without_claiming_phone_training():
+    training = (ROOT / "tools/ui/training_screen.dart").read_text(encoding="utf-8")
+    assert "url_launcher/url_launcher.dart" in training
+    assert "OPEN FREE KAGGLE RVC TRAINER" in training
+    assert "RVC-Retrieval-based-Voice-Conversion-Colab/blob/main/RVC_CLI.ipynb" in training
+    assert "Kaggle GPU" in training
+    assert "Kaggle availability and free GPU quota are controlled by Kaggle" in training
+    assert "upload it to Kaggle as a Dataset" in training
+
+
 def test_dataset_export_creates_a_single_zip_for_android_sharing():
     training = (ROOT / "tools/ui/training_screen.dart").read_text(encoding="utf-8")
     brand = BRAND.read_text(encoding="utf-8")
