@@ -73,3 +73,73 @@ if 'src/main/cpp/CMakeLists.txt' not in g:
     g = g.replace("\n}\n\nflutter {\n", "\n    externalNativeBuild { cmake { path file('src/main/cpp/CMakeLists.txt'); version '3.22.1' } }\n}\n\nflutter {\n", 1)
 if 'src/main/cpp/CMakeLists.txt' not in g: raise RuntimeError('Could not configure Android CMake')
 gradle.write_text(g, encoding='utf-8')
+
+# Install the Flutter song-cover screen and expose the native operations.
+screen_source = ROOT / 'tools/ui/song_cover_screen.dart'
+screen_target = BUILD / 'lib/screens/song_cover_screen.dart'
+screen_target.parent.mkdir(parents=True, exist_ok=True)
+screen_target.write_text(screen_source.read_text(encoding='utf-8'), encoding='utf-8')
+
+bridge = BUILD / 'lib/services/rvc_bridge.dart'
+bs = bridge.read_text(encoding='utf-8')
+if 'Future<Map<String, String>> separateSongVocals' not in bs:
+    anchor = '  Future<void> startRecording() async {'
+    methods = '''  Future<Map<String, String>> separateSongVocals(String inputPath) async {
+    final result = await _channel.invokeMethod('separateSongVocals', {
+      'inputPath': inputPath,
+    });
+    final values = Map<String, dynamic>.from(result as Map);
+    final vocals = values['vocalsPath'];
+    final accompaniment = values['accompanimentPath'];
+    if (vocals is! String || accompaniment is! String) {
+      throw StateError('The separation engine returned incomplete stem paths.');
+    }
+    return {'vocalsPath': vocals, 'accompanimentPath': accompaniment};
+  }
+
+  Future<String> mixSongCover({
+    required String convertedVocalsPath,
+    required String accompanimentPath,
+    double vocalGain = 1.0,
+    double accompanimentGain = 0.85,
+  }) async {
+    final result = await _channel.invokeMethod('mixSongCover', {
+      'vocalsPath': convertedVocalsPath,
+      'accompanimentPath': accompanimentPath,
+      'vocalGain': vocalGain,
+      'accompanimentGain': accompanimentGain,
+    });
+    if (result is! String || result.isEmpty) {
+      throw StateError('The audio mixer did not return an output path.');
+    }
+    return result;
+  }
+
+'''
+    if anchor not in bs: raise RuntimeError('RVCBridge insertion anchor missing')
+    bs = bs.replace(anchor, methods + anchor, 1)
+bridge.write_text(bs, encoding='utf-8')
+
+main = BUILD / 'lib/main.dart'
+ms = main.read_text(encoding='utf-8')
+if "import 'screens/song_cover_screen.dart';" not in ms:
+    anchor = "import 'screens/pitch_detection_screen.dart';"
+    if anchor not in ms: raise RuntimeError('main.dart import anchor missing')
+    ms = ms.replace(anchor, anchor + "\nimport 'screens/song_cover_screen.dart';", 1)
+old = 'onSongCovers: _openAudioConversion,'
+new = """onSongCovers: () {
+          if (_selectedModelPath == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Select a compatible ONNX voice in Model Library first.')),
+            );
+            return;
+          }
+          Navigator.of(context).push(MaterialPageRoute(builder: (_) => SongCoverScreen(
+            modelPath: _selectedModelPath!,
+            indexPath: _selectedIndexPath,
+          )));
+        },"""
+if old in ms: ms = ms.replace(old, new, 1)
+elif 'onSongCovers: () {' not in ms: raise RuntimeError('Song Covers dashboard callback missing')
+main.write_text(ms, encoding='utf-8')
+
