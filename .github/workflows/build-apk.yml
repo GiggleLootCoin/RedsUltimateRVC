@@ -60,10 +60,26 @@ jobs:
       - name: Integrate offline song-cover native bridge
         run: python3 tools/native/integrate.py
 
+      - name: Set up Java 17 for the upstream Android Gradle build
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install the exact Android NDK and CMake required by upstream Gradle
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null
+          "$SDKMANAGER" --install "cmake;3.22.1" "ndk;23.1.7779620"
+          test -x "$ANDROID_HOME/cmake/3.22.1/bin/cmake"
+          test -x "$ANDROID_HOME/ndk/23.1.7779620/ndk-build"
+
       - name: Build offline Spleeter engine for Android ARM64
         run: |
           set -eo pipefail
-          export ANDROID_NDK="$(find "$ANDROID_HOME/ndk" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          export ANDROID_NDK="$ANDROID_HOME/ndk/23.1.7779620"
           test -x "$ANDROID_NDK/ndk-build"
           cd sherpa-onnx
           SHERPA_ONNX_ENABLE_C_API=ON \
@@ -89,22 +105,6 @@ jobs:
           cp "$VOCALS" buildsrc/assets/models/separation/vocals.fp16.onnx
           cp "$ACCOMPANIMENT" buildsrc/assets/models/separation/accompaniment.fp16.onnx
           ls -lh buildsrc/assets/models/separation/
-
-      - name: Set up Java 17 for the upstream Android Gradle build
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Install the exact Android NDK and CMake required by upstream Gradle
-        run: |
-          set -euo pipefail
-          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          test -x "$SDKMANAGER"
-          yes | "$SDKMANAGER" --licenses >/dev/null
-          "$SDKMANAGER" --install "cmake;3.22.1" "ndk;23.1.7779620"
-          test -x "$ANDROID_HOME/cmake/3.22.1/bin/cmake"
-          test -x "$ANDROID_HOME/ndk/23.1.7779620/ndk-build"
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
