@@ -47,6 +47,10 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
     );
     final path = result?.files.single.path;
     if (path == null || path.isEmpty) return;
+    if (!path.toLowerCase().endsWith('.wav')) {
+      if (mounted) _message('For this first offline release, choose a 16-bit PCM WAV file. MP3 and M4A decoding is not integrated into the separator yet.');
+      return;
+    }
     try {
       final imported = await _bridge.importPickedFile(
         kind: 'audio',
@@ -154,7 +158,7 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
           ),
           const SizedBox(height: 9),
           const Text(
-            'The app separates the original song into vocals and accompaniment, converts the vocals with your selected ONNX voice, then mixes the converted vocals back with the original music. Processing stays on this phone.',
+            'Choose a 16-bit PCM WAV song. The app separates it into vocals and accompaniment, converts the vocals with your selected ONNX voice, then mixes the converted vocals back with the original music. Processing stays on this phone.',
             style: TextStyle(color: Color(0xFFBEBEC7), height: 1.45),
           ),
           const SizedBox(height: 18),
