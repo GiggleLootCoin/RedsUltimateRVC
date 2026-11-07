@@ -140,7 +140,10 @@ def test_offline_song_cover_native_pipeline_is_wired_into_android_build():
     assert "sherpa-onnx-spleeter-2stems-fp16.tar.bz2" in workflow
 
 
-def test_song_cover_screen_restricts_input_to_supported_wave_format():
+def test_song_cover_uses_android_media_codec_to_prepare_common_audio_formats():
+    integration = (ROOT / "tools/native/integrate.py").read_text(encoding="utf-8")
     screen = (ROOT / "tools/ui/song_cover_screen.dart").read_text(encoding="utf-8")
-    assert "endsWith('.wav')" in screen
-    assert "16-bit PCM WAV" in screen
+    assert "decodeAudioToWav(inputPath, decodedInput.absolutePath)" in integration
+    assert "MediaExtractor" in (ROOT / "tools/native/integrate.py").read_text(encoding="utf-8")
+    assert "Android decodes it locally to PCM WAV" in screen
+    assert "type: FileType.audio" in screen
