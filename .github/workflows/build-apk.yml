@@ -96,6 +96,16 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Install the exact Android NDK and CMake required by upstream Gradle
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null
+          "$SDKMANAGER" --install "cmake;3.22.1" "ndk;23.1.7779620"
+          test -x "$ANDROID_HOME/cmake/3.22.1/bin/cmake"
+          test -x "$ANDROID_HOME/ndk/23.1.7779620/ndk-build"
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
