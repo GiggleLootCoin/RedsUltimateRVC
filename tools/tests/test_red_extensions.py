@@ -128,6 +128,7 @@ def test_offline_song_cover_native_pipeline_is_wired_into_android_build():
     assert "SherpaOnnxWriteWaveMultiChannel" in native
     assert "output_rate = music->sample_rate" in native
     assert "static_cast<double>(frame) * wave->sample_rate / output_rate" in native
+    assert "The converted vocals and accompaniment have incompatible audio formats." not in native
     assert "output_channels = std::max(vocals->num_channels, music->num_channels)" in native
     assert "System.loadLibrary(\"sherpa-onnx-c-api\")" in kotlin
     assert "SourceSeparationBridge.separateWav" in integration
@@ -137,6 +138,8 @@ def test_offline_song_cover_native_pipeline_is_wired_into_android_build():
     assert "await _bridge.mixSongCover" in screen
     assert "k2-fsa/sherpa-onnx" in workflow
     assert "SHERPA_ONNX_ENABLE_C_API=ON" in workflow
+    assert "BUILD_SHARED_LIBS=OFF" in workflow
+    assert "build-android-arm64-v8a-static/install/lib/libsherpa-onnx-c-api.so" in workflow
     assert "sherpa-onnx-spleeter-2stems-fp16.tar.bz2" in workflow
 
 
