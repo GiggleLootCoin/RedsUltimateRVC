@@ -40,7 +40,7 @@ def test_home_dashboard_has_a_working_official_youtube_channel_button():
 
 def test_dashboard_discloses_song_cover_and_realtime_limits():
     source = BRAND.read_text(encoding="utf-8")
-    assert "Convert isolated vocals; no vocal separator included" in source
+    assert "Separate vocals, convert your voice, and mix the cover" in (ROOT / "tools/ui/red_home_screen.dart").read_text(encoding="utf-8")
     assert "REALTIME RVC — EXPERIMENTAL" in source
     assert "Limited Android support; may stutter" in source
 
@@ -113,3 +113,31 @@ def test_dataset_export_creates_a_single_zip_for_android_sharing():
     assert "encoder.addDirectory(audio, includeDirName: true)" in training
     assert "XFile(zipPath, mimeType: 'application/zip')" in training
     assert "archive: ^3.6.1" in brand
+
+
+def test_offline_song_cover_native_pipeline_is_wired_into_android_build():
+    integration = (ROOT / "tools/native/integrate.py").read_text(encoding="utf-8")
+    kotlin = (ROOT / "tools/native/SourceSeparationBridge.kt").read_text(encoding="utf-8")
+    native = (ROOT / "tools/native/source_separation_jni.cpp").read_text(encoding="utf-8")
+    screen = (ROOT / "tools/ui/song_cover_screen.dart").read_text(encoding="utf-8")
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    assert "separateSongVocals" in integration
+    assert "mixSongCover" in integration
+    assert "SherpaOnnxCreateOfflineSourceSeparation" in native
+    assert "SherpaOnnxOfflineSourceSeparationProcess" in native
+    assert "SherpaOnnxWriteWaveMultiChannel" in native
+    assert "System.loadLibrary(\"sherpa-onnx-c-api\")" in kotlin
+    assert "SourceSeparationBridge.separateWav" in integration
+    assert "SourceSeparationBridge.mixWav" in integration
+    assert "await _bridge.separateSongVocals" in screen
+    assert "await _bridge.infer" in screen
+    assert "await _bridge.mixSongCover" in screen
+    assert "k2-fsa/sherpa-onnx" in workflow
+    assert "SHERPA_ONNX_ENABLE_C_API=ON" in workflow
+    assert "sherpa-onnx-spleeter-2stems-fp16.tar.bz2" in workflow
+
+
+def test_song_cover_screen_restricts_input_to_supported_wave_format():
+    screen = (ROOT / "tools/ui/song_cover_screen.dart").read_text(encoding="utf-8")
+    assert "endsWith('.wav')" in screen
+    assert "16-bit PCM WAV" in screen
