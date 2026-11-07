@@ -62,7 +62,7 @@ jobs:
 
       - name: Build offline Spleeter engine for Android ARM64
         run: |
-          set -euo pipefail
+          set -eo pipefail
           export ANDROID_NDK="$(find "$ANDROID_HOME/ndk" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
           test -x "$ANDROID_NDK/ndk-build"
           cd sherpa-onnx
