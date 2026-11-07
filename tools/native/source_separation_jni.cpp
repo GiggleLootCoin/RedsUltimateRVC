@@ -63,7 +63,7 @@ Java_com_ultimatervc_mobile_SourceSeparationBridge_separateWav(
   const auto *output = SherpaOnnxOfflineSourceSeparationProcess(
       engine, wave->samples, wave->num_channels, wave->num_samples,
       wave->sample_rate);
-  if (!output || output->num_stems < 2) {
+  if (!output || output->num_stems < 2 || output->sample_rate <= 0) {
     if (output) SherpaOnnxDestroySourceSeparationOutput(output);
     SherpaOnnxFreeMultiChannelWave(wave);
     SherpaOnnxDestroyOfflineSourceSeparation(engine);
@@ -98,6 +98,11 @@ Java_com_ultimatervc_mobile_SourceSeparationBridge_mixWav(
   const std::string vocals_file = FromJava(env, vocals_path);
   const std::string accompaniment_file = FromJava(env, accompaniment_path);
   const std::string output_file = FromJava(env, output_path);
+  if (vocals_file.empty() || accompaniment_file.empty() || output_file.empty()) {
+    ThrowJava(env, "Missing song-cover mix file path.");
+    return nullptr;
+  }
+
   const auto *vocals = SherpaOnnxReadWaveMultiChannel(vocals_file.c_str());
   const auto *music = SherpaOnnxReadWaveMultiChannel(accompaniment_file.c_str());
   if (!vocals || !music) {
@@ -107,15 +112,17 @@ Java_com_ultimatervc_mobile_SourceSeparationBridge_mixWav(
     return nullptr;
   }
   if (vocals->num_channels < 1 || vocals->num_channels > 2 ||
-      music->num_channels < 1 || music->num_channels > 2) {
+      music->num_channels < 1 || music->num_channels > 2 ||
+      vocals->sample_rate <= 0 || music->sample_rate <= 0 ||
+      vocals->num_samples <= 0 || music->num_samples <= 0) {
     SherpaOnnxFreeMultiChannelWave(vocals);
     SherpaOnnxFreeMultiChannelWave(music);
-    ThrowJava(env, "Only mono and stereo WAV stems are supported.");
+    ThrowJava(env, "Only non-empty mono or stereo WAV stems with valid sample rates are supported.");
     return nullptr;
   }
 
   // RVC models and Spleeter may produce different sample rates and channel
-  // counts. Resample both tracks to the accompaniment rate and preserve stereo.
+  // counts. Resample vocals to the accompaniment rate and preserve stereo.
   const int output_rate = music->sample_rate;
   const int output_channels = std::max(vocals->num_channels, music->num_channels);
   const int vocal_frames = static_cast<int>(std::ceil(
@@ -150,32 +157,9 @@ Java_com_ultimatervc_mobile_SourceSeparationBridge_mixWav(
     }
     channels[channel] = mixed[channel].data();
   }
-  const int written = SherpaOnnxWriteWaveMultiChannel(
-      channels.data(), frames, output_rate, output_channels,
-      output_file.c_str());
-  SherpaOnnxFreeMultiChannelWave(vocals);
-    SherpaOnnxFreeMultiChannelWave(music);
-    ThrowJava(env, "The converted vocals and accompaniment have incompatible audio formats.");
-    return nullptr;
-  }
 
-  const int frames = std::max(vocals->num_samples, music->num_samples);
-  std::vector<std::vector<float>> mixed(
-      vocals->num_channels, std::vector<float>(frames, 0.0f));
-  std::vector<const float *> channels(vocals->num_channels);
-  for (int channel = 0; channel < vocals->num_channels; ++channel) {
-    for (int frame = 0; frame < frames; ++frame) {
-      const float v = frame < vocals->num_samples
-          ? vocals->samples[channel][frame] * vocal_gain : 0.0f;
-      const float m = frame < music->num_samples
-          ? music->samples[channel][frame] * accompaniment_gain : 0.0f;
-      mixed[channel][frame] = std::max(-1.0f, std::min(1.0f, v + m));
-    }
-    channels[channel] = mixed[channel].data();
-  }
   const int written = SherpaOnnxWriteWaveMultiChannel(
-      channels.data(), frames, vocals->sample_rate, vocals->num_channels,
-      output_file.c_str());
+      channels.data(), frames, output_rate, output_channels, output_file.c_str());
   SherpaOnnxFreeMultiChannelWave(vocals);
   SherpaOnnxFreeMultiChannelWave(music);
   if (!written) {
