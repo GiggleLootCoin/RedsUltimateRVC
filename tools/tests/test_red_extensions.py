@@ -126,6 +126,9 @@ def test_offline_song_cover_native_pipeline_is_wired_into_android_build():
     assert "SherpaOnnxCreateOfflineSourceSeparation" in native
     assert "SherpaOnnxOfflineSourceSeparationProcess" in native
     assert "SherpaOnnxWriteWaveMultiChannel" in native
+    assert "output_rate = music->sample_rate" in native
+    assert "static_cast<double>(frame) * wave->sample_rate / output_rate" in native
+    assert "output_channels = std::max(vocals->num_channels, music->num_channels)" in native
     assert "System.loadLibrary(\"sherpa-onnx-c-api\")" in kotlin
     assert "SourceSeparationBridge.separateWav" in integration
     assert "SourceSeparationBridge.mixWav" in integration
