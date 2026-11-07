@@ -140,6 +140,9 @@ def test_offline_song_cover_native_pipeline_is_wired_into_android_build():
     assert "SHERPA_ONNX_ENABLE_C_API=ON" in workflow
     assert "BUILD_SHARED_LIBS=OFF" in workflow
     assert "build-android-arm64-v8a-static/install/lib/libsherpa-onnx-c-api.so" in workflow
+    assert "SherpaOnnxCreateOfflineSourceSeparation" in workflow
+    assert "SherpaOnnxOfflineSourceSeparationProcess" in workflow
+    assert "libonnxruntime.so" in workflow
     assert "sherpa-onnx-spleeter-2stems-fp16.tar.bz2" in workflow
 
 
