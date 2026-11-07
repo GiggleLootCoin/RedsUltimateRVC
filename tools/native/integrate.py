@@ -11,6 +11,25 @@ cpp.mkdir(parents=True, exist_ok=True)
 for name in ('source_separation_jni.cpp', 'CMakeLists.txt'):
     (cpp / name).write_text((ROOT / 'tools/native' / name).read_text(), encoding='utf-8')
 
+engine = BUILD / 'android/app/src/main/kotlin/com/ultimatervc/mobile/RvcInferenceEngine.kt'
+es = engine.read_text(encoding='utf-8')
+decode_anchor = '    private fun decodeAudioSegment(file: File, startUs: Long, endUs: Long): DecodedAudio {'
+decode_method = '''    fun decodeAudioToWav(inputPath: String, outputPath: String) {
+        val source = File(inputPath)
+        require(source.isFile) { "The selected audio file does not exist." }
+        val durationUs = readAudioDurationUs(source)
+        require(durationUs > 0L) { "Could not determine the selected audio duration." }
+        val decoded = decodeAudioSegment(source, 0L, durationUs)
+        require(decoded.channelCount in 1..2) { "Only mono or stereo audio can be separated." }
+        writeDecodedAudioWav(File(outputPath), decoded)
+    }
+
+'''
+if 'fun decodeAudioToWav(inputPath: String, outputPath: String)' not in es:
+    if decode_anchor not in es: raise RuntimeError('Audio decoder insertion anchor missing')
+    es = es.replace(decode_anchor, decode_method + decode_anchor, 1)
+engine.write_text(es, encoding='utf-8')
+
 plugin = PKG / 'RVCPlugin.kt'
 s = plugin.read_text(encoding='utf-8')
 dispatch = '            "convertIndex" -> convertIndex(call, result)'
@@ -39,7 +58,16 @@ methods = '''
                 val stamp = System.currentTimeMillis()
                 val vocals = File(outputDir, "vocals_$stamp.wav")
                 val accompaniment = File(outputDir, "accompaniment_$stamp.wav")
-                SourceSeparationBridge.separateWav(inputPath, vocals.absolutePath, accompaniment.absolutePath, vocalsModel.absolutePath, accompanimentModel.absolutePath, 1)
+                val decodedInput = File(outputDir, "decoded_$stamp.wav")
+                try {
+                    RvcInferenceEngine(
+                        modelsDir = File(getModelsDirectory()),
+                        resumableJobStore = ResumableInferenceJobStore(appContext.filesDir),
+                    ).decodeAudioToWav(inputPath, decodedInput.absolutePath)
+                    SourceSeparationBridge.separateWav(decodedInput.absolutePath, vocals.absolutePath, accompaniment.absolutePath, vocalsModel.absolutePath, accompanimentModel.absolutePath, 1)
+                } finally {
+                    decodedInput.delete()
+                }
                 withContext(Dispatchers.Main) { result.success(mapOf("vocalsPath" to vocals.absolutePath, "accompanimentPath" to accompaniment.absolutePath)) }
             } catch (e: Exception) { withContext(Dispatchers.Main) { result.error("SEPARATION_FAILED", e.message ?: "Offline vocal separation failed.", null) } }
         }
