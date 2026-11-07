@@ -29,6 +29,13 @@ jobs:
           ref: v2.0.0
           path: buildsrc
 
+      - name: Checkout Sherpa-ONNX source-separation engine
+        uses: actions/checkout@v5
+        with:
+          repository: k2-fsa/sherpa-onnx
+          ref: v1.12.1
+          path: sherpa-onnx
+
       - name: Recover bundled base models from the verified upstream release
         run: |
           mkdir -p buildsrc/assets/models
@@ -45,6 +52,38 @@ jobs:
 
       - name: Apply Red's branding
         run: python3 tools/brand.py
+
+      - name: Integrate offline song-cover native bridge
+        run: python3 tools/native/integrate.py
+
+      - name: Build offline Spleeter engine for Android ARM64
+        run: |
+          set -euo pipefail
+          export ANDROID_NDK="$(find "$ANDROID_HOME/ndk" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          test -x "$ANDROID_NDK/ndk-build"
+          cd sherpa-onnx
+          SHERPA_ONNX_ENABLE_C_API=ON \
+          SHERPA_ONNX_ENABLE_JNI=OFF \
+          SHERPA_ONNX_ENABLE_TTS=OFF \
+          SHERPA_ONNX_ENABLE_SPEAKER_DIARIZATION=OFF \
+          SHERPA_ONNX_ONNXRUNTIME_VERSION=1.20.0 \
+          ./build-android-arm64-v8a.sh
+          cd ..
+          mkdir -p buildsrc/android/app/src/main/jniLibs/arm64-v8a
+          mkdir -p buildsrc/android/app/src/main/cpp/include/sherpa-onnx/c-api
+          cp sherpa-onnx/build-android-arm64-v8a/install/lib/libsherpa-onnx-c-api.so buildsrc/android/app/src/main/jniLibs/arm64-v8a/
+          cp sherpa-onnx/sherpa-onnx/c-api/c-api.h buildsrc/android/app/src/main/cpp/include/sherpa-onnx/c-api/c-api.h
+          curl -L --fail --retry 3 -o spleeter-models.tar.bz2 https://github.com/k2-fsa/sherpa-onnx/releases/download/source-separation-models/sherpa-onnx-spleeter-2stems-fp16.tar.bz2
+          mkdir -p spleeter-models
+          tar -xjf spleeter-models.tar.bz2 -C spleeter-models
+          VOCALS="$(find spleeter-models -type f -name vocals.fp16.onnx -print -quit)"
+          ACCOMPANIMENT="$(find spleeter-models -type f -name accompaniment.fp16.onnx -print -quit)"
+          test -s "$VOCALS"
+          test -s "$ACCOMPANIMENT"
+          mkdir -p buildsrc/assets/models/separation
+          cp "$VOCALS" buildsrc/assets/models/separation/vocals.fp16.onnx
+          cp "$ACCOMPANIMENT" buildsrc/assets/models/separation/accompaniment.fp16.onnx
+          ls -lh buildsrc/assets/models/separation/
 
       - name: Set up Java 17 for the upstream Android Gradle build
         uses: actions/setup-java@v5
