@@ -89,7 +89,7 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
         onProgress: (value, status) {
           if (!mounted) return;
           setState(() {
-            _progress = (value / 100).clamp(0.0, 1.0);
+            _progress = (value / 100).clamp(0.0, 1.0).toDouble();
             _status = status;
           });
         },
