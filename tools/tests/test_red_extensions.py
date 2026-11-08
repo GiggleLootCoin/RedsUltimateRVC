@@ -140,11 +140,13 @@ def test_offline_song_cover_native_pipeline_is_wired_into_android_build():
     assert "ref: v1.13.8" in workflow
     assert 'yes | "$SDKMANAGER" --licenses >/dev/null || true' in workflow
     assert "SHERPA_ONNX_ENABLE_C_API=ON" in workflow
-    assert "BUILD_SHARED_LIBS=OFF" in workflow
-    assert "build-android-arm64-v8a-static/install/lib/libsherpa-onnx-c-api.so" in workflow
+    assert "BUILD_SHARED_LIBS=ON" in workflow
+    assert "build-android-arm64-v8a/install/lib/libsherpa-onnx-c-api.so" in workflow
     assert "SherpaOnnxCreateOfflineSourceSeparation" in workflow
     assert "SherpaOnnxOfflineSourceSeparationProcess" in workflow
     assert "libonnxruntime.so" in workflow
+    assert "onnxruntime-android:1.28.2" in workflow
+    assert "readelf -d \"$SHERPA_SO\" | grep -q 'libonnxruntime.so'" in workflow
     assert "sherpa-onnx-spleeter-2stems-fp16.tar.bz2" in workflow
 
 
