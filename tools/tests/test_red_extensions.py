@@ -128,6 +128,9 @@ def test_offline_song_cover_native_pipeline_is_wired_into_android_build():
     assert "SherpaOnnxCreateOfflineSourceSeparation" in native
     assert "SherpaOnnxOfflineSourceSeparationProcess" in native
     assert "SherpaOnnxWriteWaveMultiChannel" in native
+    assert "!wave->samples" in native
+    assert "!output->stems" in native
+    assert "vocal_channels.data()" in native
     assert "output_rate = music->sample_rate" in native
     assert "static_cast<double>(frame) * wave->sample_rate / output_rate" in native
     assert "The converted vocals and accompaniment have incompatible audio formats." not in native
