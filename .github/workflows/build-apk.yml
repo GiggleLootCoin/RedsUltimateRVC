@@ -101,7 +101,7 @@ jobs:
           "$LLVM_NM" -D --defined-only "$SHERPA_SO" | grep -q 'SherpaOnnxCreateOfflineSourceSeparation'
           "$LLVM_NM" -D --defined-only "$SHERPA_SO" | grep -q 'SherpaOnnxOfflineSourceSeparationProcess'
           readelf -d "$SHERPA_SO" | grep -q 'libonnxruntime.so' || {
-            echo "Sherpa must link against the app's matching ONNX Runtime 1.28.2 library."
+            echo "Sherpa must link against the app's matching ONNX Runtime 1.28.0 library."
             exit 1
           }
           cp sherpa-onnx/sherpa-onnx/c-api/c-api.h buildsrc/android/app/src/main/cpp/include/sherpa-onnx/c-api/c-api.h
