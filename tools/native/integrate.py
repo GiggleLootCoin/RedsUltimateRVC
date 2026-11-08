@@ -79,12 +79,16 @@ methods = '''
         if (vocalsPath.isNullOrBlank() || accompanimentPath.isNullOrBlank()) { result.error("INVALID_ARGUMENTS", "Missing song-cover stem paths.", null); return }
         val vocalGain = (call.argument<Double>("vocalGain") ?: 1.0).toFloat().coerceIn(0f, 2f)
         val accompanimentGain = (call.argument<Double>("accompanimentGain") ?: 0.85).toFloat().coerceIn(0f, 2f)
-        try {
-            val outputDir = File(appContext.filesDir, "outputs").apply { mkdirs() }
-            val output = File(outputDir, "song_cover_${System.currentTimeMillis()}.wav")
-            SourceSeparationBridge.mixWav(vocalsPath, accompanimentPath, output.absolutePath, vocalGain, accompanimentGain)
-            result.success(output.absolutePath)
-        } catch (e: Exception) { result.error("MIX_FAILED", e.message ?: "Could not mix the song-cover stems.", null) }
+        scope.launch {
+            try {
+                val outputDir = File(appContext.filesDir, "outputs").apply { mkdirs() }
+                val output = File(outputDir, "song_cover_${System.currentTimeMillis()}.wav")
+                SourceSeparationBridge.mixWav(vocalsPath, accompanimentPath, output.absolutePath, vocalGain, accompanimentGain)
+                withContext(Dispatchers.Main) { result.success(output.absolutePath) }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) { result.error("MIX_FAILED", e.message ?: "Could not mix the song-cover stems.", null) }
+            }
+        }
     }
 
 '''
