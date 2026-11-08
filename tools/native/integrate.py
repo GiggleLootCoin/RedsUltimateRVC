@@ -160,15 +160,20 @@ if "import 'screens/song_cover_screen.dart';" not in ms:
     ms = ms.replace(anchor, anchor + "\nimport 'screens/song_cover_screen.dart';", 1)
 old = 'onSongCovers: _openAudioConversion,'
 new = """onSongCovers: () {
-          if (_selectedModelPath == null) {
+          final selectedModel = _selectedModelPath;
+          if (selectedModel == null || !selectedModel.toLowerCase().endsWith('.onnx')) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Select a compatible ONNX voice in Model Library first.')),
+              const SnackBar(content: Text('Select a compatible ONNX voice in Model Library first. PTH/PT files must be converted before use.')),
             );
             return;
           }
+          final selectedIndex = _selectedIndexPath;
+          final mobileIndex = selectedIndex != null && selectedIndex.toLowerCase().endsWith('.mobile.index')
+              ? selectedIndex
+              : null;
           Navigator.of(context).push(MaterialPageRoute(builder: (_) => SongCoverScreen(
-            modelPath: _selectedModelPath!,
-            indexPath: _selectedIndexPath,
+            modelPath: selectedModel,
+            indexPath: mobileIndex,
           )));
         },"""
 if old in ms: ms = ms.replace(old, new, 1)
