@@ -133,6 +133,7 @@ def test_offline_song_cover_native_pipeline_is_wired_into_android_build():
     assert "System.loadLibrary(\"sherpa-onnx-c-api\")" in kotlin
     assert "SourceSeparationBridge.separateWav" in integration
     assert "SourceSeparationBridge.mixWav" in integration
+    assert "withContext(Dispatchers.Main) { result.success(output.absolutePath) }" in integration
     assert "await _bridge.separateSongVocals" in screen
     assert "await _bridge.infer" in screen
     assert "await _bridge.mixSongCover" in screen
@@ -146,6 +147,9 @@ def test_offline_song_cover_native_pipeline_is_wired_into_android_build():
     assert "SherpaOnnxOfflineSourceSeparationProcess" in workflow
     assert "libonnxruntime.so" in workflow
     assert "onnxruntime-android:1.28.2" in workflow
+    assert "libred_source_separation.so" in workflow
+    assert "libsherpa-onnx-c-api.so" in workflow
+    assert "assets/flutter_assets/assets/models/separation/vocals.fp16.onnx" in workflow
     assert "readelf -d \"$SHERPA_SO\" | grep -q 'libonnxruntime.so'" in workflow
     assert "sherpa-onnx-spleeter-2stems-fp16.tar.bz2" in workflow
 
