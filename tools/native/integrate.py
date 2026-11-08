@@ -184,5 +184,5 @@ main.write_text(ms, encoding='utf-8')
 # Keep the app's Java API and Sherpa-ONNX native library on the same ONNX Runtime release.
 ort_gradle = BUILD / 'android/app/build.gradle'
 ort_text = ort_gradle.read_text(encoding='utf-8')
-ort_text = ort_text.replace('com.microsoft.onnxruntime:onnxruntime-android:1.20.0', 'com.microsoft.onnxruntime:onnxruntime-android:1.28.2')
+ort_text = ort_text.replace('com.microsoft.onnxruntime:onnxruntime-android:1.20.0', 'com.microsoft.onnxruntime:onnxruntime-android:1.28.0')
 ort_gradle.write_text(ort_text, encoding='utf-8')
