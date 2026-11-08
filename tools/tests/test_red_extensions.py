@@ -168,3 +168,11 @@ def test_song_cover_uses_android_media_codec_to_prepare_common_audio_formats():
     assert "writeDecodedAudioWav(File(outputPath), decoded)" in integration
     assert "Android decodes it locally to PCM WAV" in screen
     assert "type: FileType.audio" in screen
+
+
+def test_sherpa_runtime_diagnostic_matches_the_pinned_onnx_runtime_version():
+    source = WORKFLOW.read_text(encoding="utf-8")
+    assert "SHERPA_ONNX_ONNXRUNTIME_VERSION=1.28.0" in source
+    assert "onnxruntime-android:1.28.0" in source
+    assert "matching ONNX Runtime 1.28.0 library" in source
+    assert "matching ONNX Runtime 1.28.2 library" not in source
