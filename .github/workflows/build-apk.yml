@@ -199,9 +199,24 @@ jobs:
               print("Largest packaged files:")
               for size, name in files[:20]:
                   print(f"{size:>14,}  {name}")
-              for required in ("assets/flutter_assets/assets/models/hubert.onnx", "assets/flutter_assets/assets/models/rmvpe.onnx"):
+              required_assets = (
+                  "assets/flutter_assets/assets/models/hubert.onnx",
+                  "assets/flutter_assets/assets/models/rmvpe.onnx",
+                  "assets/flutter_assets/assets/models/separation/vocals.fp16.onnx",
+                  "assets/flutter_assets/assets/models/separation/accompaniment.fp16.onnx",
+              )
+              for required in required_assets:
                   if not any(i.filename.endswith(required) for i in z.infolist()):
                       raise SystemExit(f"Required offline inference asset missing: {required}")
+              required_native = (
+                  "lib/arm64-v8a/libred_source_separation.so",
+                  "lib/arm64-v8a/libsherpa-onnx-c-api.so",
+                  "lib/arm64-v8a/libonnxruntime.so",
+              )
+              for required in required_native:
+                  matches = [i.filename for i in z.infolist() if i.filename.endswith(required)]
+                  if len(matches) != 1:
+                      raise SystemExit(f"Expected exactly one packaged native library {required}; found {matches}")
           PY
 
       - name: Upload APK artifact
