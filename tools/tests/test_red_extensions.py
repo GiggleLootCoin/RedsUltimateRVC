@@ -152,7 +152,7 @@ def test_offline_song_cover_native_pipeline_is_wired_into_android_build():
     assert "SherpaOnnxCreateOfflineSourceSeparation" in workflow
     assert "SherpaOnnxOfflineSourceSeparationProcess" in workflow
     assert "libonnxruntime.so" in workflow
-    assert "onnxruntime-android:1.28.2" in workflow
+    assert "onnxruntime-android:1.28.0" in workflow
     assert "libred_source_separation.so" in workflow
     assert "libsherpa-onnx-c-api.so" in workflow
     assert "assets/flutter_assets/assets/models/separation/vocals.fp16.onnx" in workflow
