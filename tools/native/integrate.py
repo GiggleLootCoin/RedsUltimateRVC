@@ -107,6 +107,17 @@ if 'src/main/cpp/CMakeLists.txt' not in g: raise RuntimeError('Could not configu
 gradle.write_text(g, encoding='utf-8')
 
 # Install the Flutter song-cover screen and expose the native operations.
+# Include the separately bundled Spleeter ONNX models in Flutter's asset manifest.
+pubspec = BUILD / 'pubspec.yaml'
+pubspec_text = pubspec.read_text(encoding='utf-8')
+separation_asset = '    - assets/models/separation/\n'
+if separation_asset not in pubspec_text:
+    model_asset = '    - assets/models/\n'
+    if model_asset not in pubspec_text:
+        raise RuntimeError('Flutter model asset declaration missing')
+    pubspec_text = pubspec_text.replace(model_asset, model_asset + separation_asset, 1)
+    pubspec.write_text(pubspec_text, encoding='utf-8')
+
 screen_source = ROOT / 'tools/ui/song_cover_screen.dart'
 screen_target = BUILD / 'lib/screens/song_cover_screen.dart'
 screen_target.parent.mkdir(parents=True, exist_ok=True)
