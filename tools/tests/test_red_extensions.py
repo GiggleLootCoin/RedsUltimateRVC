@@ -139,6 +139,7 @@ def test_offline_song_cover_native_pipeline_is_wired_into_android_build():
     assert "await _bridge.separateSongVocals" in screen
     assert "await _bridge.infer" in screen
     assert "await _bridge.mixSongCover" in screen
+    assert ".clamp(0.0, 1.0).toDouble()" in screen
     assert "k2-fsa/sherpa-onnx" in workflow
     assert "ref: v1.13.8" in workflow
     assert 'yes | "$SDKMANAGER" --licenses >/dev/null || true' in workflow
