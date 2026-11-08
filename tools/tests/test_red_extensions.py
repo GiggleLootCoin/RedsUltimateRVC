@@ -123,6 +123,8 @@ def test_offline_song_cover_native_pipeline_is_wired_into_android_build():
     workflow = WORKFLOW.read_text(encoding="utf-8")
     assert "separateSongVocals" in integration
     assert "mixSongCover" in integration
+    assert "endsWith('.onnx')" in integration
+    assert "endsWith('.mobile.index')" in integration
     assert "SherpaOnnxCreateOfflineSourceSeparation" in native
     assert "SherpaOnnxOfflineSourceSeparationProcess" in native
     assert "SherpaOnnxWriteWaveMultiChannel" in native
