@@ -54,16 +54,20 @@ Java_com_ultimatervc_mobile_SourceSeparationBridge_separateWav(
   }
 
   const auto *wave = SherpaOnnxReadWaveMultiChannel(input.c_str());
-  if (!wave) {
+  if (!wave || !wave->samples || wave->num_channels < 1 ||
+      wave->num_channels > 2 || wave->num_samples <= 0 ||
+      wave->sample_rate <= 0) {
+    if (wave) SherpaOnnxFreeMultiChannelWave(wave);
     SherpaOnnxDestroyOfflineSourceSeparation(engine);
-    ThrowJava(env, "Could not read the input WAV. Use a 16-bit PCM WAV file.");
+    ThrowJava(env, "Could not read a valid mono or stereo 16-bit PCM WAV.");
     return nullptr;
   }
 
   const auto *output = SherpaOnnxOfflineSourceSeparationProcess(
       engine, wave->samples, wave->num_channels, wave->num_samples,
       wave->sample_rate);
-  if (!output || output->num_stems < 2 || output->sample_rate <= 0) {
+  if (!output || !output->stems || output->num_stems < 2 ||
+      output->sample_rate <= 0) {
     if (output) SherpaOnnxDestroySourceSeparationOutput(output);
     SherpaOnnxFreeMultiChannelWave(wave);
     SherpaOnnxDestroyOfflineSourceSeparation(engine);
@@ -73,12 +77,31 @@ Java_com_ultimatervc_mobile_SourceSeparationBridge_separateWav(
 
   const auto &vocal_stem = output->stems[0];
   const auto &music_stem = output->stems[1];
+  if (!vocal_stem.samples || !music_stem.samples ||
+      vocal_stem.n <= 0 || music_stem.n <= 0 ||
+      vocal_stem.num_channels < 1 || vocal_stem.num_channels > 2 ||
+      music_stem.num_channels < 1 || music_stem.num_channels > 2) {
+    SherpaOnnxDestroySourceSeparationOutput(output);
+    SherpaOnnxFreeMultiChannelWave(wave);
+    SherpaOnnxDestroyOfflineSourceSeparation(engine);
+    ThrowJava(env, "Vocal separation returned invalid audio stems.");
+    return nullptr;
+  }
+
+  std::vector<const float *> vocal_channels(vocal_stem.num_channels);
+  std::vector<const float *> music_channels(music_stem.num_channels);
+  for (int channel = 0; channel < vocal_stem.num_channels; ++channel) {
+    vocal_channels[channel] = vocal_stem.samples[channel];
+  }
+  for (int channel = 0; channel < music_stem.num_channels; ++channel) {
+    music_channels[channel] = music_stem.samples[channel];
+  }
   const int vocal_ok = SherpaOnnxWriteWaveMultiChannel(
-      const_cast<const float *const *>(vocal_stem.samples), vocal_stem.n,
-      output->sample_rate, vocal_stem.num_channels, vocals.c_str());
+      vocal_channels.data(), vocal_stem.n, output->sample_rate,
+      vocal_stem.num_channels, vocals.c_str());
   const int music_ok = SherpaOnnxWriteWaveMultiChannel(
-      const_cast<const float *const *>(music_stem.samples), music_stem.n,
-      output->sample_rate, music_stem.num_channels, accompaniment.c_str());
+      music_channels.data(), music_stem.n, output->sample_rate,
+      music_stem.num_channels, accompaniment.c_str());
 
   SherpaOnnxDestroySourceSeparationOutput(output);
   SherpaOnnxFreeMultiChannelWave(wave);
