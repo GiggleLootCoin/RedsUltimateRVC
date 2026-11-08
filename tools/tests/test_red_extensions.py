@@ -138,6 +138,7 @@ def test_offline_song_cover_native_pipeline_is_wired_into_android_build():
     assert "await _bridge.mixSongCover" in screen
     assert "k2-fsa/sherpa-onnx" in workflow
     assert "ref: v1.13.8" in workflow
+    assert 'yes | "$SDKMANAGER" --licenses >/dev/null || true' in workflow
     assert "SHERPA_ONNX_ENABLE_C_API=ON" in workflow
     assert "BUILD_SHARED_LIBS=OFF" in workflow
     assert "build-android-arm64-v8a-static/install/lib/libsherpa-onnx-c-api.so" in workflow
