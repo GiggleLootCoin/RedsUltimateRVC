@@ -127,14 +127,17 @@ def test_offline_song_cover_native_pipeline_is_wired_into_android_build():
     assert "endsWith('.mobile.index')" in integration
     assert "SherpaOnnxCreateOfflineSourceSeparation" in native
     assert "SherpaOnnxOfflineSourceSeparationProcess" in native
-    assert "SherpaOnnxWriteWaveMultiChannel" in native
-    assert "!wave->samples" in native
-    assert "!output->stems" in native
-    assert "vocal_channels.data()" in native
-    assert "output_rate = music->sample_rate" in native
-    assert "static_cast<double>(frame) * wave->sample_rate / output_rate" in native
+    assert "Pcm16WaveReader" in native
+    assert "Pcm16WaveWriter" in native
+    assert "center_frames" in native
+    assert "context_frames" in native
+    assert "kBlockFrames = 8192" in native
+    assert "ReadFrames(start, count)" in native
+    assert "SherpaOnnxOfflineSourceSeparationProcess" in native
+    assert "SherpaOnnxDestroySourceSeparationOutput" in native
+    assert "SherpaOnnxReadWaveMultiChannel" not in native
+    assert "std::vector<std::vector<float>> mixed(output_channels, std::vector<float>(frames" not in native
     assert "The converted vocals and accompaniment have incompatible audio formats." not in native
-    assert "output_channels = std::max(vocals->num_channels, music->num_channels)" in native
     assert "System.loadLibrary(\"sherpa-onnx-c-api\")" in kotlin
     assert "SourceSeparationBridge.separateWav" in integration
     assert "SourceSeparationBridge.mixWav" in integration
