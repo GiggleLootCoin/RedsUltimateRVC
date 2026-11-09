@@ -77,7 +77,7 @@ class Pcm16WaveReader {
         if (size & 1) file_.seekg(1, std::ios::cur);
         have_format = true;
       } else if (!std::memcmp(chunk, "data", 4)) {
-        data_offset_ = static_cast<uint64_t>(file_.tellg());
+        data_offset_ = static_cast<uint64_t>(static_cast<std::streamoff>(file_.tellg()));
         data_bytes_ = size;
         file_.seekg(size + (size & 1), std::ios::cur);
         have_data = true;
