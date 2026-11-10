@@ -19,9 +19,77 @@ decode_method = '''    fun decodeAudioToWav(inputPath: String, outputPath: Strin
         require(source.isFile) { "The selected audio file does not exist." }
         val durationUs = readAudioDurationUs(source)
         require(durationUs > 0L) { "Could not determine the selected audio duration." }
-        val decoded = decodeAudioSegment(source, 0L, durationUs)
-        require(decoded.channelCount in 1..2) { "Only mono or stereo audio can be separated." }
-        writeDecodedAudioWav(File(outputPath), decoded)
+
+        val segments = buildAudioSegments(durationUs)
+        val output = RandomAccessFile(File(outputPath), "rw")
+        var totalDataBytes = 0L
+        var outputSampleRate = 0
+        var outputChannels = 0
+        try {
+            output.setLength(0L)
+            output.write(ByteArray(44))
+            segments.forEach { segment ->
+                val decoded = decodeAudioSegment(source, segment.decodeStartUs, segment.decodeEndUs)
+                require(decoded.channelCount in 1..2) { "Only mono or stereo audio can be separated." }
+                require(decoded.sampleRate > 0) { "The audio decoder returned an invalid sample rate." }
+                if (outputSampleRate == 0) {
+                    outputSampleRate = decoded.sampleRate
+                    outputChannels = decoded.channelCount
+                }
+                require(decoded.sampleRate == outputSampleRate && decoded.channelCount == outputChannels) {
+                    "The audio format changed while decoding the file."
+                }
+                require(decoded.samples.size % outputChannels == 0) {
+                    "The audio decoder returned an incomplete PCM frame."
+                }
+
+                val frames = decoded.samples.size / outputChannels
+                val leadingFrames = (((segment.centerStartUs - segment.decodeStartUs).coerceAtLeast(0L) *
+                    outputSampleRate.toLong()) / 1_000_000L).toInt()
+                val centerFrames = (((segment.centerEndUs - segment.centerStartUs).coerceAtLeast(0L) *
+                    outputSampleRate.toLong()) / 1_000_000L).toInt()
+                val startFrame = leadingFrames.coerceIn(0, frames)
+                val endFrame = (startFrame + centerFrames).coerceIn(startFrame, frames)
+                val sampleStart = startFrame * outputChannels
+                val sampleEnd = endFrame * outputChannels
+                val sampleCount = sampleEnd - sampleStart
+                if (sampleCount > 0) {
+                    val pcm = ByteBuffer.allocate(sampleCount * 2).order(ByteOrder.LITTLE_ENDIAN)
+                    for (index in sampleStart until sampleEnd) {
+                        val clipped = decoded.samples[index].coerceIn(-1f, 1f)
+                        pcm.putShort((clipped * Short.MAX_VALUE).roundToInt().toShort())
+                    }
+                    output.write(pcm.array())
+                    totalDataBytes += sampleCount.toLong() * 2L
+                    require(totalDataBytes <= Int.MAX_VALUE.toLong() - 36L) {
+                        "The decoded WAV would exceed the supported 2 GB file size."
+                    }
+                }
+            }
+
+            require(totalDataBytes > 0L && outputSampleRate > 0 && outputChannels in 1..2) {
+                "The audio decoder produced no usable PCM samples."
+            }
+            val header = ByteBuffer.allocate(44).order(ByteOrder.LITTLE_ENDIAN)
+            header.put("RIFF".toByteArray(Charsets.US_ASCII))
+            header.putInt((36L + totalDataBytes).toInt())
+            header.put("WAVE".toByteArray(Charsets.US_ASCII))
+            header.put("fmt ".toByteArray(Charsets.US_ASCII))
+            header.putInt(16)
+            header.putShort(1)
+            header.putShort(outputChannels.toShort())
+            header.putInt(outputSampleRate)
+            header.putInt(outputSampleRate * outputChannels * 2)
+            header.putShort((outputChannels * 2).toShort())
+            header.putShort(16)
+            header.put("data".toByteArray(Charsets.US_ASCII))
+            header.putInt(totalDataBytes.toInt())
+            output.seek(0L)
+            output.write(header.array())
+            output.fd.sync()
+        } finally {
+            output.close()
+        }
     }
 
 '''
