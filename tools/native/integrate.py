@@ -234,21 +234,21 @@ if 'Future<void> validateVoiceModel(String modelPath)' not in bs:
 # Validate both newly imported and previously stored ONNX files before selection.
 picker = BUILD / 'lib/screens/model_picker_screen.dart'
 ps = picker.read_text(encoding='utf-8')
-import_anchor = '      if (_runtime(imported.path)) {' + chr(10) + '        _selectedModelPath = imported.path;'
 if 'await _bridge.validateVoiceModel(imported.path);' not in ps:
-    if import_anchor not in ps: raise RuntimeError('Model import selection anchor missing')
-    ps = ps.replace(import_anchor, '      if (_runtime(imported.path)) {\\n        await _bridge.validateVoiceModel(imported.path);\\n        _selectedModelPath = imported.path;', 1)
-use_anchor = '    _selectedModelPath = path;' + chr(10) + '    _selectedModelDisplayName = File(path).uri.pathSegments.last;'
+    import_selection = '        _selectedModelPath = imported.path;'
+    if import_selection not in ps: raise RuntimeError('Model import selection anchor missing')
+    ps = ps.replace(import_selection, '        await _bridge.validateVoiceModel(imported.path);\\n' + import_selection, 1)
 if 'await _bridge.validateVoiceModel(path);' not in ps:
-    if use_anchor not in ps: raise RuntimeError('Model library use anchor missing')
-    ps = ps.replace(use_anchor, '''    try {
+    use_selection = '    _selectedModelPath = path;'
+    if use_selection not in ps: raise RuntimeError('Model library use anchor missing')
+    guard = '''    try {
       await _bridge.validateVoiceModel(path);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('MODEL NOT COMPATIBLE: $e')));
       return;
     }
-    _selectedModelPath = path;
-    _selectedModelDisplayName = File(path).uri.pathSegments.last;''', 1)
+'''
+    ps = ps.replace(use_selection, guard + use_selection, 1)
 picker.write_text(ps, encoding='utf-8')
 
 plugin.write_text(s, encoding='utf-8')
