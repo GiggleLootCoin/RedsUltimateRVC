@@ -237,7 +237,7 @@ ps = picker.read_text(encoding='utf-8')
 if 'await _bridge.validateVoiceModel(imported.path);' not in ps:
     import_selection = '        _selectedModelPath = imported.path;'
     if import_selection not in ps: raise RuntimeError('Model import selection anchor missing')
-    ps = ps.replace(import_selection, '        await _bridge.validateVoiceModel(imported.path);\\n' + import_selection, 1)
+    ps = ps.replace(import_selection, '        await _bridge.validateVoiceModel(imported.path);\n' + import_selection, 1)
 if 'await _bridge.validateVoiceModel(path);' not in ps:
     use_selection = '    _selectedModelPath = path;'
     if use_selection not in ps: raise RuntimeError('Model library use anchor missing')
