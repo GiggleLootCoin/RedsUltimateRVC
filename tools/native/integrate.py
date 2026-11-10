@@ -388,9 +388,9 @@ if root_gradle.exists():
     root_gradle.write_text(root_text, encoding='utf-8')
 
 
-// Optional native GGUF runtime integration. CI supplies the prebuilt Android ARM64
-// JNI library through RVC_GGML_ANDROID_SO; source-only checks remain possible
-// without downloading or compiling model weights.
+# Optional native GGUF runtime integration. CI supplies the prebuilt Android ARM64
+# JNI library through RVC_GGML_ANDROID_SO; source-only checks remain possible
+# without downloading or compiling model weights.
 ggml_bridge = ROOT / 'tools/native/RvcGgmlNative.kt'
 (PKG / 'RvcGgmlNative.kt').write_text(ggml_bridge.read_text(encoding='utf-8'), encoding='utf-8')
 
@@ -414,7 +414,7 @@ if ggml_dispatch not in plugin_text:
     anchor = '            "convertIndex" -> convertIndex(call, result)'
     if anchor not in plugin_text:
         raise RuntimeError('RVCPlugin convertIndex dispatch anchor missing for GGUF bridge')
-    plugin_text = plugin_text.replace(anchor, anchor + '\\n' + ggml_dispatch, 1)
+    plugin_text = plugin_text.replace(anchor, anchor + '\n' + ggml_dispatch, 1)
 
 ggml_method = '''
     private fun convertGguf(call: MethodCall, result: Result) {
