@@ -386,3 +386,125 @@ if root_gradle.exists():
         'org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.22',
     )
     root_gradle.write_text(root_text, encoding='utf-8')
+
+
+// Optional native GGUF runtime integration. CI supplies the prebuilt Android ARM64
+// JNI library through RVC_GGML_ANDROID_SO; source-only checks remain possible
+// without downloading or compiling model weights.
+ggml_bridge = ROOT / 'tools/native/RvcGgmlNative.kt'
+(PKG / 'RvcGgmlNative.kt').write_text(ggml_bridge.read_text(encoding='utf-8'), encoding='utf-8')
+
+import os
+import shutil
+
+ggml_so = os.environ.get('RVC_GGML_ANDROID_SO', '')
+if ggml_so:
+    source_so = Path(ggml_so)
+    if not source_so.is_file() or source_so.stat().st_size == 0:
+        raise RuntimeError(f'RVC_GGML_ANDROID_SO is missing or empty: {source_so}')
+    jni_dir = BUILD / 'android/app/src/main/jniLibs/arm64-v8a'
+    jni_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source_so, jni_dir / 'libred_rvc_ggml.so')
+
+# Expose the CPU-only GGUF conversion method through the existing Flutter channel.
+plugin = PKG / 'RVCPlugin.kt'
+plugin_text = plugin.read_text(encoding='utf-8')
+ggml_dispatch = '            "convertGguf" -> convertGguf(call, result)'
+if ggml_dispatch not in plugin_text:
+    anchor = '            "convertIndex" -> convertIndex(call, result)'
+    if anchor not in plugin_text:
+        raise RuntimeError('RVCPlugin convertIndex dispatch anchor missing for GGUF bridge')
+    plugin_text = plugin_text.replace(anchor, anchor + '\\n' + ggml_dispatch, 1)
+
+ggml_method = '''
+    private fun convertGguf(call: MethodCall, result: Result) {
+        val hubertPath = call.argument<String>("hubertPath")
+        val rmvpePath = call.argument<String>("rmvpePath")
+        val voicePath = call.argument<String>("voicePath")
+        val indexPath = call.argument<String>("indexPath") ?: ""
+        val inputPath = call.argument<String>("inputPath")
+        val outputPath = call.argument<String>("outputPath")
+        if (listOf(hubertPath, rmvpePath, voicePath, inputPath, outputPath).any { it.isNullOrBlank() }) {
+            result.error("INVALID_ARGUMENTS", "HuBERT, RMVPE, voice GGUF and input/output WAV paths are required.", null)
+            return
+        }
+        val pitch = call.argument<Int>("pitch") ?: 0
+        val sid = call.argument<Int>("speakerId") ?: 0
+        val indexRate = (call.argument<Double>("indexRate") ?: 0.0).toFloat()
+        val protect = (call.argument<Double>("protect") ?: 0.33).toFloat()
+        val rmsMix = (call.argument<Double>("rmsMixRate") ?: 0.25).toFloat()
+        scope.launch {
+            try {
+                val output = File(outputPath!!)
+                output.parentFile?.mkdirs()
+                val error = RvcGgmlNative.convert(
+                    hubertPath!!, rmvpePath!!, voicePath!!, indexPath,
+                    inputPath!!, output.absolutePath, pitch, sid, indexRate, protect, rmsMix
+                )
+                require(error.isEmpty()) { error }
+                require(output.isFile && output.length() > 44L) { "Native RVC returned no usable WAV output." }
+                withContext(Dispatchers.Main) { result.success(output.absolutePath) }
+            } catch (e: UnsatisfiedLinkError) {
+                withContext(Dispatchers.Main) {
+                    result.error("GGML_LIBRARY_MISSING", "The native RVC library is not packaged in this APK.", null)
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    result.error("GGML_CONVERSION_FAILED", e.message ?: "Native GGUF conversion failed.", null)
+                }
+            }
+        }
+    }
+
+'''
+if 'private fun convertGguf(call: MethodCall, result: Result)' not in plugin_text:
+    anchor = '    private fun convertIndex(call: MethodCall, result: Result) {'
+    if anchor not in plugin_text:
+        raise RuntimeError('RVCPlugin convertIndex method anchor missing for GGUF bridge')
+    plugin_text = plugin_text.replace(anchor, ggml_method + anchor, 1)
+plugin.write_text(plugin_text, encoding='utf-8')
+
+bridge = BUILD / 'lib/services/rvc_bridge.dart'
+bridge_text = bridge.read_text(encoding='utf-8')
+if 'Future<String> convertGguf({' not in bridge_text:
+    anchor = '  Future<void> startRecording() async {'
+    dart_method = '''
+  /// Run the experimental, fully local CPU-only RVC-GGUF inference backend.
+  /// The three GGUF model files must already have been exported from source checkpoints.
+  Future<String> convertGguf({
+    required String hubertPath,
+    required String rmvpePath,
+    required String voicePath,
+    String? indexPath,
+    required String inputPath,
+    required String outputPath,
+    int pitch = 0,
+    int speakerId = 0,
+    double indexRate = 0.0,
+    double protect = 0.33,
+    double rmsMixRate = 0.25,
+  }) async {
+    final result = await _channel.invokeMethod<String>('convertGguf', {
+      'hubertPath': hubertPath,
+      'rmvpePath': rmvpePath,
+      'voicePath': voicePath,
+      'indexPath': indexPath ?? '',
+      'inputPath': inputPath,
+      'outputPath': outputPath,
+      'pitch': pitch,
+      'speakerId': speakerId,
+      'indexRate': indexRate,
+      'protect': protect,
+      'rmsMixRate': rmsMixRate,
+    });
+    if (result == null || result.isEmpty) {
+      throw StateError('The native RVC engine did not return an output file.');
+    }
+    return result;
+  }
+
+'''
+    if anchor not in bridge_text:
+        raise RuntimeError('RVCBridge insertion anchor missing for GGUF method')
+    bridge_text = bridge_text.replace(anchor, dart_method + anchor, 1)
+bridge.write_text(bridge_text, encoding='utf-8')
