@@ -193,7 +193,7 @@ validation = '''
                         val actualInputs = session.inputNames.toSet()
                         val requiredInputs = setOf("phone", "phone_lengths", "pitch", "pitchf", "ds", "rnd")
                         val missing = requiredInputs - actualInputs
-                        val phoneInfo = session.inputInfo["phone"]?.infoValue as? ai.onnxruntime.TensorInfo
+                        val phoneInfo = session.inputInfo["phone"]?.info as? ai.onnxruntime.TensorInfo
                         val phoneShape = phoneInfo?.shape
                         val phoneDimensionOk = phoneShape != null && phoneShape.size == 3 &&
                             (phoneShape[2] == 768L || phoneShape[2] == -1L)
@@ -366,3 +366,23 @@ ort_gradle = BUILD / 'android/app/build.gradle'
 ort_text = ort_gradle.read_text(encoding='utf-8')
 ort_text = ort_text.replace('com.microsoft.onnxruntime:onnxruntime-android:1.20.0', 'com.microsoft.onnxruntime:onnxruntime-android:1.28.0')
 ort_gradle.write_text(ort_text, encoding='utf-8')
+
+# The upstream mobile template pins an old Kotlin compiler in some build paths.
+# AndroidX artifacts bundled with the current engine use Kotlin 1.8 metadata.
+settings_gradle = BUILD / 'android/settings.gradle'
+if settings_gradle.exists():
+    settings_text = settings_gradle.read_text(encoding='utf-8')
+    settings_text = settings_text.replace(
+        'id "org.jetbrains.kotlin.android" version "1.8.10" apply false',
+        'id "org.jetbrains.kotlin.android" version "1.8.22" apply false',
+    )
+    settings_gradle.write_text(settings_text, encoding='utf-8')
+
+root_gradle = BUILD / 'android/build.gradle'
+if root_gradle.exists():
+    root_text = root_gradle.read_text(encoding='utf-8')
+    root_text = root_text.replace(
+        'org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.10',
+        'org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.22',
+    )
+    root_gradle.write_text(root_text, encoding='utf-8')
