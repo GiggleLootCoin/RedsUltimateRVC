@@ -50,13 +50,13 @@ jobs:
           "$SDKMANAGER" --install "ndk;27.2.12479018"
           test -f "$ANDROID_HOME/ndk/27.2.12479018/build/cmake/android.toolchain.cmake"
 
-      - name: Cross-compile RVC-GGML core for Android ARM64 (CPU only)
+      - name: Cross-compile native RVC JNI runtime for Android ARM64 (CPU only)
         run: |
           set -euo pipefail
           NDK="$ANDROID_HOME/ndk/27.2.12479018"
-          cmake -S rvc-ggml/rvc-ggml -B rvc-ggml-android-build -DCMAKE_TOOLCHAIN_FILE="$NDK/build/cmake/android.toolchain.cmake" -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 -DCMAKE_BUILD_TYPE=Release -DRVC_VULKAN=OFF -DRVC_CUDA=OFF -DGGML_VULKAN=OFF -DGGML_CUDA=OFF -DGGML_OPENMP=OFF -DGGML_NATIVE=OFF
-          cmake --build rvc-ggml-android-build --target rvc_core --parallel 2
-          find rvc-ggml-android-build -name 'librvc_core.a' -size +0c -print -quit | grep -q .
+          cmake -S tools/native/rvc_ggml_android -B rvc-ggml-android-build -DRVC_GGML_SOURCE_DIR="$GITHUB_WORKSPACE/rvc-ggml/rvc-ggml" -DCMAKE_TOOLCHAIN_FILE="$NDK/build/cmake/android.toolchain.cmake" -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 -DCMAKE_BUILD_TYPE=Release
+          cmake --build rvc-ggml-android-build --target red_rvc_ggml --parallel 2
+          find rvc-ggml-android-build -name 'libred_rvc_ggml.so' -size +0c -print -quit | grep -q .
 
   build:
     if: github.ref != 'refs/heads/feature/native-ncnn-rvc-backend' && !(github.event_name == 'pull_request' && github.head_ref == 'feature/native-ncnn-rvc-backend')
