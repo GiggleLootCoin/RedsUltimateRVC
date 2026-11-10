@@ -9,6 +9,7 @@ A branded ARM64 Android RVC voice-conversion app based on the open-source Ultima
 - Android's unfiltered file picker for supported model and audio imports.
 - Model library storage for ONNX models and source files.
 - Compatible `.mobile.index` import and format validation.
+- Offline Spleeter vocal/accompaniment separation for 16-bit PCM WAV input, followed by local RVC ONNX vocal conversion and mix-back into a song-cover WAV.
 - Voice Changer and experimental realtime modules.
 - Voice Dataset Lab for recording, importing, organising and exporting samples.
 - English interface, Red's original logo artwork and creator-channel link.
@@ -28,14 +29,14 @@ These are deliberate capability disclosures, not hidden menu items:
 | Standard FAISS `.index` conversion | Not included on Android |
 | `.mobile.index` | Supported if it matches the mobile feature-table format |
 | Voice model training | Not included; Dataset Lab only prepares and exports samples |
-| Vocal separation / full song-cover pipeline | Not included; provide an already-isolated vocal track |
+| Vocal separation / song-cover pipeline | Integrated on the development branch with bundled Spleeter models; 16-bit PCM WAV input only. Galaxy A12 runtime QA is still required |
 | Realtime RVC | Experimental; Android routing and performance may stutter |
 
 Changing a file extension does not convert a model or index. The model-conversion screen and Index Tools screen explain these limits rather than pretending a conversion happened.
 
 ## Build and automated checks
 
-GitHub Actions builds the ARM64 APK and runs:
+GitHub Actions builds the ARM64 APK, compiles the Sherpa-ONNX C API for offline Spleeter separation, bundles the two separation ONNX models, and runs:
 
 1. Flutter static analysis.
 2. Flutter widget/unit tests.
@@ -46,7 +47,7 @@ GitHub Actions builds the ARM64 APK and runs:
 
 Workflow: [Build Red's Ultimate RVC](https://github.com/GiggleLootCoin/RedsUltimateRVC/actions/workflows/build-apk.yml)
 
-A passing CI build proves compilation and the listed automated checks; it does not replace installation and runtime testing on a physical Galaxy A12.
+A passing CI build proves compilation and the listed automated checks; it does not replace installation and runtime testing on a physical Galaxy A12. Source separation is computationally heavy: do not treat the Galaxy A12 as certified until a full-length song has been processed without an out-of-memory failure, thermal shutdown or audio corruption.
 
 ## Persistent Android signing (important for updates)
 

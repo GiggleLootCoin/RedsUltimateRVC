@@ -2,11 +2,17 @@ name: Build Red's Ultimate RVC APK
 
 on:
   push:
+    branches: [main, feature/rvc-dataset-export-zip]
+  pull_request:
     branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: red-ultimate-rvc-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -27,6 +33,13 @@ jobs:
           ref: v2.0.0
           path: buildsrc
 
+      - name: Checkout Sherpa-ONNX source-separation engine
+        uses: actions/checkout@v5
+        with:
+          repository: k2-fsa/sherpa-onnx
+          ref: v1.13.8
+          path: sherpa-onnx
+
       - name: Recover bundled base models from the verified upstream release
         run: |
           mkdir -p buildsrc/assets/models
@@ -44,11 +57,65 @@ jobs:
       - name: Apply Red's branding
         run: python3 tools/brand.py
 
+      - name: Integrate offline song-cover native bridge
+        run: python3 tools/native/integrate.py
+
       - name: Set up Java 17 for the upstream Android Gradle build
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
+
+      - name: Install the exact Android NDK and CMake required by upstream Gradle
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --install "cmake;3.22.1" "ndk;23.1.7779620"
+          test -x "$ANDROID_HOME/cmake/3.22.1/bin/cmake"
+          test -x "$ANDROID_HOME/ndk/23.1.7779620/ndk-build"
+
+      - name: Build offline Spleeter engine for Android ARM64
+        run: |
+          set -eo pipefail
+          export ANDROID_NDK="$ANDROID_HOME/ndk/23.1.7779620"
+          test -x "$ANDROID_NDK/ndk-build"
+          cd sherpa-onnx
+          SHERPA_ONNX_ONNXRUNTIME_VERSION=1.28.0 \
+          BUILD_SHARED_LIBS=ON \
+          SHERPA_ONNX_ENABLE_C_API=ON \
+          SHERPA_ONNX_ENABLE_JNI=OFF \
+          SHERPA_ONNX_ENABLE_TTS=OFF \
+          SHERPA_ONNX_ENABLE_SPEAKER_DIARIZATION=OFF \
+          ./build-android-arm64-v8a.sh
+          cd ..
+          mkdir -p buildsrc/android/app/src/main/jniLibs/arm64-v8a
+          mkdir -p buildsrc/android/app/src/main/cpp/include/sherpa-onnx/c-api
+          cp sherpa-onnx/build-android-arm64-v8a/install/lib/libsherpa-onnx-c-api.so buildsrc/android/app/src/main/jniLibs/arm64-v8a/
+          cp "$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so" buildsrc/android/app/src/main/jniLibs/arm64-v8a/
+          SHERPA_SO="buildsrc/android/app/src/main/jniLibs/arm64-v8a/libsherpa-onnx-c-api.so"
+          grep -q 'onnxruntime-android:1.28.0' buildsrc/android/app/build.gradle
+          LLVM_NM="$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-nm"
+          test -x "$LLVM_NM"
+          "$LLVM_NM" -D --defined-only "$SHERPA_SO" | grep -q 'SherpaOnnxCreateOfflineSourceSeparation'
+          "$LLVM_NM" -D --defined-only "$SHERPA_SO" | grep -q 'SherpaOnnxOfflineSourceSeparationProcess'
+          readelf -d "$SHERPA_SO" | grep -q 'libonnxruntime.so' || {
+            echo "Sherpa must link against the app's matching ONNX Runtime 1.28.0 library."
+            exit 1
+          }
+          cp sherpa-onnx/sherpa-onnx/c-api/c-api.h buildsrc/android/app/src/main/cpp/include/sherpa-onnx/c-api/c-api.h
+          curl -L --fail --retry 3 -o spleeter-models.tar.bz2 https://github.com/k2-fsa/sherpa-onnx/releases/download/source-separation-models/sherpa-onnx-spleeter-2stems-fp16.tar.bz2
+          mkdir -p spleeter-models
+          tar -xjf spleeter-models.tar.bz2 -C spleeter-models
+          VOCALS="$(find spleeter-models -type f -name vocals.fp16.onnx -print -quit)"
+          ACCOMPANIMENT="$(find spleeter-models -type f -name accompaniment.fp16.onnx -print -quit)"
+          test -s "$VOCALS"
+          test -s "$ACCOMPANIMENT"
+          mkdir -p buildsrc/assets/models/separation
+          cp "$VOCALS" buildsrc/assets/models/separation/vocals.fp16.onnx
+          cp "$ACCOMPANIMENT" buildsrc/assets/models/separation/accompaniment.fp16.onnx
+          ls -lh buildsrc/assets/models/separation/
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -100,7 +167,7 @@ jobs:
 
       - name: Validate Red's build finalizer and run project regression tests
         run: |
-          python3 -m py_compile tools/brand.py
+          python3 -m py_compile tools/brand.py tools/native/integrate.py
           python3 -m pip install --quiet pytest
           python3 -m pytest -q tools/tests
 
@@ -133,9 +200,24 @@ jobs:
               print("Largest packaged files:")
               for size, name in files[:20]:
                   print(f"{size:>14,}  {name}")
-              for required in ("assets/flutter_assets/assets/models/hubert.onnx", "assets/flutter_assets/assets/models/rmvpe.onnx"):
+              required_assets = (
+                  "assets/flutter_assets/assets/models/hubert.onnx",
+                  "assets/flutter_assets/assets/models/rmvpe.onnx",
+                  "assets/flutter_assets/assets/models/separation/vocals.fp16.onnx",
+                  "assets/flutter_assets/assets/models/separation/accompaniment.fp16.onnx",
+              )
+              for required in required_assets:
                   if not any(i.filename.endswith(required) for i in z.infolist()):
                       raise SystemExit(f"Required offline inference asset missing: {required}")
+              required_native = (
+                  "lib/arm64-v8a/libred_source_separation.so",
+                  "lib/arm64-v8a/libsherpa-onnx-c-api.so",
+                  "lib/arm64-v8a/libonnxruntime.so",
+              )
+              for required in required_native:
+                  matches = [i.filename for i in z.infolist() if i.filename.endswith(required)]
+                  if len(matches) != 1:
+                      raise SystemExit(f"Expected exactly one packaged native library {required}; found {matches}")
           PY
 
       - name: Upload APK artifact
@@ -145,6 +227,7 @@ jobs:
           path: release/*
 
       - name: Publish downloadable GitHub release
+        if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v0.2.0-final-${{ github.run_number }}
