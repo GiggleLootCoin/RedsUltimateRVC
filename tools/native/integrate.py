@@ -187,17 +187,31 @@ validation = '''
                 require(model.extension.equals("onnx", ignoreCase = true)) {
                     "This Android engine runs ONNX models. PTH/PT checkpoints must be exported first."
                 }
-                val actualInputs = OrtSession.SessionOptions().use { options ->
+                val validation = OrtSession.SessionOptions().use { options ->
                     val session = OrtEnvironment.getEnvironment().createSession(model.absolutePath, options)
-                    try { session.inputNames.toSet() } finally { session.close() }
+                    try {
+                        val actualInputs = session.inputNames.toSet()
+                        val requiredInputs = setOf("phone", "phone_lengths", "pitch", "pitchf", "ds", "rnd")
+                        val missing = requiredInputs - actualInputs
+                        val phoneInfo = session.inputInfo["phone"]?.infoValue as? ai.onnxruntime.TensorInfo
+                        val phoneShape = phoneInfo?.shape
+                        val phoneDimensionOk = phoneShape != null && phoneShape.size == 3 &&
+                            (phoneShape[2] == 768L || phoneShape[2] == -1L)
+                        val compatible = missing.isEmpty() && phoneDimensionOk
+                        val message = when {
+                            missing.isNotEmpty() ->
+                                "This ONNX file is missing RVC v2 inputs: ${missing.sorted().joinToString()}. Found: ${actualInputs.sorted().joinToString()}."
+                            !phoneDimensionOk ->
+                                "This model's phone input is not RVC v2 / 768-dimensional. The app requires [1, frames, 768]; found: ${phoneShape?.contentToString() ?: "unknown"}."
+                            else -> "Compatible RVC v2 ONNX model (768-dimensional phone input)."
+                        }
+                        Triple(compatible, message, actualInputs.sorted())
+                    } finally {
+                        session.close()
+                    }
                 }
-                val requiredInputs = setOf("phone", "phone_lengths", "pitch", "pitchf", "ds", "rnd")
-                val missing = requiredInputs - actualInputs
-                val compatible = missing.isEmpty()
-                val message = if (compatible) "Compatible RVC v2 ONNX model." else
-                    "This ONNX file is not in the RVC v2 export format. Missing inputs: ${missing.sorted().joinToString()}. Found: ${actualInputs.sorted().joinToString()}."
                 withContext(Dispatchers.Main) {
-                    result.success(mapOf("compatible" to compatible, "message" to message, "inputs" to actualInputs.sorted()))
+                    result.success(mapOf("compatible" to validation.first, "message" to validation.second, "inputs" to validation.third))
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
