@@ -29,8 +29,8 @@ jobs:
           python3 -m py_compile tools/brand.py tools/native/integrate.py
           python3 -m pip install --quiet pytest
           python3 -m pytest -q tools/tests
-          grep -q 'ONNX-free Android inference backend is not integrated yet' tools/ui/model_converter_screen.dart
-          grep -q 'RVC flow/decoder' docs/NATIVE_RVC_BACKEND_MIGRATION.md
+          grep -qi 'ONNX-free Android inference backend is not integrated yet' tools/ui/model_converter_screen.dart
+          grep -q 'RVC encoder/flow and NSF decoder' docs/NATIVE_RVC_BACKEND_MIGRATION.md
           echo 'Native branch is experimental: no APK is published until the ONNX-free .pth engine is implemented and tested.'
 
   build:
