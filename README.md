@@ -34,6 +34,12 @@ These are deliberate capability disclosures, not hidden menu items:
 
 Changing a file extension does not convert a model or index. The model-conversion screen and Index Tools screen explain these limits rather than pretending a conversion happened.
 
+## Native RVC engine prototype
+
+The native migration branch now includes a JNI bridge to the MIT-licensed RVC-GGML C++ inference core. GitHub Actions has successfully cross-compiled both the complete inference core and the JNI shared library for Android ARM64 using the NDK CPU backend. The bridge accepts HuBERT, RMVPE, voice-model and optional retrieval-index GGUF files and processes WAV audio locally.
+
+This is an **engine compile milestone**, not a completed app feature: the shared library is not yet wired into the Flutter model-selection/conversion screens, no GGUF models are bundled, the `.pth`-to-GGUF exporter is not yet available inside the Android app, and no real model/audio or Galaxy A12 runtime test has passed. The exporter in the upstream project uses Python, PyTorch, NumPy and the `gguf` package (plus FAISS for standard index files); it is not an on-device Android converter.
+
 ## Native migration branch warning
 
 The `feature/native-ncnn-rvc-backend` branch is an engineering branch, not an installable ONNX-free release. Its workflow deliberately runs source-level regression checks only and does **not** build or upload the legacy ONNX APK. Do not install an older ONNX-based artifact expecting `.pth` conversion. APK publishing resumes only after the replacement inference backend passes its native model and device acceptance tests.
