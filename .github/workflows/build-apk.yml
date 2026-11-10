@@ -15,7 +15,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # The native migration branch must never publish the legacy ONNX APK as if
+  # it were the requested ONNX-free .pth build. Run source-level checks only.
+  native-backend-guard:
+    if: github.ref == 'refs/heads/feature/native-ncnn-rvc-backend'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout native migration branch
+        uses: actions/checkout@v5
+      - name: Validate migration tooling and regression tests
+        run: |
+          set -euo pipefail
+          python3 -m py_compile tools/brand.py tools/native/integrate.py
+          python3 -m pip install --quiet pytest
+          python3 -m pytest -q tools/tests
+          grep -q 'ONNX-free Android inference backend is not integrated yet' tools/ui/model_converter_screen.dart
+          grep -q 'RVC flow/decoder' docs/NATIVE_RVC_BACKEND_MIGRATION.md
+          echo 'Native branch is experimental: no APK is published until the ONNX-free .pth engine is implemented and tested.'
+
   build:
+    if: github.ref != 'refs/heads/feature/native-ncnn-rvc-backend'
     runs-on: ubuntu-latest
     env:
       RED_RVC_KEYSTORE_BASE64: ${{ secrets.RED_RVC_KEYSTORE_BASE64 }}
