@@ -168,11 +168,11 @@ if 'private fun separateSongVocals(call: MethodCall, result: Result)' not in s:
 # Validate the ONNX graph before presenting a model as runnable. Extension-only
 # checks allowed incompatible ONNX exports to appear ready until inference failed.
 if 'import ai.onnxruntime.OrtEnvironment' not in s:
-    s = s.replace('package com.ultimatervc.mobile\\n', 'package com.ultimatervc.mobile\\n\\nimport ai.onnxruntime.OrtEnvironment\\nimport ai.onnxruntime.OrtSession\\n', 1)
+    s = s.replace('package com.ultimatervc.mobile\n', 'package com.ultimatervc.mobile\n\nimport ai.onnxruntime.OrtEnvironment\nimport ai.onnxruntime.OrtSession\n', 1)
 dispatch_anchor = '            "infer" -> infer(call, result)'
 if '"validateVoiceModel" -> validateVoiceModel(call, result)' not in s:
     if dispatch_anchor not in s: raise RuntimeError('RVCPlugin inference dispatch anchor missing')
-    s = s.replace(dispatch_anchor, '            "validateVoiceModel" -> validateVoiceModel(call, result)\\n' + dispatch_anchor, 1)
+    s = s.replace(dispatch_anchor, '            "validateVoiceModel" -> validateVoiceModel(call, result)\n' + dispatch_anchor, 1)
 validation = '''
     private fun validateVoiceModel(call: MethodCall, result: Result) {
         val path = call.argument<String>("modelPath")
