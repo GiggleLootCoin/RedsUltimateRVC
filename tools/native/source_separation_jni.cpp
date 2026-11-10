@@ -7,6 +7,7 @@
 #include <limits>
 #include <memory>
 #include <string>
+#include <stdexcept>
 #include <vector>
 
 #include "sherpa-onnx/c-api/c-api.h"
@@ -101,7 +102,7 @@ class Pcm16WaveReader {
 
   std::vector<std::vector<float>> ReadFrames(int64_t start, int count) {
     start = std::max<int64_t>(0, std::min<int64_t>(start, frames_));
-    count = std::max(0, std::min<int64_t>(count, frames_ - start));
+    count = static_cast<int>(std::max<int64_t>(0, std::min<int64_t>(count, frames_ - start)));
     std::vector<std::vector<float>> result(channels_, std::vector<float>(count));
     if (count == 0) return result;
     const size_t bytes = static_cast<size_t>(count) * block_align_;
