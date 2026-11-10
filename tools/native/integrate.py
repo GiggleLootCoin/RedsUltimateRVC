@@ -164,6 +164,93 @@ anchor = '    private fun convertIndex(call: MethodCall, result: Result) {'
 if 'private fun separateSongVocals(call: MethodCall, result: Result)' not in s:
     if anchor not in s: raise RuntimeError('RVCPlugin convertIndex anchor missing')
     s = s.replace(anchor, methods + anchor, 1)
+
+# Validate the ONNX graph before presenting a model as runnable. Extension-only
+# checks allowed incompatible ONNX exports to appear ready until inference failed.
+if 'import ai.onnxruntime.OrtEnvironment' not in s:
+    s = s.replace('package com.ultimatervc.mobile\\n', 'package com.ultimatervc.mobile\\n\\nimport ai.onnxruntime.OrtEnvironment\\nimport ai.onnxruntime.OrtSession\\n', 1)
+dispatch_anchor = '            "infer" -> infer(call, result)'
+if '"validateVoiceModel" -> validateVoiceModel(call, result)' not in s:
+    if dispatch_anchor not in s: raise RuntimeError('RVCPlugin inference dispatch anchor missing')
+    s = s.replace(dispatch_anchor, '            "validateVoiceModel" -> validateVoiceModel(call, result)\\n' + dispatch_anchor, 1)
+validation = '''
+    private fun validateVoiceModel(call: MethodCall, result: Result) {
+        val path = call.argument<String>("modelPath")
+        if (path.isNullOrBlank()) {
+            result.error("INVALID_ARGUMENTS", "Choose an ONNX voice model first.", null)
+            return
+        }
+        scope.launch {
+            try {
+                val model = File(path)
+                require(model.isFile && model.length() > 0L) { "The selected ONNX model is missing or empty." }
+                require(model.extension.equals("onnx", ignoreCase = true)) {
+                    "This Android engine runs ONNX models. PTH/PT checkpoints must be exported first."
+                }
+                val actualInputs = OrtSession.SessionOptions().use { options ->
+                    val session = OrtEnvironment.getEnvironment().createSession(model.absolutePath, options)
+                    try { session.inputNames.toSet() } finally { session.close() }
+                }
+                val requiredInputs = setOf("phone", "phone_lengths", "pitch", "pitchf", "ds", "rnd")
+                val missing = requiredInputs - actualInputs
+                val compatible = missing.isEmpty()
+                val message = if (compatible) "Compatible RVC v2 ONNX model." else
+                    "This ONNX file is not in the RVC v2 export format. Missing inputs: ${missing.sorted().joinToString()}. Found: ${actualInputs.sorted().joinToString()}."
+                withContext(Dispatchers.Main) {
+                    result.success(mapOf("compatible" to compatible, "message" to message, "inputs" to actualInputs.sorted()))
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    result.error("MODEL_VALIDATION_FAILED", e.message ?: "Could not open the ONNX model.", null)
+                }
+            }
+        }
+    }
+
+'''
+if 'private fun validateVoiceModel(call: MethodCall, result: Result)' not in s:
+    anchor = '    private fun convertIndex(call: MethodCall, result: Result) {'
+    if anchor not in s: raise RuntimeError('RVCPlugin convertIndex anchor missing')
+    s = s.replace(anchor, validation + anchor, 1)
+plugin.write_text(s, encoding='utf-8')
+
+# Expose the native model preflight to Flutter.
+bridge = BUILD / 'lib/services/rvc_bridge.dart'
+bs = bridge.read_text(encoding='utf-8')
+if 'Future<void> validateVoiceModel(String modelPath)' not in bs:
+    anchor = '  Future<void> startRecording() async {'
+    method = '''  Future<void> validateVoiceModel(String modelPath) async {
+    final raw = await _channel.invokeMethod('validateVoiceModel', {'modelPath': modelPath});
+    final data = Map<String, dynamic>.from(raw as Map);
+    if (data['compatible'] != true) {
+      throw StateError(data['message'] as String? ?? 'The selected ONNX model is not compatible with RVC v2.');
+    }
+  }
+
+'''
+    if anchor not in bs: raise RuntimeError('RVCBridge insertion anchor missing')
+    bridge.write_text(bs.replace(anchor, method + anchor, 1), encoding='utf-8')
+
+# Validate both newly imported and previously stored ONNX files before selection.
+picker = BUILD / 'lib/screens/model_picker_screen.dart'
+ps = picker.read_text(encoding='utf-8')
+import_anchor = '      if (_runtime(imported.path)) {\\n        _selectedModelPath = imported.path;'
+if 'await _bridge.validateVoiceModel(imported.path);' not in ps:
+    if import_anchor not in ps: raise RuntimeError('Model import selection anchor missing')
+    ps = ps.replace(import_anchor, '      if (_runtime(imported.path)) {\\n        await _bridge.validateVoiceModel(imported.path);\\n        _selectedModelPath = imported.path;', 1)
+use_anchor = '    _selectedModelPath = path;\\n    _selectedModelDisplayName = File(path).uri.pathSegments.last;'
+if 'await _bridge.validateVoiceModel(path);' not in ps:
+    if use_anchor not in ps: raise RuntimeError('Model library use anchor missing')
+    ps = ps.replace(use_anchor, '''    try {
+      await _bridge.validateVoiceModel(path);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('MODEL NOT COMPATIBLE: $e')));
+      return;
+    }
+    _selectedModelPath = path;
+    _selectedModelDisplayName = File(path).uri.pathSegments.last;''', 1)
+picker.write_text(ps, encoding='utf-8')
+
 plugin.write_text(s, encoding='utf-8')
 
 gradle = BUILD / 'android/app/build.gradle'
