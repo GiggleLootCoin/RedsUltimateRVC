@@ -34,6 +34,10 @@ These are deliberate capability disclosures, not hidden menu items:
 
 Changing a file extension does not convert a model or index. The model-conversion screen and Index Tools screen explain these limits rather than pretending a conversion happened.
 
+## Native migration branch warning
+
+The `feature/native-ncnn-rvc-backend` branch is an engineering branch, not an installable ONNX-free release. Its workflow deliberately runs source-level regression checks only and does **not** build or upload the legacy ONNX APK. Do not install an older ONNX-based artifact expecting `.pth` conversion. APK publishing resumes only after the replacement inference backend passes its native model and device acceptance tests.
+
 ## Build and automated checks
 
 GitHub Actions builds the ARM64 APK, compiles the Sherpa-ONNX C API for offline Spleeter separation, bundles the two separation ONNX models, and runs:
