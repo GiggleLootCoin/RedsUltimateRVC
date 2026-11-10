@@ -33,6 +33,35 @@ jobs:
           grep -q 'RVC encoder/flow and NSF decoder' docs/NATIVE_RVC_BACKEND_MIGRATION.md
           echo 'Native branch is experimental: no APK is published until the ONNX-free .pth engine is implemented and tested.'
 
+      # Compile the independently developed, MIT-licensed C++ RVC inference core
+      # for Android ARM64 before attempting to wire it into the application.
+      - name: Checkout pinned RVC-GGML inference source
+        uses: actions/checkout@v5
+        with:
+          repository: lainlives/rvc-ggml
+          ref: 3b1a40b5386fe624367c859bd1ad5e7fd7b8508a
+          path: rvc-ggml
+
+      - name: Install Android NDK for ARM64 CPU build
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --install "ndk;27.2.12479018"
+          test -f "$ANDROID_HOME/ndk/27.2.12479018/build/cmake/android.toolchain.cmake"
+
+      - name: Cross-compile RVC-GGML core for Android ARM64 (CPU only)
+        run: |
+          set -euo pipefail
+          NDK="$ANDROID_HOME/ndk/27.2.12479018"
+          cmake -S rvc-ggml/rvc-ggml -B rvc-ggml-android-build \\
+            -DCMAKE_TOOLCHAIN_FILE="$NDK/build/cmake/android.toolchain.cmake" \\
+            -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 \\
+            -DCMAKE_BUILD_TYPE=Release -DRVC_VULKAN=OFF -DRVC_CUDA=OFF
+          cmake --build rvc-ggml-android-build --target rvc_core --parallel 2
+          test -s rvc-ggml-android-build/librvc_core.a || find rvc-ggml-android-build -name 'librvc_core.a' -size +0c -print -quit | grep -q .
+
+
   build:
     if: github.ref != 'refs/heads/feature/native-ncnn-rvc-backend' && !(github.event_name == 'pull_request' && github.head_ref == 'feature/native-ncnn-rvc-backend')
     runs-on: ubuntu-latest
