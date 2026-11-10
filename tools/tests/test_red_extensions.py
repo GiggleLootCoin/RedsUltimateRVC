@@ -183,3 +183,15 @@ def test_sherpa_runtime_diagnostic_matches_the_pinned_onnx_runtime_version():
     assert "onnxruntime-android:1.28.0" in source
     assert "matching ONNX Runtime 1.28.0 library" in source
     assert "matching ONNX Runtime 1.28.2 library" not in source
+
+
+def test_onnx_voice_models_are_opened_and_checked_for_the_exact_rvc_v2_inputs_before_selection():
+    integration = (ROOT / "tools/native/integrate.py").read_text(encoding="utf-8")
+    assert 'import ai.onnxruntime.OrtEnvironment' in integration
+    assert '"validateVoiceModel" -> validateVoiceModel(call, result)' in integration
+    assert 'setOf("phone", "phone_lengths", "pitch", "pitchf", "ds", "rnd")' in integration
+    assert 'session.inputNames.toSet()' in integration
+    assert 'await _bridge.validateVoiceModel(imported.path)' in integration
+    assert 'await _bridge.validateVoiceModel(path)' in integration
+    assert 'MODEL NOT COMPATIBLE' in integration
+    assert 'Future<void> validateVoiceModel(String modelPath)' in integration
