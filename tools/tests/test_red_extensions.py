@@ -167,8 +167,12 @@ def test_song_cover_uses_android_media_codec_to_prepare_common_audio_formats():
     integration = (ROOT / "tools/native/integrate.py").read_text(encoding="utf-8")
     screen = (ROOT / "tools/ui/song_cover_screen.dart").read_text(encoding="utf-8")
     assert "decodeAudioToWav(inputPath, decodedInput.absolutePath)" in integration
-    assert "decodeAudioSegment(source, 0L, durationUs)" in integration
-    assert "writeDecodedAudioWav(File(outputPath), decoded)" in integration
+    assert "val segments = buildAudioSegments(durationUs)" in integration
+    assert "decodeAudioSegment(source, segment.decodeStartUs, segment.decodeEndUs)" in integration
+    assert "RandomAccessFile(File(outputPath), \"rw\")" in integration
+    assert "output.write(pcm.array())" in integration
+    assert "decodeAudioSegment(source, 0L, durationUs)" not in integration
+    assert "writeDecodedAudioWav(File(outputPath), decoded)" not in integration
     assert "Android decodes it locally to PCM WAV" in screen
     assert "type: FileType.audio" in screen
 
