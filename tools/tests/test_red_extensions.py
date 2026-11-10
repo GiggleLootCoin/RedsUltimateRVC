@@ -191,6 +191,10 @@ def test_onnx_voice_models_are_opened_and_checked_for_the_exact_rvc_v2_inputs_be
     assert '"validateVoiceModel" -> validateVoiceModel(call, result)' in integration
     assert 'setOf("phone", "phone_lengths", "pitch", "pitchf", "ds", "rnd")' in integration
     assert 'session.inputNames.toSet()' in integration
+    assert 'session.inputInfo["phone"]?.infoValue as? ai.onnxruntime.TensorInfo' in integration
+    assert 'phoneShape.size == 3' in integration
+    assert 'phoneShape[2] == 768L || phoneShape[2] == -1L' in integration
+    assert 'not RVC v2 / 768-dimensional' in integration
     assert 'await _bridge.validateVoiceModel(imported.path)' in integration
     assert 'await _bridge.validateVoiceModel(path)' in integration
     assert 'MODEL NOT COMPATIBLE' in integration
