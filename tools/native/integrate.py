@@ -234,11 +234,11 @@ if 'Future<void> validateVoiceModel(String modelPath)' not in bs:
 # Validate both newly imported and previously stored ONNX files before selection.
 picker = BUILD / 'lib/screens/model_picker_screen.dart'
 ps = picker.read_text(encoding='utf-8')
-import_anchor = '      if (_runtime(imported.path)) {\\n        _selectedModelPath = imported.path;'
+import_anchor = '      if (_runtime(imported.path)) {' + chr(10) + '        _selectedModelPath = imported.path;'
 if 'await _bridge.validateVoiceModel(imported.path);' not in ps:
     if import_anchor not in ps: raise RuntimeError('Model import selection anchor missing')
     ps = ps.replace(import_anchor, '      if (_runtime(imported.path)) {\\n        await _bridge.validateVoiceModel(imported.path);\\n        _selectedModelPath = imported.path;', 1)
-use_anchor = '    _selectedModelPath = path;\\n    _selectedModelDisplayName = File(path).uri.pathSegments.last;'
+use_anchor = '    _selectedModelPath = path;' + chr(10) + '    _selectedModelDisplayName = File(path).uri.pathSegments.last;'
 if 'await _bridge.validateVoiceModel(path);' not in ps:
     if use_anchor not in ps: raise RuntimeError('Model library use anchor missing')
     ps = ps.replace(use_anchor, '''    try {
