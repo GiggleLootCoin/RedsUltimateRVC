@@ -2,7 +2,7 @@ name: Build Red's Ultimate RVC APK
 
 on:
   push:
-    branches: [main, feature/rvc-dataset-export-zip]
+    branches: [main, feature/rvc-dataset-export-zip, feature/native-ncnn-rvc-backend]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -227,7 +227,7 @@ jobs:
           path: release/*
 
       - name: Publish downloadable GitHub release
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && github.ref != 'refs/heads/feature/native-ncnn-rvc-backend'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v0.2.0-final-${{ github.run_number }}
