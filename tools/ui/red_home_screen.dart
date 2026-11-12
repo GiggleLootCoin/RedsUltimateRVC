@@ -70,7 +70,7 @@ class RedHomeScreen extends StatelessWidget {
             const SizedBox(height: 11),
             _grid([
               _Action(Icons.graphic_eq_rounded, 'Audio conversion', 'Convert audio with a compatible ONNX voice', onGenerate, featured: true),
-              _Action(Icons.music_video_rounded, 'Song covers', 'Convert an already-isolated vocal track', onSongCovers),
+              _Action(Icons.music_video_rounded, 'Song covers', 'Separate vocals, convert your voice, and mix the cover', onSongCovers),
               _Action(Icons.record_voice_over_rounded, 'Voice changer', 'Record and process through a selected voice', onVoiceChanger),
               _Action(Icons.bolt_rounded, 'Realtime mode', 'Experimental; performance and routing may vary', onRealtime, warning: true),
             ]),
