@@ -48,7 +48,7 @@ class RedHomeScreen extends StatelessWidget {
           const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text("RED'S ULTIMATE RVC", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: .55)),
             SizedBox(height: 2),
-            Text('VOICE PRODUCTION STUDIO', style: TextStyle(fontSize: 8, color: _muted, fontWeight: FontWeight.w800, letterSpacing: 1.5)),
+            Text('VOICE PRODUCTION STUDIO', style: TextStyle(fontSize: 8, color: const Color(0xFFA5A8B2), fontWeight: FontWeight.w800, letterSpacing: 1.5)),
           ]),
         ]),
         actions: [
@@ -164,7 +164,7 @@ class RedHomeScreen extends StatelessWidget {
     children: [
       Text(title, style: const TextStyle(color: _red, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.8)),
       const SizedBox(height: 4),
-      Text(subtitle, style: const TextStyle(color: _muted, fontSize: 11.5)),
+      Text(subtitle, style: const TextStyle(color: const Color(0xFFA5A8B2), fontSize: 11.5)),
     ],
   );
 
@@ -250,7 +250,7 @@ class _Action extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12.5, letterSpacing: -.1)),
             const SizedBox(height: 4),
             Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: _muted, fontSize: 10.2, height: 1.25)),
+              style: const TextStyle(color: const Color(0xFFA5A8B2), fontSize: 10.2, height: 1.25)),
           ]),
         ),
       ),
