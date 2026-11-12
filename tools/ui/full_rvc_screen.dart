@@ -110,7 +110,7 @@ class _Tool extends StatelessWidget {
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900)),
                 const SizedBox(height: 4),
-                Text(subtitle, style: const TextStyle(color: _muted, fontSize: 10.8, height: 1.3)),
+                Text(subtitle, style: const TextStyle(color: const Color(0xFFA5A8B2), fontSize: 10.8, height: 1.3)),
               ])),
               const SizedBox(width: 7),
               const Icon(Icons.chevron_right_rounded, color: Color(0xFF737782)),
