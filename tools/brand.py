@@ -102,6 +102,8 @@ pubspec = root / "pubspec.yaml"
 pt = pubspec.read_text(encoding="utf-8")
 if "  url_launcher:" not in pt:
     pt = pt.replace("  flutter_svg: ^2.0.10+1\n", "  flutter_svg: ^2.0.10+1\n  url_launcher: ^6.3.1\n")
+if "  archive:" not in pt:
+    pt = pt.replace("  flutter_svg: ^2.0.10+1\n", "  flutter_svg: ^2.0.10+1\n  archive: ^3.6.1\n")
 pt = pt.replace("name: ultimate_rvc_mobile", "name: reds_ultimate_rvc")
 if "  webview_flutter:" not in pt:
     pt = pt.replace("  url_launcher: ^6.3.1\n", "  url_launcher: ^6.3.1\n  webview_flutter: ^4.10.0\n")
@@ -205,7 +207,7 @@ class RedHomeScreen extends StatelessWidget {
             _section('CREATE & CONVERT'),
             _grid([
               _Action(Icons.graphic_eq, 'CONVERT AUDIO', 'Song / speech to your selected voice', onGenerate),
-              _Action(Icons.music_video, 'SONG COVERS', 'Convert isolated vocals; no vocal separator included', onSongCovers),
+              _Action(Icons.music_video, 'SONG COVERS', 'Separate vocals, convert them, and mix them back with the original music', onSongCovers),
               _Action(Icons.settings_voice, 'REALTIME RVC — EXPERIMENTAL', 'Limited Android support; may stutter', onRealtime),
               _Action(Icons.record_voice_over, 'VOICE CHANGER', 'Use RVC while recording', onVoiceChanger),
             ]),
