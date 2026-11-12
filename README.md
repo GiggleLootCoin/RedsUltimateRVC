@@ -2,6 +2,10 @@
 
 A branded ARM64 Android RVC voice-conversion app based on the open-source Ultimate RVC Mobile engine by Sharl210.
 
+## Visual design update
+
+The current premium mobile studio redesign uses a restrained black-and-crimson palette, clearer navigation hierarchy, refined tool cards, and explicit local-capability disclosures. The redesign preserves existing conversion and library callbacks; it does not add unsupported PTH conversion, neural-network training, or vocal separation.
+
 ## What is included
 
 - On-device RVC inference with compatible ONNX voice models.
