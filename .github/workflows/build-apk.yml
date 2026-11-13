@@ -15,8 +15,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # The native migration branch must never publish the legacy ONNX APK as if
-  # it were the requested ONNX-free .pth build. Run source-level checks only.
+  # Build and package the native GGUF runtime for an installable engineering APK.
+  # Raw .pth export and physical-device qualification remain separate milestones.
   native-backend-guard:
     if: github.ref == 'refs/heads/feature/native-ncnn-rvc-backend' || (github.event_name == 'pull_request' && github.head_ref == 'feature/native-ncnn-rvc-backend')
     runs-on: ubuntu-latest
@@ -29,9 +29,10 @@ jobs:
           python3 -m py_compile tools/brand.py tools/native/integrate.py
           python3 -m pip install --quiet pytest
           python3 -m pytest -q tools/tests
-          grep -qi 'ONNX-free Android inference backend is not integrated yet' tools/ui/model_converter_screen.dart
+          grep -q 'ON-DEVICE GGUF CONVERSION' tools/ui/model_converter_screen.dart
+          grep -q 'convertGguf' tools/native/integrate.py
           grep -q 'RVC encoder/flow and NSF decoder' docs/NATIVE_RVC_BACKEND_MIGRATION.md
-          echo 'Native branch is experimental: no APK is published until the ONNX-free .pth engine is implemented and tested.'
+          echo 'Native GGUF runtime and Flutter conversion screen source checks passed; raw PTH export remains a disclosed limitation.'
 
       # Compile the independently developed, MIT-licensed C++ RVC inference core
       # for Android ARM64 before attempting to wire it into the application.
@@ -56,10 +57,21 @@ jobs:
           NDK="$ANDROID_HOME/ndk/27.2.12479018"
           cmake -S tools/native/rvc_ggml_android -B rvc-ggml-android-build -DRVC_GGML_SOURCE_DIR="$GITHUB_WORKSPACE/rvc-ggml/rvc-ggml" -DCMAKE_TOOLCHAIN_FILE="$NDK/build/cmake/android.toolchain.cmake" -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 -DCMAKE_BUILD_TYPE=Release
           cmake --build rvc-ggml-android-build --target red_rvc_ggml --parallel 2
-          find rvc-ggml-android-build -name 'libred_rvc_ggml.so' -size +0c -print -quit | grep -q .
+          mkdir -p native-output
+          NATIVE_SO="$(find rvc-ggml-android-build -name 'libred_rvc_ggml.so' -size +0c -print -quit)"
+          test -n "$NATIVE_SO"
+          cp "$NATIVE_SO" native-output/libred_rvc_ggml.so
+          test -s native-output/libred_rvc_ggml.so
+      - name: Upload native ARM64 RVC runtime
+        uses: actions/upload-artifact@v5
+        with:
+          name: red-rvc-ggml-arm64
+          path: native-output/libred_rvc_ggml.so
+          if-no-files-found: error
 
   build:
-    if: github.ref != 'refs/heads/feature/native-ncnn-rvc-backend' && !(github.event_name == 'pull_request' && github.head_ref == 'feature/native-ncnn-rvc-backend')
+    needs: native-backend-guard
+    if: always() && (needs.native-backend-guard.result == 'success' || needs.native-backend-guard.result == 'skipped')
     runs-on: ubuntu-latest
     env:
       RED_RVC_KEYSTORE_BASE64: ${{ secrets.RED_RVC_KEYSTORE_BASE64 }}
@@ -69,6 +81,13 @@ jobs:
     steps:
       - name: Checkout Red's Ultimate RVC
         uses: actions/checkout@v5
+
+      - name: Download native RVC runtime for native migration builds
+        if: github.ref == 'refs/heads/feature/native-ncnn-rvc-backend' || (github.event_name == 'pull_request' && github.head_ref == 'feature/native-ncnn-rvc-backend')
+        uses: actions/download-artifact@v6
+        with:
+          name: red-rvc-ggml-arm64
+          path: native-output
 
       - name: Checkout local RVC engine
         uses: actions/checkout@v5
@@ -101,7 +120,9 @@ jobs:
       - name: Apply Red's branding
         run: python3 tools/brand.py
 
-      - name: Integrate offline song-cover native bridge
+      - name: Integrate offline song-cover and native RVC bridges
+        env:
+          RVC_GGML_ANDROID_SO: ${{ (github.ref == 'refs/heads/feature/native-ncnn-rvc-backend' || (github.event_name == 'pull_request' && github.head_ref == 'feature/native-ncnn-rvc-backend')) && 'native-output/libred_rvc_ggml.so' || '' }}
         run: python3 tools/native/integrate.py
 
       - name: Set up Java 17 for the upstream Android Gradle build
@@ -226,6 +247,8 @@ jobs:
           sha256sum "release/Red-Ultimate-RVC.apk" > release/SHA256SUMS.txt
 
       - name: Verify APK alignment, signature and packaged size
+        env:
+          RVC_NATIVE_BACKEND_BUILD: ${{ (github.ref == 'refs/heads/feature/native-ncnn-rvc-backend' || (github.event_name == 'pull_request' && github.head_ref == 'feature/native-ncnn-rvc-backend')) && 'true' || 'false' }}
         run: |
           APK="release/Red-Ultimate-RVC.apk"
           ZIPALIGN="$(find "$ANDROID_HOME/build-tools" -type f -name zipalign | sort -V | tail -n 1)"
@@ -253,11 +276,14 @@ jobs:
               for required in required_assets:
                   if not any(i.filename.endswith(required) for i in z.infolist()):
                       raise SystemExit(f"Required offline inference asset missing: {required}")
-              required_native = (
+              required_native = [
                   "lib/arm64-v8a/libred_source_separation.so",
                   "lib/arm64-v8a/libsherpa-onnx-c-api.so",
                   "lib/arm64-v8a/libonnxruntime.so",
-              )
+              ]
+              import os
+              if os.environ.get("RVC_NATIVE_BACKEND_BUILD") == "true":
+                  required_native.append("lib/arm64-v8a/libred_rvc_ggml.so")
               for required in required_native:
                   matches = [i.filename for i in z.infolist() if i.filename.endswith(required)]
                   if len(matches) != 1:
