@@ -215,11 +215,13 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: _busy || _inputPath == null ? null : _createCover,
+              onPressed: _busy ? null : (_inputPath == null ? _pickSong : _createCover),
               icon: _busy
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.auto_awesome),
-              label: Text(_busy ? 'PROCESSING LOCALLY…' : 'CREATE SONG COVER'),
+                  : Icon(_inputPath == null ? Icons.audio_file_rounded : Icons.auto_awesome),
+              label: Text(_busy
+                  ? 'PROCESSING LOCALLY…'
+                  : _inputPath == null ? 'CHOOSE A SONG FIRST' : 'CREATE SONG COVER'),
             ),
           ),
           if (_outputPath != null) ...[
