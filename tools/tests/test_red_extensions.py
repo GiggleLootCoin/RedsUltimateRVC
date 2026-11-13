@@ -57,6 +57,12 @@ def test_dashboard_discloses_song_cover_and_realtime_limits():
     assert "Limited Android support; may stutter" in source
 
 
+def test_redesign_uses_separate_android_package_for_side_by_side_testing():
+    source = BRAND.read_text(encoding="utf-8")
+    assert 'new_application_id = \'applicationId "com.littleredbigsmile.redsultimate.rvc"\'' in source
+    assert "cannot create a safe side-by-side test install" in source
+
+
 def test_gradle_can_use_a_private_persistent_release_keystore():
     source = BRAND.read_text(encoding="utf-8")
     assert "redSigningProperties" in source
