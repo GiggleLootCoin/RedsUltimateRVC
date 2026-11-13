@@ -39,6 +39,14 @@ def test_home_dashboard_has_a_working_official_youtube_channel_button():
 
 
 def test_dashboard_discloses_song_cover_and_realtime_limits():
+    brand = BRAND.read_text(encoding="utf-8")
+    assert '"song_cover_screen.dart"' in brand
+    assert "import 'screens/song_cover_screen.dart';" in brand
+    assert "onSongCovers: () {" in brand
+    assert "SongCoverScreen(" in brand
+    assert "modelPath: modelPath" in brand
+    assert "indexPath: _selectedIndexPath" in brand
+    assert "onSongCovers: _openAudioConversion" not in brand
     full_engine = (ROOT / "tools/ui/full_rvc_screen.dart").read_text(encoding="utf-8")
     assert "Song Covers is available from the main dashboard" in full_engine
     assert "bundled offline vocal separation" in full_engine
