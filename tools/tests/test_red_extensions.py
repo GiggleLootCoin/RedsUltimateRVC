@@ -199,3 +199,18 @@ def test_onnx_voice_models_are_opened_and_checked_for_the_exact_rvc_v2_inputs_be
     assert 'await _bridge.validateVoiceModel(path)' in integration
     assert 'MODEL NOT COMPATIBLE' in integration
     assert 'Future<void> validateVoiceModel(String modelPath)' in integration
+
+
+def test_native_gguf_runtime_is_packaged_into_the_native_branch_apk():
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    integration = (ROOT / "tools/native/integrate.py").read_text(encoding="utf-8")
+    screen = (ROOT / "tools/ui/model_converter_screen.dart").read_text(encoding="utf-8")
+    assert "red-rvc-ggml-arm64" in workflow
+    assert "RVC_GGML_ANDROID_SO" in workflow
+    assert "libred_rvc_ggml.so" in workflow
+    assert "RVC_NATIVE_BACKEND_BUILD" in workflow
+    assert "RvcGgmlNative.kt" in integration
+    assert "convertGguf" in integration
+    assert "ON-DEVICE GGUF CONVERSION" in screen
+    assert "The native engine currently accepts WAV audio" in screen
+    assert "raw .pth checkpoint is not executable" in screen
