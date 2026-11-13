@@ -39,6 +39,10 @@ def test_home_dashboard_has_a_working_official_youtube_channel_button():
 
 
 def test_dashboard_discloses_song_cover_and_realtime_limits():
+    full_engine = (ROOT / "tools/ui/full_rvc_screen.dart").read_text(encoding="utf-8")
+    assert "Song Covers is available from the main dashboard" in full_engine
+    assert "bundled offline vocal separation" in full_engine
+    assert "neural-network training are not included" in full_engine
     source = BRAND.read_text(encoding="utf-8")
     assert "Separate vocals, convert your voice, and mix the cover" in (ROOT / "tools/ui/red_home_screen.dart").read_text(encoding="utf-8")
     assert "REALTIME RVC — EXPERIMENTAL" in source
