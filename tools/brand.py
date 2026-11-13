@@ -192,6 +192,16 @@ class RedHomeScreen extends StatelessWidget {
                     'Your Android voice conversion studio.',
                     style: theme.textTheme.bodyMedium?.copyWith(color: const Color(0xFFBEBEC7)),
                   ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'ORIGINAL SOFTWARE • CREATED, DEVELOPED & DESIGNED BY LITTLE RED BIG SMILE',
+                    style: TextStyle(
+                      color: Color(0xFFFF7185),
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: .45,
+                    ),
+                  ),
                   const SizedBox(height: 13),
                   Row(
                     children: const [
@@ -248,6 +258,22 @@ class RedHomeScreen extends StatelessWidget {
                 onPressed: onFullRvc,
                 icon: const Icon(Icons.open_in_new),
                 label: const Text('OPEN FULL RVC ENGINE'),
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Center(
+              child: Column(
+                children: [
+                  Text('LITTLE RED BIG SMILE',
+                    style: TextStyle(color: Color(0xFFFF7185), fontWeight: FontWeight.w900, letterSpacing: 1.1)),
+                  SizedBox(height: 3),
+                  Text('ORIGINAL CREATOR • SOFTWARE • DESIGN • DEVELOPMENT',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Color(0xFF9A9AA5), fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: .35)),
+                  SizedBox(height: 3),
+                  Text('Made with Love, Heart and Care',
+                    style: TextStyle(color: Color(0xFFBDBDC7), fontSize: 11)),
+                ],
               ),
             ),
             const SizedBox(height: 9),
