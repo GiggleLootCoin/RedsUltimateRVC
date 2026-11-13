@@ -17,7 +17,7 @@ logo = root / "assets" / "images" / "reds-ultimate-rvc-logo.svg"
 logo.parent.mkdir(parents=True, exist_ok=True)
 urllib.request.urlretrieve(logo_url, logo)
 
-for name in ("red_home_screen.dart", "training_screen.dart", "full_rvc_screen.dart", "model_converter_screen.dart", "index_converter_screen.dart"):
+for name in ("red_home_screen.dart", "training_screen.dart", "full_rvc_screen.dart", "model_converter_screen.dart", "index_converter_screen.dart", "song_cover_screen.dart"):
     src = repo_root / "tools" / "ui" / name
     dst = root / "lib" / "screens" / name
     dst.parent.mkdir(parents=True, exist_ok=True)
@@ -714,7 +714,7 @@ mt = main.read_text(encoding="utf-8")
 # Add custom imports.
 if "import 'screens/red_home_screen.dart';" not in mt:
     mt = mt.replace("import 'screens/pitch_detection_screen.dart';",
-                    "import 'screens/pitch_detection_screen.dart';\nimport 'screens/red_home_screen.dart';\nimport 'screens/training_screen.dart';\nimport 'screens/full_rvc_screen.dart';\nimport 'package:url_launcher/url_launcher.dart';")
+                    "import 'screens/pitch_detection_screen.dart';\nimport 'screens/red_home_screen.dart';\nimport 'screens/training_screen.dart';\nimport 'screens/full_rvc_screen.dart';\\nimport 'screens/song_cover_screen.dart';\nimport 'package:url_launcher/url_launcher.dart';")
 
 # The model picker already copies selected files into the app-owned library. Do not import the same path a second time.
 mt = mt.replace("final importedPath = await _importPickedFile(kind: 'model', sourcePath: path);", "final importedPath = File(path).absolute.path;")
@@ -791,7 +791,31 @@ if start < 0 or end < 0:
 dashboard = '''    final moduleScreens = [
       RedHomeScreen(
         onGenerate: _openAudioConversion,
-        onSongCovers: _openAudioConversion,
+        onSongCovers: () {
+          final modelPath = _selectedModelPath;
+          if (modelPath == null || modelPath.isEmpty || !modelPath.toLowerCase().endsWith('.onnx')) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Song Covers needs a compatible RVC v2 ONNX voice model. Choose one in Voice Library first.')),
+            );
+            Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(
+              onModelSelected: _onModelSelected,
+              onModelCleared: _onModelCleared,
+              onIndexSelected: _onIndexSelected,
+              onContinue: _continueToGenerate,
+              selectedModelPath: _selectedModelPath,
+              selectedModelDisplayName: _selectedModelDisplayName,
+              selectedIndexPath: _selectedIndexPath,
+              selectedIndexDisplayName: _selectedIndexDisplayName,
+              selectedSongPath: _selectedSongPath,
+              selectedSongDisplayName: _selectedSongDisplayName,
+            )));
+            return;
+          }
+          Navigator.of(context).push(MaterialPageRoute(builder: (_) => SongCoverScreen(
+            modelPath: modelPath,
+            indexPath: _selectedIndexPath,
+          )));
+        },
         onRealtime: _openRealtimeInference,
         onVoiceChanger: _openVoiceChanger,
         onModels: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(
