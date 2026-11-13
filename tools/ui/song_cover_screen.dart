@@ -237,7 +237,7 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
           ],
           const SizedBox(height: 16),
           const Text(
-            'Note: the first release uses the bundled Spleeter 2-stem model and 16-bit PCM WAV decoding. The Galaxy A12 still needs physical-device testing for memory use, speed and heat before this feature can be certified on that handset.',
+            'Note: Android decodes it locally to PCM WAV before the bundled Spleeter 2-stem model separates vocals and accompaniment. The first release uses 16-bit PCM WAV processing. The Galaxy A12 still needs physical-device testing for memory use, speed and heat before this feature can be certified on that handset.',
             style: TextStyle(color: Color(0xFF92929D), fontSize: 12, height: 1.4),
           ),
         ],
