@@ -2,7 +2,7 @@ name: Build Red's Ultimate RVC APK
 
 on:
   push:
-    branches: [main, feature/rvc-dataset-export-zip]
+    branches: [main, feature/rvc-dataset-export-zip, rvc-redesign-v1]
   pull_request:
     branches: [main]
   workflow_dispatch:
