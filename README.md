@@ -38,11 +38,11 @@ Changing a file extension does not convert a model or index. The model-conversio
 
 The native migration branch now includes a JNI bridge to the MIT-licensed RVC-GGML C++ inference core. GitHub Actions has successfully cross-compiled both the complete inference core and the JNI shared library for Android ARM64 using the NDK CPU backend. The bridge accepts HuBERT, RMVPE, voice-model and optional retrieval-index GGUF files and processes WAV audio locally.
 
-This is an **engine compile milestone**, not a completed app feature: the shared library is not yet wired into the Flutter model-selection/conversion screens, no GGUF models are bundled, the `.pth`-to-GGUF exporter is not yet available inside the Android app, and no real model/audio or Galaxy A12 runtime test has passed. The exporter in the upstream project uses Python, PyTorch, NumPy and the `gguf` package (plus FAISS for standard index files); it is not an on-device Android converter.
+The native migration branch now packages the compiled ARM64 JNI library into an engineering APK and exposes a dedicated native conversion screen. The screen accepts HuBERT GGUF, RMVPE GGUF, a voice GGUF, an optional index GGUF and a WAV input. This exercises the native inference route without asking the user to supply ONNX voice models. It is still **not raw .pth support**: the upstream exporter requires Python, PyTorch, NumPy and `gguf` (plus FAISS for standard index files), and has not been ported into the Android app. No real model/audio or Galaxy A12 runtime test has passed yet.
 
 ## Native migration branch warning
 
-The `feature/native-ncnn-rvc-backend` branch is an engineering branch, not an installable ONNX-free release. Its workflow deliberately runs source-level regression checks only and does **not** build or upload the legacy ONNX APK. Do not install an older ONNX-based artifact expecting `.pth` conversion. APK publishing resumes only after the replacement inference backend passes its native model and device acceptance tests.
+The `feature/native-ncnn-rvc-backend` branch builds an installable engineering APK artifact with the native GGUF runtime packaged and a dedicated conversion screen. It is not an ONNX-free release: the existing ONNX pipeline remains available as a fallback, while the native route uses GGUF. The APK is not published as a public release until real model/audio and Galaxy A12 acceptance tests pass. Raw `.pth` files still need an exporter step; importing one does not make it directly runnable.
 
 ## Build and automated checks
 
