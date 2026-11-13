@@ -63,7 +63,7 @@ class FullRvcScreen extends StatelessWidget {
               Icon(Icons.verified_user_outlined, color: Color(0xFF72DFA0), size: 18),
               SizedBox(width: 10),
               Expanded(child: Text(
-                'Local-first: compatible ONNX conversion runs on this phone. Standard .pth/.pt conversion, neural-network training and vocal separation are not included in this release. The app will clearly identify these limitations rather than report simulated results.',
+                'Local-first: compatible ONNX conversion runs on this phone. Song Covers is available from the main dashboard and uses bundled offline vocal separation, local ONNX conversion and mix-back. Standard .pth/.pt conversion and neural-network training are not included in this release. The app will clearly identify these limits rather than report simulated results.',
                 style: TextStyle(color: Color(0xFFB9BDC7), fontSize: 11.2, height: 1.45),
               )),
             ]),
