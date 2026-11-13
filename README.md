@@ -4,7 +4,7 @@ A branded ARM64 Android RVC voice-conversion app based on the open-source Ultima
 
 ## Visual design update
 
-The current premium mobile studio redesign uses a restrained black-and-crimson palette, clearer navigation hierarchy, refined tool cards, and explicit local-capability disclosures. The redesign preserves existing conversion and library callbacks; it does not add unsupported PTH conversion, neural-network training, or vocal separation.
+The current premium mobile studio redesign uses a restrained black-and-crimson palette, clearer navigation hierarchy, refined tool cards, and explicit local-capability disclosures. The redesign preserves existing conversion and library callbacks. This release adds an offline song-cover workflow; PTH conversion and neural-network training remain outside the current Android engine.
 
 ## What is included
 
@@ -13,6 +13,7 @@ The current premium mobile studio redesign uses a restrained black-and-crimson p
 - Android's unfiltered file picker for supported model and audio imports.
 - Model library storage for ONNX models and source files.
 - Compatible `.mobile.index` import and format validation.
+- Offline Spleeter vocal/accompaniment separation, RVC ONNX vocal conversion and local mix-back for PCM WAV song-cover processing.
 - Voice Changer and experimental realtime modules.
 - Voice Dataset Lab for recording, importing, organising and exporting samples.
 - English interface, Red's original logo artwork and creator-channel link.
@@ -32,14 +33,14 @@ These are deliberate capability disclosures, not hidden menu items:
 | Standard FAISS `.index` conversion | Not included on Android |
 | `.mobile.index` | Supported if it matches the mobile feature-table format |
 | Voice model training | Not included; Dataset Lab only prepares and exports samples |
-| Vocal separation / full song-cover pipeline | Not included; provide an already-isolated vocal track |
+| Vocal separation / song-cover pipeline | Included in this build; local Spleeter separation, ONNX conversion and mix-back. PCM WAV input; Galaxy A12 runtime QA still required |
 | Realtime RVC | Experimental; Android routing and performance may stutter |
 
 Changing a file extension does not convert a model or index. The model-conversion screen and Index Tools screen explain these limits rather than pretending a conversion happened.
 
 ## Build and automated checks
 
-GitHub Actions builds the ARM64 APK and runs:
+GitHub Actions builds the ARM64 APK, compiles the offline Sherpa-ONNX separation bridge and bundles the separation models, then runs:
 
 1. Flutter static analysis.
 2. Flutter widget/unit tests.
@@ -50,7 +51,7 @@ GitHub Actions builds the ARM64 APK and runs:
 
 Workflow: [Build Red's Ultimate RVC](https://github.com/GiggleLootCoin/RedsUltimateRVC/actions/workflows/build-apk.yml)
 
-A passing CI build proves compilation and the listed automated checks; it does not replace installation and runtime testing on a physical Galaxy A12.
+A passing CI build proves compilation and the listed automated checks; it does not replace installation and runtime testing on a physical Galaxy A12. Source separation is computationally heavy and must be tested on a full-length song for memory use, heat and audio integrity.
 
 ## Persistent Android signing (important for updates)
 
