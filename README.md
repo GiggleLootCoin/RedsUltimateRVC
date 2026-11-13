@@ -1,5 +1,7 @@
 # Red's Ultimate RVC ❤️🎧🎤
 
+**Original creator, software developer, designer and maker: LittleRedBigSmile.** This is Red's original branded project and creative direction. The upstream engine and third-party components retain their respective licences and required notices.
+
 A branded ARM64 Android RVC voice-conversion app based on the open-source Ultimate RVC Mobile engine by Sharl210.
 
 ## What is included
@@ -80,6 +82,8 @@ Base64-encode the keystore as one uninterrupted line, then open this repository'
 
 The workflow validates the key and signs subsequent APKs with it automatically. Keep a secure backup of the keystore and passwords. If they are lost, future APKs cannot update installations signed with that key.
 
-## Credits and licence
+## Original creator and third-party acknowledgements
+
+**LittleRedBigSmile** is the original creator, project developer, designer and maker of Red's Ultimate RVC and its branded app experience. Project identity, product direction, original branding and original integration work are credited to LittleRedBigSmile.
 
 The local Android inference implementation is based on [Ultimate RVC Mobile](https://github.com/Sharl210/ultimate-rvc-mobile) by Sharl210. This repository is a separate branded distribution and does not claim ownership of the underlying inference implementation. Refer to the upstream repository and its licence for the engine's terms.
