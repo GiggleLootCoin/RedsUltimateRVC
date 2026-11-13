@@ -57,6 +57,12 @@ def test_dashboard_discloses_song_cover_and_realtime_limits():
     assert "Limited Android support; may stutter" in source
 
 
+def test_redesign_uses_separate_android_package_for_side_by_side_testing():
+    source = BRAND.read_text(encoding="utf-8")
+    assert 'new_application_id = \'applicationId "com.littleredbigsmile.redsultimate.rvc"\'' in source
+    assert "cannot create a safe side-by-side test install" in source
+
+
 def test_gradle_can_use_a_private_persistent_release_keystore():
     source = BRAND.read_text(encoding="utf-8")
     assert "redSigningProperties" in source
@@ -173,6 +179,13 @@ def test_offline_song_cover_native_pipeline_is_wired_into_android_build():
     assert "assets/flutter_assets/assets/models/separation/vocals.fp16.onnx" in workflow
     assert "readelf -d \"$SHERPA_SO\" | grep -q 'libonnxruntime.so'" in workflow
     assert "sherpa-onnx-spleeter-2stems-fp16.tar.bz2" in workflow
+
+
+def test_song_cover_primary_action_opens_picker_before_conversion_and_never_starts_disabled():
+    screen = (ROOT / "tools/ui/song_cover_screen.dart").read_text(encoding="utf-8")
+    assert "onPressed: _busy ? null : (_inputPath == null ? _pickSong : _createCover)" in screen
+    assert "CHOOSE A SONG FIRST" in screen
+    assert "CREATE SONG COVER" in screen
 
 
 def test_song_cover_uses_android_media_codec_to_prepare_common_audio_formats():

@@ -1607,6 +1607,11 @@ if app_gradle.exists():
     if old_version not in ag:
         raise RuntimeError("Android version fields changed; cannot guarantee upgrade-safe APK versions")
     ag = ag.replace(old_version, new_version, 1)
+    old_application_id = 'applicationId "com.ultimatervc.mobile"'
+    new_application_id = 'applicationId "com.littleredbigsmile.redsultimate.rvc"'
+    if old_application_id not in ag:
+        raise RuntimeError("Upstream Android application ID changed; cannot create a safe side-by-side test install")
+    ag = ag.replace(old_application_id, new_application_id, 1)
     old_signing = """    buildTypes {
         release {
             signingConfig signingConfigs.debug"""
