@@ -168,7 +168,7 @@ anchor = '
     private fun convertPth(call: MethodCall, result: Result) {
         val inputPath = call.argument<String>("inputWavPath")
         val modelPath = call.argument<String>("pthModelPath")
-        val pitchShift = (call.argument<Double>("pitchShift") ?: 0.0).roundToInt()
+        val pitchShift = (call.argument<Double>("pitchShift") ?: 0.0).toInt()
         if (inputPath.isNullOrBlank() || modelPath.isNullOrBlank()) {
             result.error("INVALID_ARGUMENTS", "A vocal WAV and PTH model path are required.", null)
             return
