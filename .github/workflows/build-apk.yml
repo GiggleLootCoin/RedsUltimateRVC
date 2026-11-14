@@ -84,36 +84,51 @@ jobs:
           repository: f-cero/Spartacvc
           ref: c0b000778e5ff680ef0ab5b445d2ac583048d731
           path: spartacvc
-      - name: Install Android NDK for ARM64 PTH core
+      - name: Install Android NDK for ARM64 PTH runtime
         run: |
           set -euo pipefail
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" --install "ndk;23.1.7779620" "cmake;3.22.1"
-      - name: Cross-compile direct PTH inference core for Android ARM64
+      - name: Fetch matching ONNX Runtime headers and Android library
+        run: |
+          set -euo pipefail
+          mkdir -p ort-headers ort-aar
+          BASE="https://raw.githubusercontent.com/microsoft/onnxruntime/v1.28.0/include/onnxruntime/core/session"
+          for header in onnxruntime_c_api.h onnxruntime_ep_c_api.h onnxruntime_error_code.h; do
+            curl --fail --location --silent --show-error "$BASE/$header" -o "ort-headers/$header"
+          done
+          curl --fail --location --silent --show-error \
+            "https://repo.maven.apache.org/maven2/com/microsoft/onnxruntime/onnxruntime-android/1.28.0/onnxruntime-android-1.28.0.aar" \
+            -o onnxruntime-android.aar
+          unzip -q onnxruntime-android.aar -d ort-aar
+          test -s ort-aar/jni/arm64-v8a/libonnxruntime.so
+      - name: Cross-compile direct PTH-to-audio runtime for Android ARM64
         run: |
           set -euo pipefail
           NDK="$ANDROID_HOME/ndk/23.1.7779620"
           cmake -S tools/native/rvc_pth_android -B pth-core-build \
             -DSPARTACVC_SOURCE_DIR="$GITHUB_WORKSPACE/spartacvc" \
+            -DONNXRUNTIME_INCLUDE_DIR="$GITHUB_WORKSPACE/ort-headers" \
+            -DONNXRUNTIME_LIBRARY="$GITHUB_WORKSPACE/ort-aar/jni/arm64-v8a/libonnxruntime.so" \
             -DCMAKE_TOOLCHAIN_FILE="$NDK/build/cmake/android.toolchain.cmake" \
             -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 \
             -DCMAKE_BUILD_TYPE=Release
           cmake --build pth-core-build --parallel 2
-          test -s pth-core-build/libred_rvc_pth_core.a
+          test -s pth-core-build/libred_rvc_pth.so
           mkdir -p pth-core-output
-          cp pth-core-build/libred_rvc_pth_core.a pth-core-output/
+          cp pth-core-build/libred_rvc_pth.so pth-core-output/
           cp spartacvc/LICENSE pth-core-output/SPARTACVC-LICENSE.txt
-      - name: Upload qualified PTH core build
+      - name: Upload Android ARM64 PTH conversion runtime
         uses: actions/upload-artifact@v5
         with:
-          name: red-rvc-pth-core-arm64
+          name: red-rvc-pth-arm64
           path: pth-core-output/*
           if-no-files-found: error
 
   build:
-    needs: native-backend-guard
-    if: always() && (needs.native-backend-guard.result == 'success' || needs.native-backend-guard.result == 'skipped')
+    needs: [native-backend-guard, pth-backend-probe]
+    if: always() && (needs.native-backend-guard.result == 'success' || needs.native-backend-guard.result == 'skipped') && (needs.pth-backend-probe.result == 'success' || needs.pth-backend-probe.result == 'skipped')
     runs-on: ubuntu-latest
     env:
       RED_RVC_KEYSTORE_BASE64: ${{ secrets.RED_RVC_KEYSTORE_BASE64 }}
