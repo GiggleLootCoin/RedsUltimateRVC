@@ -192,7 +192,7 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
                 const SizedBox(height: 8),
                 Text(File(widget.modelPath).uri.pathSegments.last),
                 const SizedBox(height: 4),
-                Text(widget.modelPath.toLowerCase().endsWith('.pth') ? 'Native RVC v2 PTH • 768-dimensional models' : 'Compatible RVC v2 ONNX model', style: const TextStyle(color: Color(0xFF9999A4), fontSize: 12)),
+                Text(widget.modelPath.toLowerCase().endsWith('.pth') ? 'Native RVC v2 PTH • 768 dimensions / 100 fps only' : 'Compatible RVC v2 ONNX model', style: const TextStyle(color: Color(0xFF9999A4), fontSize: 12)),
               ],
             ),
           ),
