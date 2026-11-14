@@ -88,18 +88,18 @@ jobs:
         uses: actions/cache@v4
         with:
           path: pth-fixtures
-          key: red-rvc-pth-fixture-b5d51f589cc3632d4eae36a315b4179397695042edc01d15312e1bddc2b764a4
+          key: red-rvc-pth-fixture-636cf49be6cac1e510523a4bff9daf90dc54e2a8a76b8fa1216db8f25332e01b
       - name: Verify real PTH checkpoint loading and architecture
         run: |
           set -euo pipefail
           mkdir -p pth-fixtures
-          MODEL="pth-fixtures/f0G48k.pth"
+          MODEL="pth-fixtures/nahida-jp.pth"
           if [ ! -s "$MODEL" ]; then
             curl --fail --location --retry 3 --silent --show-error \
-              "https://huggingface.co/Politrees/RVC_resources/resolve/4e2e9bc1d56cdb93971f807d95001c44614f3a9c/pretrained/v2/48k/f0G48k.pth?download=true" \
+              "https://huggingface.co/ArkanDash/rvc-genshin-impact/resolve/c49621f46b12e35309ba70cb1f64a0288e74a7b5/models/nahida-jp/nahida-jp.pth?download=true" \
               -o "$MODEL"
           fi
-          echo "b5d51f589cc3632d4eae36a315b4179397695042edc01d15312e1bddc2b764a4  $MODEL" | sha256sum --check
+          echo "636cf49be6cac1e510523a4bff9daf90dc54e2a8a76b8fa1216db8f25332e01b  $MODEL" | sha256sum --check
           cc -std=c99 -O2 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -DM_PI=3.14159265358979323846 -include sys/types.h -include unistd.h \
             -I spartacvc/src -I tools/native/rvc_pth_android \
             tools/native/rvc_pth_android/pth_check.c \
