@@ -100,7 +100,7 @@ jobs:
               -o "$MODEL"
           fi
           echo "636cf49be6cac1e510523a4bff9daf90dc54e2a8a76b8fa1216db8f25332e01b  $MODEL" | sha256sum --check
-          cc -std=c99 -O2 -D_FILE_OFFSET_BITS=64 -include unistd.h \
+          cc -std=c99 -O2 -D_FILE_OFFSET_BITS=64 -DM_PI=3.14159265358979323846 -include unistd.h \
             -I spartacvc/src -I tools/native/rvc_pth_android \
             tools/native/rvc_pth_android/pth_check.c \
             spartacvc/src/debug.c spartacvc/src/pickle.c spartacvc/src/zip_reader.c \
