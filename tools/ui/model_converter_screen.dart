@@ -7,7 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import '../services/rvc_bridge.dart';
 
 /// Runs the native CPU RVC-GGML engine with already-exported GGUF assets.
-/// Raw PyTorch .pth checkpoints still need the upstream exporter first.
+/// This is an inference runner, not a .pth/.pt checkpoint exporter.
 class ModelConverterScreen extends StatefulWidget {
   const ModelConverterScreen({super.key});
 
@@ -174,11 +174,11 @@ class _ModelConverterScreenState extends State<ModelConverterScreen> {
               children: [
                 Icon(Icons.memory_rounded, color: _red, size: 38),
                 SizedBox(height: 10),
-                Text('ON-DEVICE GGUF CONVERSION',
+                Text('ON-DEVICE GGUF INFERENCE',
                     style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900)),
                 SizedBox(height: 7),
                 Text(
-                  'This uses the native C++ RVC engine on your phone. It does not need ONNX voice models, cloud inference, Colab or Kaggle.',
+                  'Run an already-exported RVC GGUF model locally with the native C++ engine. No ONNX voice model, cloud inference, Colab or Kaggle is needed for this route. Raw .pth/.pt checkpoints still need a separate exporter.',
                   style: TextStyle(color: Color(0xFFD0D0D8), height: 1.4),
                 ),
               ],
@@ -216,7 +216,7 @@ class _ModelConverterScreenState extends State<ModelConverterScreen> {
                   ? const SizedBox(width: 18, height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2))
                   : const Icon(Icons.auto_awesome),
-              label: Text(_busy ? 'CONVERTING ON THIS PHONE…' : 'CONVERT AUDIO'),
+              label: Text(_busy ? 'CONVERTING ON THIS PHONE…' : 'RUN VOICE CONVERSION'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: _red,
                 foregroundColor: Colors.white,
