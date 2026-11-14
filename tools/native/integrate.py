@@ -104,7 +104,7 @@ s = plugin.read_text(encoding='utf-8')
 dispatch = '            "convertIndex" -> convertIndex(call, result)'
 if '"convertPth" -> convertPth(call, result)' not in s:
     if dispatch not in s: raise RuntimeError('RVCPlugin convertIndex dispatch anchor missing for PTH bridge')
-    s = s.replace(dispatch, dispatch + '\\n            "convertPth" -> convertPth(call, result)', 1)
+    s = s.replace(dispatch, dispatch + '\n            "convertPth" -> convertPth(call, result)', 1)
 if '"separateSongVocals" -> separateSongVocals(call, result)' not in s:
     if dispatch not in s:
         raise RuntimeError('RVCPlugin dispatch anchor missing')
@@ -300,7 +300,7 @@ ps = picker.read_text(encoding='utf-8')
 if "if (imported.path.toLowerCase().endsWith('.onnx')) await _bridge.validateVoiceModel(imported.path);" not in ps:
     import_selection = '        _selectedModelPath = imported.path;'
     if import_selection not in ps: raise RuntimeError('Model import selection anchor missing')
-    ps = ps.replace(import_selection, '        if (imported.path.toLowerCase().endsWith('.onnx')) await _bridge.validateVoiceModel(imported.path);\n' + import_selection, 1)
+    ps = ps.replace(import_selection, "        if (imported.path.toLowerCase().endsWith('.onnx')) await _bridge.validateVoiceModel(imported.path);\n" + import_selection, 1)
 if "if (path.toLowerCase().endsWith('.onnx')) await _bridge.validateVoiceModel(path);" not in ps:
     use_selection = '    _selectedModelPath = path;'
     if use_selection not in ps: raise RuntimeError('Model library use anchor missing')
