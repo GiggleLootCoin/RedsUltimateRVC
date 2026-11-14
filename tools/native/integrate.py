@@ -509,55 +509,56 @@ if 'Future<String> convertGguf({' not in bridge_text:
     bridge_text = bridge_text.replace(anchor, dart_method + anchor, 1)
 bridge.write_text(bridge_text, encoding='utf-8')
 
-# Make the experimental native GGUF converter reachable from the app drawer.
-# Song Covers remains the separate ONNX workflow; this screen requires
-# pre-exported HuBERT, RMVPE and voice GGUF files.
-converter_source = ROOT / 'tools/ui/model_converter_screen.dart'
-converter_target = BUILD / 'lib/screens/model_converter_screen.dart'
-converter_target.parent.mkdir(parents=True, exist_ok=True)
-converter_target.write_text(converter_source.read_text(encoding='utf-8'), encoding='utf-8')
-
-main = BUILD / 'lib/main.dart'
-ms = main.read_text(encoding='utf-8')
-if "import 'screens/model_converter_screen.dart';" not in ms:
-    import_anchor = "import 'screens/song_cover_screen.dart';"
-    if import_anchor not in ms:
-        raise RuntimeError('Song-cover import anchor missing for native GGUF screen')
-    ms = ms.replace(import_anchor, import_anchor + "\nimport 'screens/model_converter_screen.dart';", 1)
-
-open_converter = '''  void _openModelConverter() {
-    setState(() => _moduleIndex = 8);
-    _saveState();
-    _scaffoldKey.currentState?.closeDrawer();
-  }
-
-'''
-if 'void _openModelConverter()' not in ms:
-    anchor = '  Drawer _buildDrawer() {'
-    if anchor not in ms:
-        raise RuntimeError('Drawer builder anchor missing for native GGUF screen')
-    ms = ms.replace(anchor, open_converter + anchor, 1)
-
-drawer_item = '''          ListTile(
-            leading: Icon(Icons.memory),
-            title: Text("Native GGUF Runner"),
-            selected: _moduleIndex == 8,
-            onTap: _openModelConverter,
-          ),
-'''
-if 'title: Text("Native GGUF Converter")' not in ms:
-    anchor = '''          ListTile(leading: const Icon(Icons.multitrack_audio), title: const Text('Pitch Detection'), selected: _moduleIndex == 7, onTap: _openPitchDetection),
-'''
-    if anchor not in ms:
-        raise RuntimeError('Pitch detection drawer item anchor missing')
-    ms = ms.replace(anchor, anchor + drawer_item, 1)
-
-screen_entry = '      ModelConverterScreen(),'
-if screen_entry not in ms:
-    anchor = '      PitchDetectionScreen(isActive: _moduleIndex == 7),'
-    if anchor not in ms:
-        raise RuntimeError('Pitch detection module screen anchor missing')
-    ms = ms.replace(anchor, anchor + '\n' + screen_entry, 1)
-
-main.write_text(ms, encoding='utf-8')
-
+# Only expose the native GGUF runner when its ARM64 JNI library was packaged.
+if ggml_so:
+    # Make the experimental native GGUF converter reachable from the app drawer.
+    # Song Covers remains the separate ONNX workflow; this screen requires
+    # pre-exported HuBERT, RMVPE and voice GGUF files.
+    converter_source = ROOT / 'tools/ui/model_converter_screen.dart'
+    converter_target = BUILD / 'lib/screens/model_converter_screen.dart'
+    converter_target.parent.mkdir(parents=True, exist_ok=True)
+    converter_target.write_text(converter_source.read_text(encoding='utf-8'), encoding='utf-8')
+    
+    main = BUILD / 'lib/main.dart'
+    ms = main.read_text(encoding='utf-8')
+    if "import 'screens/model_converter_screen.dart';" not in ms:
+        import_anchor = "import 'screens/song_cover_screen.dart';"
+        if import_anchor not in ms:
+            raise RuntimeError('Song-cover import anchor missing for native GGUF screen')
+        ms = ms.replace(import_anchor, import_anchor + "\nimport 'screens/model_converter_screen.dart';", 1)
+    
+    open_converter = '''  void _openModelConverter() {
+        setState(() => _moduleIndex = 8);
+        _saveState();
+        _scaffoldKey.currentState?.closeDrawer();
+      }
+    
+    '''
+    if 'void _openModelConverter()' not in ms:
+        anchor = '  Drawer _buildDrawer() {'
+        if anchor not in ms:
+            raise RuntimeError('Drawer builder anchor missing for native GGUF screen')
+        ms = ms.replace(anchor, open_converter + anchor, 1)
+    
+    drawer_item = '''          ListTile(
+                leading: Icon(Icons.memory),
+                title: Text("Native GGUF Runner"),
+                selected: _moduleIndex == 8,
+                onTap: _openModelConverter,
+              ),
+    '''
+    if 'title: Text("Native GGUF Converter")' not in ms:
+        anchor = '''          ListTile(leading: const Icon(Icons.multitrack_audio), title: const Text('Pitch Detection'), selected: _moduleIndex == 7, onTap: _openPitchDetection),
+    '''
+        if anchor not in ms:
+            raise RuntimeError('Pitch detection drawer item anchor missing')
+        ms = ms.replace(anchor, anchor + drawer_item, 1)
+    
+    screen_entry = '      ModelConverterScreen(),'
+    if screen_entry not in ms:
+        anchor = '      PitchDetectionScreen(isActive: _moduleIndex == 7),'
+        if anchor not in ms:
+            raise RuntimeError('Pitch detection module screen anchor missing')
+        ms = ms.replace(anchor, anchor + '\n' + screen_entry, 1)
+    
+    main.write_text(ms, encoding='utf-8')
