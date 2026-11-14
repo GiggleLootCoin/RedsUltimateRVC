@@ -163,8 +163,6 @@ methods = '''
         }
     }
 
-'''
-anchor = '
     private fun convertPth(call: MethodCall, result: Result) {
         val inputPath = call.argument<String>("inputWavPath")
         val modelPath = call.argument<String>("pthModelPath")
@@ -179,21 +177,27 @@ anchor = '
                 fun copyBundledModel(name: String): File {
                     val target = File(modelDir, name)
                     if (!target.isFile || target.length() == 0L) {
+                        val temporary = File(modelDir, "$name.copying")
                         appContext.assets.open("flutter_assets/assets/models/$name").use { input ->
-                            target.outputStream().use { output -> input.copyTo(output) }
+                            temporary.outputStream().use { output -> input.copyTo(output) }
                         }
+                        require(temporary.isFile && temporary.length() > 1_000_000L) { "Bundled $name model is missing or incomplete." }
+                        if (target.exists()) target.delete()
+                        check(temporary.renameTo(target)) { "Could not install bundled $name model." }
                     }
-                    require(target.isFile && target.length() > 0L) { "Bundled $name model is missing or empty." }
+                    require(target.isFile && target.length() > 1_000_000L) { "Bundled $name model is missing or empty." }
                     return target
                 }
                 val hubert = copyBundledModel("hubert.onnx")
                 val rmvpe = copyBundledModel("rmvpe.onnx")
                 val outputDir = File(appContext.filesDir, "outputs").apply { mkdirs() }
                 val output = File(outputDir, "pth_cover_${System.currentTimeMillis()}.wav")
-                val error = RvcPthNative().convertPth(
-                    inputPath, modelPath, hubert.absolutePath, rmvpe.absolutePath,
-                    output.absolutePath, pitchShift
-                )
+                val error = withContext(Dispatchers.IO) {
+                    RvcPthNative().convertPth(
+                        inputPath, modelPath, hubert.absolutePath, rmvpe.absolutePath,
+                        output.absolutePath, pitchShift
+                    )
+                }
                 require(error.isNullOrEmpty()) { error ?: "Native PTH conversion failed." }
                 require(output.isFile && output.length() > 44L) { "Native PTH conversion returned no usable WAV output." }
                 withContext(Dispatchers.Main) { result.success(output.absolutePath) }
@@ -209,7 +213,8 @@ anchor = '
         }
     }
 
-    private fun convertIndex(call: MethodCall, result: Result) {'
+'''
+anchor = '    private fun convertIndex(call: MethodCall, result: Result) {'
 if 'private fun separateSongVocals(call: MethodCall, result: Result)' not in s:
     if anchor not in s: raise RuntimeError('RVCPlugin convertIndex anchor missing')
     s = s.replace(anchor, methods + anchor, 1)
