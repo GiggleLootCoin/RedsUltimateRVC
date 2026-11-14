@@ -84,6 +84,30 @@ jobs:
           repository: f-cero/Spartacvc
           ref: c0b000778e5ff680ef0ab5b445d2ac583048d731
           path: spartacvc
+      - name: Cache a public RVC v2 PTH acceptance fixture
+        uses: actions/cache@v4
+        with:
+          path: pth-fixtures
+          key: red-rvc-pth-fixture-636cf49be6cac1e510523a4bff9daf90dc54e2a8a76b8fa1216db8f25332e01b
+      - name: Verify real PTH checkpoint loading and architecture
+        run: |
+          set -euo pipefail
+          mkdir -p pth-fixtures
+          MODEL="pth-fixtures/nahida-jp.pth"
+          if [ ! -s "$MODEL" ]; then
+            curl --fail --location --retry 3 --silent --show-error \
+              "https://huggingface.co/ArkanDash/rvc-genshin-impact/resolve/c49621f46b12e35309ba70cb1f64a0288e74a7b5/models/nahida-jp/nahida-jp.pth?download=true" \
+              -o "$MODEL"
+          fi
+          echo "636cf49be6cac1e510523a4bff9daf90dc54e2a8a76b8fa1216db8f25332e01b  $MODEL" | sha256sum --check
+          cc -std=c99 -O2 -D_FILE_OFFSET_BITS=64 -include unistd.h \
+            -I spartacvc/src -I tools/native/rvc_pth_android \
+            tools/native/rvc_pth_android/pth_check.c \
+            spartacvc/src/debug.c spartacvc/src/pickle.c spartacvc/src/zip_reader.c \
+            spartacvc/src/pth_loader.c spartacvc/src/rvc.c spartacvc/src/tensor.c \
+            -lm -o pth-check
+          ./pth-check "$MODEL"
+
       - name: Install Android NDK for ARM64 PTH runtime
         run: |
           set -euo pipefail
