@@ -17,11 +17,12 @@ set(PTH_CORE_SOURCES
   "${SPARTACVC_SRC}/rvc.c"
   "${SPARTACVC_SRC}/rvc_infer.c"
   "${SPARTACVC_SRC}/tensor.c"
-  "${SPARTACVC_SRC}/threads.c"
+  "${CMAKE_CURRENT_LIST_DIR}/threads_android.c"
 )
 
 add_library(red_rvc_pth_core STATIC ${PTH_CORE_SOURCES})
 target_include_directories(red_rvc_pth_core PUBLIC "${SPARTACVC_SRC}")
 target_compile_definitions(red_rvc_pth_core PRIVATE _FILE_OFFSET_BITS=64)
-target_compile_options(red_rvc_pth_core PRIVATE -include unistd.h -include sys/types.h)
-target_link_libraries(red_rvc_pth_core PUBLIC m)
+target_compile_options(red_rvc_pth_core PRIVATE -include unistd.h)
+find_package(Threads REQUIRED)
+target_link_libraries(red_rvc_pth_core PUBLIC m Threads::Threads)
