@@ -22,8 +22,6 @@ set(PTH_NATIVE_SOURCES
   "${SPARTACVC_SRC}/rvc.c"
   "${SPARTACVC_SRC}/rvc_infer.c"
   "${SPARTACVC_SRC}/tensor.c"
-  "${SPARTACVC_SRC}/mel.c"
-  "${SPARTACVC_SRC}/f0.c"
   "${SPARTACVC_SRC}/onnx.c"
   "${CMAKE_CURRENT_LIST_DIR}/threads_android.c"
   "${CMAKE_CURRENT_LIST_DIR}/pth_pipeline.c"
