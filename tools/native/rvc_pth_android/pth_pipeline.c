@@ -363,7 +363,8 @@ int red_rvc_pth_convert(const char *input_wav, const char *pth_path,
     rvc_model_t *model = NULL;
     spcv_onnx_session *hubert = NULL, *rmvpe = NULL;
     red_wav wav = {0};
-    float *audio16 = NULL, *phone = NULL, *pitchf = NULL, *output = NULL;
+    float *audio16 = NULL, *phone = NULL, *pitchf = NULL;
+    float *output = NULL, *segment_output = NULL;
     int64_t *pitch = NULL;
 
     if (!input_wav || !pth_path || !hubert_path || !rmvpe_path || !output_wav) {
@@ -381,7 +382,7 @@ int red_rvc_pth_convert(const char *input_wav, const char *pth_path,
         set_error(error,error_cap,"This PTH checkpoint could not be read as a supported RVC v2 model."); goto cleanup;
     }
     model_ready = 1;
-    if (model->cfg.ques != RED_HUBERT_DIM || model->fps != 100) {
+    if (model->cfg.version != 2 || model->cfg.ques != RED_HUBERT_DIM || model->fps != 100) {
         set_error(error,error_cap,"This build supports standard 100-fps, 768-dimensional RVC v2 PTH checkpoints only."); goto cleanup;
     }
     if (model->cfg.sr != 32000 && model->cfg.sr != 40000 && model->cfg.sr != 48000) {
@@ -403,46 +404,116 @@ int red_rvc_pth_convert(const char *input_wav, const char *pth_path,
     }
     audio16 = resample_1d(wav.data, wav.n, n16);
     if (!audio16) { set_error(error,error_cap,"Not enough memory to resample the audio."); goto cleanup; }
+    free(wav.data); wav.data = NULL;
 
     const int frames = (int)((double)n16 * model->fps / 16000.0);
     if (frames <= 0 || frames > 60000) {
         set_error(error,error_cap,"Audio is too long for safe on-device RVC processing."); goto cleanup;
     }
-    int hubert_error = 0;
-    phone = extract_hubert_phone(hubert, audio16, n16, frames, &hubert_error);
-    if (!phone) {
-        const char *why = hubert_error == 1 ? "ContentVec model inputs are not the expected source/padding_mask pair."
-            : hubert_error == 5 ? "ContentVec output is not a 768-dimensional feature tensor."
-            : "ContentVec feature extraction failed.";
-        set_error(error,error_cap,why); goto cleanup;
-    }
-    if (extract_rmvpe_pitch(rmvpe, audio16, n16, frames, pitch_shift, &pitchf, &pitch) != 0) {
-        set_error(error,error_cap,"RMVPE pitch extraction failed."); goto cleanup;
-    }
-    free(audio16); audio16 = NULL;
-    free(wav.data); wav.data = NULL;
-
     const int64_t samples_per_frame = model->cfg.sr / model->fps;
-    if ((uint64_t)frames * (uint64_t)samples_per_frame > SIZE_MAX / sizeof(float)) {
+    if (samples_per_frame <= 0 || (uint64_t)frames * (uint64_t)samples_per_frame > SIZE_MAX / sizeof(float)) {
         set_error(error,error_cap,"The converted audio would exceed available memory."); goto cleanup;
     }
     const size_t max_samples = (size_t)frames * (size_t)samples_per_frame;
     output = (float *)malloc(max_samples * sizeof(float));
     if (!output) { set_error(error,error_cap,"Not enough memory for converted audio."); goto cleanup; }
-    int output_length = 0;
-    uint32_t seed = 0x524544u;
-    if (rvc_infer(model, phone, frames, pitch, pitchf,
-                  NULL, output, &output_length, &seed) != 0 || output_length <= 0 ||
-        (size_t)output_length > max_samples) {
-        set_error(error,error_cap,"The native RVC voice-conversion engine failed."); goto cleanup;
+
+    /* Process 15-second centres with one second of context and a short overlap.
+       This keeps feature tensors small on low-memory Android devices. */
+    const int center_frames = 1500;
+    const int context_frames = 100;
+    const int join_overlap_frames = 2;
+    int center_start = 0;
+    int output_written_frames = 0;
+    int segment_index = 0;
+    while (center_start < frames) {
+        const int center_end = center_start + center_frames < frames
+            ? center_start + center_frames : frames;
+        const int segment_start = center_start > context_frames
+            ? center_start - context_frames : 0;
+        const int segment_end = center_end + context_frames < frames
+            ? center_end + context_frames : frames;
+        const int segment_frames = segment_end - segment_start;
+        const int64_t segment_n16 = (int64_t)segment_frames * 160;
+        const float *segment_audio = audio16 + (int64_t)segment_start * 160;
+
+        int hubert_error = 0;
+        phone = extract_hubert_phone(hubert, segment_audio, segment_n16,
+                                     segment_frames, &hubert_error);
+        if (!phone) {
+            const char *why = hubert_error == 1 ? "ContentVec model inputs are not the expected source/padding_mask pair."
+                : hubert_error == 5 ? "ContentVec output is not a 768-dimensional feature tensor."
+                : "ContentVec feature extraction failed.";
+            set_error(error,error_cap,why); goto cleanup;
+        }
+        if (extract_rmvpe_pitch(rmvpe, segment_audio, segment_n16, segment_frames,
+                                pitch_shift, &pitchf, &pitch) != 0) {
+            set_error(error,error_cap,"RMVPE pitch extraction failed."); goto cleanup;
+        }
+
+        const size_t segment_max_samples = (size_t)segment_frames * (size_t)samples_per_frame;
+        segment_output = (float *)malloc(segment_max_samples * sizeof(float));
+        if (!segment_output) {
+            set_error(error,error_cap,"Not enough memory for an RVC processing segment."); goto cleanup;
+        }
+        int segment_output_length = 0;
+        uint32_t seed = 0x524544u + (uint32_t)segment_index;
+        if (rvc_infer(model, phone, segment_frames, pitch, pitchf,
+                      NULL, segment_output, &segment_output_length, &seed) != 0 ||
+            segment_output_length <= 0 || (size_t)segment_output_length > segment_max_samples) {
+            set_error(error,error_cap,"The native RVC voice-conversion engine failed."); goto cleanup;
+        }
+
+        const int trim_start_frames = center_start - segment_start;
+        const size_t source_offset = (size_t)trim_start_frames * (size_t)samples_per_frame;
+        const size_t center_samples = (size_t)(center_end - center_start) * (size_t)samples_per_frame;
+        if (source_offset > (size_t)segment_output_length ||
+            center_samples > (size_t)segment_output_length - source_offset) {
+            set_error(error,error_cap,"The native RVC engine returned an incomplete audio segment."); goto cleanup;
+        }
+
+        const int overlap_frames = output_written_frames > center_start
+            ? (output_written_frames - center_start) : 0;
+        const size_t overlap_samples = (size_t)overlap_frames * (size_t)samples_per_frame;
+        if (overlap_samples > center_samples) {
+            set_error(error,error_cap,"Invalid RVC segment overlap."); goto cleanup;
+        }
+        const size_t destination_offset = (size_t)center_start * (size_t)samples_per_frame;
+        for (size_t n = 0; n < overlap_samples; ++n) {
+            const float alpha = (float)(n + 1) / (float)(overlap_samples + 1);
+            output[destination_offset + n] =
+                output[destination_offset + n] * (1.0f - alpha) +
+                segment_output[source_offset + n] * alpha;
+        }
+        const size_t copy_samples = center_samples - overlap_samples;
+        if (copy_samples > 0) {
+            memcpy(output + destination_offset + overlap_samples,
+                   segment_output + source_offset + overlap_samples,
+                   copy_samples * sizeof(float));
+        }
+        output_written_frames = center_end;
+
+        free(phone); phone = NULL;
+        free(pitchf); pitchf = NULL;
+        free(pitch); pitch = NULL;
+        free(segment_output); segment_output = NULL;
+
+        if (center_end == frames) break;
+        center_start = center_end - join_overlap_frames;
+        ++segment_index;
     }
-    if (write_wav(output_wav, output, output_length, model->cfg.sr) != 0) {
+
+    if (output_written_frames != frames) {
+        set_error(error,error_cap,"The native RVC engine did not produce the complete song."); goto cleanup;
+    }
+    if (write_wav(output_wav, output, (int)max_samples, model->cfg.sr) != 0) {
         set_error(error,error_cap,"Could not write the converted WAV file."); goto cleanup;
     }
     result = 0;
 
 cleanup:
-    free(wav.data); free(audio16); free(phone); free(pitchf); free(pitch); free(output);
+    free(wav.data); free(audio16); free(phone); free(pitchf); free(pitch);
+    free(segment_output); free(output);
     if (hubert) spcv_onnx_free(hubert);
     if (rmvpe) spcv_onnx_free(rmvpe);
     if (model_ready) rvc_free(model);
