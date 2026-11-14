@@ -17,61 +17,19 @@ concurrency:
 jobs:
   # Build and package the native GGUF runtime for an installable engineering APK.
   # Raw .pth export and physical-device qualification remain separate milestones.
-  native-backend-guard:
+  quality-guard:
     if: github.ref == 'refs/heads/feature/native-ncnn-rvc-backend' || (github.event_name == 'pull_request' && github.head_ref == 'feature/native-ncnn-rvc-backend')
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout native migration branch
+      - name: Checkout Red's Ultimate RVC
         uses: actions/checkout@v5
-      - name: Validate migration tooling and regression tests
+      - name: Validate integration tooling and regression tests
         run: |
           set -euo pipefail
           python3 -m py_compile tools/brand.py tools/native/integrate.py
           python3 -m pip install --quiet pytest
           python3 -m pytest -q tools/tests
-          grep -q 'ON-DEVICE GGUF INFERENCE' tools/ui/model_converter_screen.dart
-          grep -q 'convertGguf' tools/native/integrate.py
-          grep -q 'RVC encoder/flow and NSF decoder' docs/NATIVE_RVC_BACKEND_MIGRATION.md
-          echo 'Native GGUF runtime and Flutter conversion screen source checks passed; raw PTH export remains a disclosed limitation.'
 
-      # Compile the independently developed, MIT-licensed C++ RVC inference core
-      # for Android ARM64 before attempting to wire it into the application.
-      - name: Checkout pinned RVC-GGML inference source
-        uses: actions/checkout@v5
-        with:
-          repository: lainlives/rvc-ggml
-          ref: 3b1a40b5386fe624367c859bd1ad5e7fd7b8508a
-          path: rvc-ggml
-
-      - name: Install Android NDK for ARM64 CPU build
-        run: |
-          set -euo pipefail
-          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" --install "ndk;27.2.12479018"
-          test -f "$ANDROID_HOME/ndk/27.2.12479018/build/cmake/android.toolchain.cmake"
-
-      - name: Cross-compile native RVC JNI runtime for Android ARM64 (CPU only)
-        run: |
-          set -euo pipefail
-          NDK="$ANDROID_HOME/ndk/27.2.12479018"
-          cmake -S tools/native/rvc_ggml_android -B rvc-ggml-android-build -DRVC_GGML_SOURCE_DIR="$GITHUB_WORKSPACE/rvc-ggml/rvc-ggml" -DCMAKE_TOOLCHAIN_FILE="$NDK/build/cmake/android.toolchain.cmake" -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 -DCMAKE_BUILD_TYPE=Release
-          cmake --build rvc-ggml-android-build --target red_rvc_ggml --parallel 2
-          mkdir -p native-output
-          NATIVE_SO="$(find rvc-ggml-android-build -name 'libred_rvc_ggml.so' -size +0c -print -quit)"
-          test -n "$NATIVE_SO"
-          cp "$NATIVE_SO" native-output/libred_rvc_ggml.so
-          test -s native-output/libred_rvc_ggml.so
-      - name: Upload native ARM64 RVC runtime
-        uses: actions/upload-artifact@v5
-        with:
-          name: red-rvc-ggml-arm64
-          path: native-output/libred_rvc_ggml.so
-          if-no-files-found: error
-
-  # Compile the Apache-2.0 pure-C RVC v2 checkpoint engine for Android.
-  # This is the first qualification stage for direct .pth inference; it does
-  # not yet expose the engine in the UI or claim arbitrary checkpoint support.
   pth-backend-probe:
     if: github.ref == 'refs/heads/feature/native-ncnn-rvc-backend' || (github.event_name == 'pull_request' && github.head_ref == 'feature/native-ncnn-rvc-backend')
     runs-on: ubuntu-latest
@@ -151,8 +109,8 @@ jobs:
           if-no-files-found: error
 
   build:
-    needs: [native-backend-guard, pth-backend-probe]
-    if: always() && (needs.native-backend-guard.result == 'success' || needs.native-backend-guard.result == 'skipped') && (needs.pth-backend-probe.result == 'success' || needs.pth-backend-probe.result == 'skipped')
+    needs: [quality-guard, pth-backend-probe]
+    if: always() && (needs.quality-guard.result == 'success' || needs.quality-guard.result == 'skipped') && (needs.pth-backend-probe.result == 'success' || needs.pth-backend-probe.result == 'skipped')
     runs-on: ubuntu-latest
     env:
       RED_RVC_KEYSTORE_BASE64: ${{ secrets.RED_RVC_KEYSTORE_BASE64 }}
@@ -162,13 +120,6 @@ jobs:
     steps:
       - name: Checkout Red's Ultimate RVC
         uses: actions/checkout@v5
-
-      - name: Download native RVC runtime for native migration builds
-        if: github.ref == 'refs/heads/feature/native-ncnn-rvc-backend' || (github.event_name == 'pull_request' && github.head_ref == 'feature/native-ncnn-rvc-backend')
-        uses: actions/download-artifact@v6
-        with:
-          name: red-rvc-ggml-arm64
-          path: native-output
 
       - name: Download native PTH conversion runtime
         if: github.ref == 'refs/heads/feature/native-ncnn-rvc-backend' || (github.event_name == 'pull_request' && github.head_ref == 'feature/native-ncnn-rvc-backend')
@@ -208,9 +159,7 @@ jobs:
       - name: Apply Red's branding
         run: python3 tools/brand.py
 
-      - name: Integrate offline song-cover and native RVC bridges
-        env:
-          RVC_GGML_ANDROID_SO: ${{ (github.ref == 'refs/heads/feature/native-ncnn-rvc-backend' || (github.event_name == 'pull_request' && github.head_ref == 'feature/native-ncnn-rvc-backend')) && 'native-output/libred_rvc_ggml.so' || '' }}
+      - name: Integrate offline song-cover and native PTH RVC bridge
         run: python3 tools/native/integrate.py
 
       - name: Set up Java 17 for the upstream Android Gradle build
@@ -382,7 +331,7 @@ jobs:
               ]
               import os
               if os.environ.get("RVC_NATIVE_BACKEND_BUILD") == "true":
-                  required_native.extend(["lib/arm64-v8a/libred_rvc_ggml.so", "lib/arm64-v8a/libred_rvc_pth.so"])
+                  required_native.append("lib/arm64-v8a/libred_rvc_pth.so")
               for required in required_native:
                   matches = [i.filename for i in z.infolist() if i.filename.endswith(required)]
                   if len(matches) != 1:
