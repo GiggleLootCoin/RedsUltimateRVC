@@ -540,7 +540,7 @@ if 'void _openModelConverter()' not in ms:
 
 drawer_item = '''          ListTile(
             leading: Icon(Icons.memory),
-            title: Text("Native GGUF Converter"),
+            title: Text("Native GGUF Runner"),
             selected: _moduleIndex == 8,
             onTap: _openModelConverter,
           ),
