@@ -27,4 +27,4 @@ def test_native_converter_does_not_claim_to_accept_raw_pth_checkpoints():
     source = SCREEN.read_text(encoding="utf-8")
     assert "required bool gguf" in source
     assert "lower.endsWith('.gguf')" in source
-    assert "raw .pth checkpoint still needs the upstream exporter first" in source
+    assert "Raw PyTorch .pth checkpoints still need the upstream exporter first" in source
