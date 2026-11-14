@@ -211,6 +211,6 @@ def test_native_gguf_runtime_is_packaged_into_the_native_branch_apk():
     assert "RVC_NATIVE_BACKEND_BUILD" in workflow
     assert "RvcGgmlNative.kt" in integration
     assert "convertGguf" in integration
-    assert "ON-DEVICE GGUF CONVERSION" in screen
+    assert "ON-DEVICE GGUF INFERENCE" in screen
     assert "The native engine currently accepts WAV audio" in screen
     assert "raw .pth checkpoint is not executable" in screen
