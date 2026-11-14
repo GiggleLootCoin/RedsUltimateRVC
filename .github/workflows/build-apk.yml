@@ -65,11 +65,11 @@ jobs:
             unzip -p "$ZIP" "$ENTRY" > "$MODEL"
           fi
           test -s "$MODEL"
-          cc -std=c99 -O2 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -DM_PI=3.14159265358979323846 -include sys/types.h -include unistd.h \\
-            -I spartacvc/src -I tools/native/rvc_pth_android \\
-            tools/native/rvc_pth_android/pth_check.c \\
-            spartacvc/src/debug.c spartacvc/src/pickle.c spartacvc/src/zip_reader.c \\
-            spartacvc/src/pth_loader.c spartacvc/src/rvc.c spartacvc/src/tensor.c \\
+          cc -std=c99 -O2 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -DM_PI=3.14159265358979323846 -include sys/types.h -include unistd.h \
+            -I spartacvc/src -I tools/native/rvc_pth_android \
+            tools/native/rvc_pth_android/pth_check.c \
+            spartacvc/src/debug.c spartacvc/src/pickle.c spartacvc/src/zip_reader.c \
+            spartacvc/src/pth_loader.c spartacvc/src/rvc.c spartacvc/src/tensor.c \
             -lm -o pth-check
           ./pth-check "$MODEL"
       - name: Install Android NDK for ARM64 PTH runtime
