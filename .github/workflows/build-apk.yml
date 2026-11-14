@@ -299,7 +299,7 @@ jobs:
       # Feature-branch builds remain test artifacts. A public release is
       # deliberately restricted to main after the real-device acceptance gate.
       - name: Publish downloadable GitHub release
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v0.2.0-preview-${{ github.run_number }}
