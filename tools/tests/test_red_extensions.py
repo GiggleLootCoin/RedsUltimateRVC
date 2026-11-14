@@ -11,7 +11,8 @@ def test_integrated_model_picker_imports_source_models_without_android_extension
     assert "type: FileType.any" in source
     assert "['onnx', 'pth', 'pt', 'zip'].contains(ext)" in source
     assert "_bridge.importPickedFile(kind: 'model', sourcePath: source)" in source
-    assert "PTH/PT/ZIP is stored safely but is not directly runnable" in source
+    assert "bool _runtime(String path) => ['onnx', 'pth'].contains(_ext(path));" in source
+    assert "PT and ZIP source archives are stored safely but are not directly runnable" in source
 
 
 def test_integrated_index_library_accepts_faiss_and_mobile_indexes_without_fake_conversion():
@@ -216,3 +217,23 @@ def test_native_gguf_runtime_is_packaged_into_the_native_branch_apk():
     assert "ON-DEVICE GGUF INFERENCE" in screen
     assert "The native engine currently accepts WAV audio" in screen
     assert "raw .pth checkpoint is not executable" in screen
+
+
+def test_native_pth_runtime_is_built_and_connected_to_song_covers():
+    integration = (ROOT / "tools/native/integrate.py").read_text(encoding="utf-8")
+    cmake = (ROOT / "tools/native/rvc_pth_android/CMakeLists.txt").read_text(encoding="utf-8")
+    pipeline = (ROOT / "tools/native/rvc_pth_android/pth_pipeline.c").read_text(encoding="utf-8")
+    jni = (ROOT / "tools/native/rvc_pth_android/pth_jni.cpp").read_text(encoding="utf-8")
+    kotlin = (ROOT / "tools/native/RvcPthNative.kt").read_text(encoding="utf-8")
+    screen = (ROOT / "tools/ui/song_cover_screen.dart").read_text(encoding="utf-8")
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    for required in ("rvc.c", "rvc_infer.c", "pth_loader.c", "onnx.c", "f0.c", "mel.c", "pth_pipeline.c", "pth_jni.cpp"):
+        assert required in cmake
+    for required in ("rvc_load(model, pth_path)", "rvc_infer(model,", "spcv_onnx_load(hubert_path", "spcv_onnx_load(rmvpe_path", "spcv_f0_extract"):
+        assert required in pipeline
+    assert "Java_com_ultimatervc_mobile_RvcPthNative_convertPth" in jni
+    assert 'System.loadLibrary("red_rvc_pth")' in kotlin
+    assert "convertPth" in integration
+    assert "_bridge.convertPth(" in screen
+    assert "red-rvc-pth-arm64" in workflow
+    assert "libred_rvc_pth.so" in workflow
