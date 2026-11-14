@@ -36,5 +36,5 @@ def test_ci_pins_and_cross_compiles_the_apache_licensed_pth_engine_for_arm64():
     assert "repository: f-cero/Spartacvc" in source
     assert "c0b000778e5ff680ef0ab5b445d2ac583048d731" in source
     assert "ANDROID_ABI=arm64-v8a" in source
-    assert "red-rvc-pth-core-arm64" in source
+    assert "red-rvc-pth-arm64" in source
     assert "SPARTACVC-LICENSE.txt" in source
