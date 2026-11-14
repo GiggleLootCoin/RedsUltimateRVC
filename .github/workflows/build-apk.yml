@@ -27,6 +27,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m py_compile tools/brand.py tools/native/integrate.py
+          bash -n tools/tests/check_pth_v2_profile.sh
           python3 -m pip install --quiet pytest
           python3 -m pytest -q tools/tests
 
@@ -46,7 +47,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: pth-fixtures
-          key: red-rvc-pth-fixture-636cf49be6cac1e510523a4bff9daf90dc54e2a8a76b8fa1216db8f25332e01b
+          key: red-rvc-pth-fixture-636cf49be6cac1e510523a4bff9daf90dc54e2a8a76b8fa1216db8f25332e01b-aether-49d261ca204ceebe19becd0304fb86d549b2f93eef03e222d95e492138823bc6
       - name: Verify real PTH checkpoint loading and architecture
         run: |
           set -euo pipefail
@@ -66,6 +67,8 @@ jobs:
             -lm -o pth-check
           ./pth-check "$MODEL"
 
+      - name: Verify standard RVC v2 PTH feature profile
+        run: bash tools/tests/check_pth_v2_profile.sh
       - name: Install Android NDK for ARM64 PTH runtime
         run: |
           set -euo pipefail
