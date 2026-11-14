@@ -3,10 +3,10 @@
 #include <string.h>
 
 static const char *get_utf(JNIEnv *env, jstring value) {
-    return value ? (*env)->GetStringUTFChars(env, value, 0) : 0;
+    return value ? env->GetStringUTFChars(value, 0) : 0;
 }
 static void release_utf(JNIEnv *env, jstring value, const char *text) {
-    if (value && text) (*env)->ReleaseStringUTFChars(env, value, text);
+    if (value && text) env->ReleaseStringUTFChars(value, text);
 }
 
 JNIEXPORT jstring JNICALL
@@ -33,5 +33,5 @@ Java_com_ultimatervc_mobile_RvcPthNative_convertPth(
     release_utf(env, hubert, hubert_path);
     release_utf(env, rmvpe, rmvpe_path);
     release_utf(env, output, output_path);
-    return status == 0 ? NULL : (*env)->NewStringUTF(env, error[0] ? error : "Native PTH conversion failed.");
+    return status == 0 ? NULL : env->NewStringUTF(error[0] ? error : "Native PTH conversion failed.");
 }
