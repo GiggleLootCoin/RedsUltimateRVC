@@ -16,7 +16,7 @@ def test_android_pth_core_builds_the_real_checkpoint_loader_and_inference_source
         "/rvc_infer.c",
         "/tensor.c",
         "threads_android.c",
-        "red_rvc_pth_core",
+        "red_rvc_pth",
     ):
         assert required in source
     assert "/threads.c" not in source
