@@ -1,67 +1,63 @@
-# Native RVC backend migration (ONNX-free target)
+# Direct PTH backend — Android ARM64
 
 ## Goal
 
-Replace the current ONNX Runtime inference path with an Android-native inference backend that imports a user's real RVC v2 `.pth` checkpoint and converts audio locally. The shipped app must not require ONNX Runtime, ONNX model files, or an ONNX export step.
+Provide a genuine on-device RVC v2 voice-conversion route that accepts a compatible trained .pth voice checkpoint directly. The user must not have to export the voice model to ONNX or supply separate GGUF files.
 
-This is a backend replacement, not an extension rename. Do not label a checkpoint as runnable until a real conversion test passes.
+The PTH voice checkpoint is executed by the native C RVC engine. The app still uses its bundled ONNX Runtime feature models for ContentVec/HuBERT and RMVPE, and Sherpa-ONNX for local vocal separation. This is not an ONNX-free application.
 
-## Current state verified on 2026-11-10
+## Verified engineering state (2026-11-14)
 
-- The current Android pipeline loads HuBERT, RMVPE, the RVC encoder and decoder through ONNX Runtime.
-- ncnn is currently only an optional decoder path; it does not replace the ONNX front end or encoder.
-- The app's current inference engine expects exported model files. A file-picker acceptance of `.pth` does not make the checkpoint executable.
-- The upstream Android converter inspected for reference also exports HuBERT, RMVPE and the RVC encoder to ONNX. It therefore does not satisfy this ONNX-free requirement.
-- The current model converter and index converter screens are not a complete on-device `.pth` conversion solution.
-- Existing CI can compile the current ONNX-based app, but that is not proof of working conversion on the target Galaxy A12.
+- A real public RVC v2 .pth checkpoint was loaded by the native parser in CI.
+- The native PTH inference shared library compiled for Android ARM64.
+- The feature-extraction path was aligned to the app's actual ContentVec and RMVPE model signatures and preprocessing.
+- The Flutter method-channel bridge and song-cover UI have a direct PTH route in source.
+- APK packaging and end-to-end song conversion are still being verified.
+- Physical Samsung Galaxy A12 testing has not yet been completed.
 
-## Target architecture
+## Runtime pipeline
 
-1. **Checkpoint reader and validator**
-   - Read the original RVC checkpoint on-device or through a strictly local native conversion stage.
-   - Validate checkpoint keys, RVC version, f0 support, sample rate, speaker embedding count and synthesizer geometry.
-   - Support the final inference checkpoint from `weights/`; clearly reject training snapshots and unsupported variants.
-   - Never upload private checkpoints or recordings.
+1. Import the .pth checkpoint into app-private storage.
+2. Validate the model profile and load its tensors with the restricted native PTH reader.
+3. Decode the song and separate vocals/accompaniment locally.
+4. Resample the vocal stem to 16 kHz for ContentVec and RMVPE.
+5. Run ContentVec with its source and padding_mask inputs; repeat 50-Hz features to the 100-Hz RVC frame rate.
+6. Build the RMVPE mel spectrogram with the app's 1024-point FFT, 160-sample hop, 128 mel bins, 30–8000 Hz range and matching log-energy scaling.
+7. Run RMVPE pitch extraction and coarse-pitch quantisation.
+8. Run the native RVC v2 generator and write a WAV at the model's sample rate.
+9. Align and mix the converted vocals with the original accompaniment.
 
-2. **ONNX-free model execution**
-   - Prototype direct PyTorch-to-ncnn/pnnx export for HuBERT/ContentVec, RMVPE, RVC encoder/flow and NSF-HiFiGAN decoder.
-   - Run an operator-coverage audit for transformer attention, LayerNorm, convolution, transposed convolution, GRU, interpolation, STFT/mel and dynamic sequence lengths.
-   - Implement missing operators natively or use a different ONNX-free runtime only if its Android ARM64 support and model parity are demonstrated.
-   - Keep all inference stages on-device. ncnn is a candidate, not an assumed solution: do not ship until every stage passes parity and memory tests.
+## Supported profile
 
-3. **Signal pipeline**
-   - Resample input audio to the model's expected rate.
-   - Extract 768-dimensional content features.
-   - Estimate F0 and apply pitch shift / protection / unvoiced handling.
-   - Run the RVC encoder/flow and NSF decoder with correct speaker conditioning.
-   - Apply retrieval blending when a supported index is present.
-   - Restore loudness and output WAV with chunking and crossfades to bound RAM.
+- RVC v2 F0 checkpoint.
+- 768-dimensional ContentVec features.
+- 100-fps frame rate.
+- 32 kHz, 40 kHz or 48 kHz output sample rate.
 
-4. **Index support**
-   - Parse standard FAISS RVC indexes and convert vectors into the app's native retrieval format.
-   - Validate 768-dimensional vectors, count, finite values, truncation and byte order.
-   - Do not treat a renamed `.index` file as a converted index.
+Other checkpoint dimensions/frame rates are rejected. Standard FAISS .index and .mobile.index retrieval are not yet wired to this native PTH route. .pt and ZIP archives are storage-only.
 
-5. **Android integration**
-   - Replace ONNX Runtime imports, dependencies, model assets, validation and execution in the Kotlin/native bridge.
-   - Keep the UI's normal `.pth` and `.index` selection flow; provide clear compatibility errors.
-   - Keep inference cancellable, progress-reporting, chunked and recoverable after interruption.
-   - Target ARM64 Android 12 and low-memory Exynos devices; CPU fallback is mandatory. Vulkan is optional.
+## Dependencies and licensing
 
-## Required proof before calling it complete
+- Spartacvc, Apache-2.0: native PTH checkpoint parsing and RVC C inference.
+- ONNX Runtime Android 1.28.0: bundled ContentVec/HuBERT and RMVPE feature extraction.
+- Sherpa-ONNX v1.13.8: local Spleeter vocal/accompaniment separation.
+- The voice model, audio and output remain on-device.
 
-- Automated checkpoint-format tests for valid RVC v2 and rejected v1 / no-f0 / unsupported sample-rate / training snapshots.
-- Numerical parity tests comparing every native stage and final converted waveform against the reference RVC PyTorch pipeline, with documented tolerances.
-- Real standard FAISS index conversion and retrieval tests.
-- CI build with no ONNX Runtime dependency or ONNX assets in the shipped inference path.
-- APK install and end-to-end file conversion test on a physical Samsung Galaxy A12 / Exynos device, including a long file, cancellation, low-storage handling and repeated conversions.
-- Confirm output is genuinely converted speech, not copied or pass-through input.
-- Document APK size, peak memory, conversion speed, thermal behaviour and remaining unsupported checkpoint types.
+## Performance and release gate
+
+The current pipeline has a 10-minute input guard but has not been certified for long files or low-memory Android devices. Chunked inference and peak-memory profiling are still required. A compiled native library is not proof of acceptable speed, audio quality or stability.
+
+Before a public release:
+- Package the PTH library in the APK and pass Flutter/native regression tests.
+- Run a real compatible PTH voice checkpoint through the full song-cover path.
+- Confirm non-silent converted vocals, correct duration, accompaniment preservation and valid WAV output.
+- Implement and test standard FAISS retrieval before claiming .index support.
+- Test a full-length song on a physical Samsung Galaxy A12 and record memory, elapsed time, thermal behaviour, cancellation and low-storage handling.
+- Keep the public release gate manual and restricted to main after acceptance.
 
 ## Guardrails
 
-- Do not claim the ONNX-free backend is implemented until the above proof exists.
-- Do not silently fall back to the old ONNX pipeline.
-- Do not upload user voice models or recordings to cloud services.
-- Do not change Little Red's Big Studio, RedAI or RED-LIVE.
-- Preserve the existing app as a known-good baseline while the replacement backend is developed on this branch.
+- Do not label .pt, ZIP, unsupported .pth variants or standard FAISS indexes as runnable.
+- Do not claim arbitrary PTH support.
+- Do not upload user voice models, recordings, stems or generated audio to a server.
+- Keep all unrelated projects and repositories untouched.
