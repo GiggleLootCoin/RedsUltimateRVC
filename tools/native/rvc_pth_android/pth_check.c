@@ -18,9 +18,9 @@ int main(int argc, char **argv) {
            model->cfg.ques, model->cfg.sr, model->fps,
            model->cfg.version, model->emb_g_dim > 0 ? 1 : 0);
     const int supported = model->cfg.version == 2 &&
-        (model->cfg.ques == 256 || model->cfg.ques == 768) &&
+        model->cfg.ques == 768 &&
         (model->cfg.sr == 32000 || model->cfg.sr == 40000 || model->cfg.sr == 48000) &&
-        model->fps > 0;
+        model->fps == 100;
     rvc_free(model);
     free(model);
     return supported ? 0 : 5;
