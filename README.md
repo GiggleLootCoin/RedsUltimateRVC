@@ -44,7 +44,7 @@ The native migration branch now packages the compiled ARM64 JNI library into an 
 
 ## Native migration branch warning
 
-The `feature/native-ncnn-rvc-backend` branch builds an installable engineering APK artifact with the native GGUF runtime packaged and a dedicated conversion screen. It is not an ONNX-free release: the existing ONNX pipeline remains available as a fallback, while the native route uses GGUF. The APK is not published as a public release until real model/audio and Galaxy A12 acceptance tests pass. Raw `.pth` files still need an exporter step; importing one does not make it directly runnable.
+The `feature/native-ncnn-rvc-backend` branch builds an installable engineering APK artifact with the native GGUF runtime packaged and a dedicated inference screen. It is not an ONNX-free release: the existing ONNX pipeline remains available, while the native route uses GGUF. Feature-branch builds are Actions test artifacts only; the workflow no longer publishes them as public GitHub releases. A public release must wait for real model/audio and Galaxy A12 acceptance tests. Raw `.pth` files still need a working exporter/runtime path; importing one does not make it directly runnable.
 
 ## Build and automated checks
 
