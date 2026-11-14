@@ -60,7 +60,18 @@ jobs:
           fi
           echo "49d261ca204ceebe19becd0304fb86d549b2f93eef03e222d95e492138823bc6  $ZIP" | sha256sum --check
           if [ ! -s "$MODEL" ]; then
-            ENTRY="$(unzip -Z1 "$ZIP" | grep -i '\.pth
+            ENTRY="$(unzip -Z1 "$ZIP" | grep -i -E "\\.pth$" | head -n 1)"
+            test -n "$ENTRY"
+            unzip -p "$ZIP" "$ENTRY" > "$MODEL"
+          fi
+          test -s "$MODEL"
+          cc -std=c99 -O2 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -DM_PI=3.14159265358979323846 -include sys/types.h -include unistd.h \\
+            -I spartacvc/src -I tools/native/rvc_pth_android \\
+            tools/native/rvc_pth_android/pth_check.c \\
+            spartacvc/src/debug.c spartacvc/src/pickle.c spartacvc/src/zip_reader.c \\
+            spartacvc/src/pth_loader.c spartacvc/src/rvc.c spartacvc/src/tensor.c \\
+            -lm -o pth-check
+          ./pth-check "$MODEL"
       - name: Install Android NDK for ARM64 PTH runtime
         run: |
           set -euo pipefail
