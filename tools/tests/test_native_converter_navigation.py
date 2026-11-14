@@ -7,6 +7,7 @@ SCREEN = ROOT / "tools/ui/model_converter_screen.dart"
 
 def test_native_gguf_converter_is_copied_into_the_android_app():
     source = INTEGRATION.read_text(encoding="utf-8")
+    assert "if ggml_so:" in source
     assert "converter_source = ROOT / 'tools/ui/model_converter_screen.dart'" in source
     assert "converter_target = BUILD / 'lib/screens/model_converter_screen.dart'" in source
     assert "converter_target.write_text" in source
@@ -27,4 +28,4 @@ def test_native_converter_does_not_claim_to_accept_raw_pth_checkpoints():
     source = SCREEN.read_text(encoding="utf-8")
     assert "required bool gguf" in source
     assert "lower.endsWith('.gguf')" in source
-    assert "Raw PyTorch .pth checkpoints still need the upstream exporter first" in source
+    assert "Raw .pth/.pt checkpoints still need a separate exporter." in source
