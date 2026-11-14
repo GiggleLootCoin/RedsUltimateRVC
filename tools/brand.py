@@ -1680,7 +1680,6 @@ for imp, token in [
     ("import 'screens/red_home_screen.dart';", "RedHomeScreen("),
     ("import 'screens/training_screen.dart';", "TrainingScreen("),
     ("import 'screens/full_rvc_screen.dart';", "FullRvcScreen("),
-    ("import 'screens/model_converter_screen.dart';", "ModelConverterScreen("),
 ]:
     if token in final_main_pre and imp not in final_main_pre:
         final_main_pre = imp + "\n" + final_main_pre
