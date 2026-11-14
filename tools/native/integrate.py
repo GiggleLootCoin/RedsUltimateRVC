@@ -5,6 +5,7 @@ BUILD = Path('buildsrc')
 PKG = BUILD / 'android/app/src/main/kotlin/com/ultimatervc/mobile'
 PKG.mkdir(parents=True, exist_ok=True)
 (PKG / 'SourceSeparationBridge.kt').write_text((ROOT / 'tools/native/SourceSeparationBridge.kt').read_text(), encoding='utf-8')
+(PKG / 'RvcPthNative.kt').write_text((ROOT / 'tools/native/RvcPthNative.kt').read_text(), encoding='utf-8')
 
 cpp = BUILD / 'android/app/src/main/cpp'
 cpp.mkdir(parents=True, exist_ok=True)
@@ -101,6 +102,9 @@ engine.write_text(es, encoding='utf-8')
 plugin = PKG / 'RVCPlugin.kt'
 s = plugin.read_text(encoding='utf-8')
 dispatch = '            "convertIndex" -> convertIndex(call, result)'
+if '"convertPth" -> convertPth(call, result)' not in s:
+    if dispatch not in s: raise RuntimeError('RVCPlugin convertIndex dispatch anchor missing for PTH bridge')
+    s = s.replace(dispatch, dispatch + '\\n            "convertPth" -> convertPth(call, result)', 1)
 if '"separateSongVocals" -> separateSongVocals(call, result)' not in s:
     if dispatch not in s:
         raise RuntimeError('RVCPlugin dispatch anchor missing')
@@ -160,7 +164,52 @@ methods = '''
     }
 
 '''
-anchor = '    private fun convertIndex(call: MethodCall, result: Result) {'
+anchor = '
+    private fun convertPth(call: MethodCall, result: Result) {
+        val inputPath = call.argument<String>("inputWavPath")
+        val modelPath = call.argument<String>("pthModelPath")
+        val pitchShift = (call.argument<Double>("pitchShift") ?: 0.0).roundToInt()
+        if (inputPath.isNullOrBlank() || modelPath.isNullOrBlank()) {
+            result.error("INVALID_ARGUMENTS", "A vocal WAV and PTH model path are required.", null)
+            return
+        }
+        scope.launch {
+            try {
+                val modelDir = File(appContext.filesDir, "rvc_pth_models").apply { mkdirs() }
+                fun copyBundledModel(name: String): File {
+                    val target = File(modelDir, name)
+                    if (!target.isFile || target.length() == 0L) {
+                        appContext.assets.open("flutter_assets/assets/models/$name").use { input ->
+                            target.outputStream().use { output -> input.copyTo(output) }
+                        }
+                    }
+                    require(target.isFile && target.length() > 0L) { "Bundled $name model is missing or empty." }
+                    return target
+                }
+                val hubert = copyBundledModel("hubert.onnx")
+                val rmvpe = copyBundledModel("rmvpe.onnx")
+                val outputDir = File(appContext.filesDir, "outputs").apply { mkdirs() }
+                val output = File(outputDir, "pth_cover_${System.currentTimeMillis()}.wav")
+                val error = RvcPthNative().convertPth(
+                    inputPath, modelPath, hubert.absolutePath, rmvpe.absolutePath,
+                    output.absolutePath, pitchShift
+                )
+                require(error.isNullOrEmpty()) { error ?: "Native PTH conversion failed." }
+                require(output.isFile && output.length() > 44L) { "Native PTH conversion returned no usable WAV output." }
+                withContext(Dispatchers.Main) { result.success(output.absolutePath) }
+            } catch (e: UnsatisfiedLinkError) {
+                withContext(Dispatchers.Main) {
+                    result.error("PTH_LIBRARY_MISSING", "The native PTH inference library is not packaged in this APK.", null)
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    result.error("PTH_CONVERSION_FAILED", e.message ?: "Native PTH conversion failed.", null)
+                }
+            }
+        }
+    }
+
+    private fun convertIndex(call: MethodCall, result: Result) {'
 if 'private fun separateSongVocals(call: MethodCall, result: Result)' not in s:
     if anchor not in s: raise RuntimeError('RVCPlugin convertIndex anchor missing')
     s = s.replace(anchor, methods + anchor, 1)
@@ -251,12 +300,12 @@ ps = picker.read_text(encoding='utf-8')
 if 'await _bridge.validateVoiceModel(imported.path);' not in ps:
     import_selection = '        _selectedModelPath = imported.path;'
     if import_selection not in ps: raise RuntimeError('Model import selection anchor missing')
-    ps = ps.replace(import_selection, '        await _bridge.validateVoiceModel(imported.path);\n' + import_selection, 1)
+    ps = ps.replace(import_selection, '        if (imported.path.toLowerCase().endsWith('.onnx')) await _bridge.validateVoiceModel(imported.path);\n' + import_selection, 1)
 if 'await _bridge.validateVoiceModel(path);' not in ps:
     use_selection = '    _selectedModelPath = path;'
     if use_selection not in ps: raise RuntimeError('Model library use anchor missing')
     guard = '''    try {
-      await _bridge.validateVoiceModel(path);
+      if (path.toLowerCase().endsWith('.onnx')) await _bridge.validateVoiceModel(path);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('MODEL NOT COMPATIBLE: $e')));
       return;
@@ -330,6 +379,10 @@ if 'Future<Map<String, String>> separateSongVocals' not in bs:
 '''
     if anchor not in bs: raise RuntimeError('RVCBridge insertion anchor missing')
     bs = bs.replace(anchor, methods + anchor, 1)
+if 'Future<String> convertPth({' not in bs:
+    anchor = '  Future<void> startRecording() async {'
+    if anchor not in bs: raise RuntimeError('RVCBridge insertion anchor missing for PTH method')
+    bs = bs.replace(anchor, "  Future<String> convertPth({\n    required String inputWavPath,\n    required String pthModelPath,\n    int pitchShift = 0,\n  }) async {\n    final result = await _channel.invokeMethod<String>('convertPth', {\n      'inputWavPath': inputWavPath,\n      'pthModelPath': pthModelPath,\n      'pitchShift': pitchShift.toDouble(),\n    });\n    if (result == null || result.isEmpty) {\n      throw StateError('The native PTH engine did not return a converted WAV.');\n    }\n    return result;\n  }\n\n" + anchor, 1)
 bridge.write_text(bs, encoding='utf-8')
 
 main = BUILD / 'lib/main.dart'
@@ -341,9 +394,9 @@ if "import 'screens/song_cover_screen.dart';" not in ms:
 old = 'onSongCovers: _openAudioConversion,'
 new = """onSongCovers: () {
           final selectedModel = _selectedModelPath;
-          if (selectedModel == null || !selectedModel.toLowerCase().endsWith('.onnx')) {
+          if (selectedModel == null || (!selectedModel.toLowerCase().endsWith('.onnx') && !selectedModel.toLowerCase().endsWith('.pth'))) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Select a compatible ONNX voice in Model Library first. PTH/PT files must be converted before use.')),
+              const SnackBar(content: Text('Select a compatible ONNX or supported RVC v2 PTH voice in Model Library first. PT/ZIP files are storage-only.')),
             );
             return;
           }
