@@ -526,7 +526,7 @@ if "import 'screens/model_converter_screen.dart';" not in ms:
     ms = ms.replace(import_anchor, import_anchor + "\nimport 'screens/model_converter_screen.dart';", 1)
 
 open_converter = '''  void _openModelConverter() {
-    setState(() => _moduleIndex = 7);
+    setState(() => _moduleIndex = 8);
     _saveState();
     _scaffoldKey.currentState?.closeDrawer();
   }
@@ -541,17 +541,12 @@ if 'void _openModelConverter()' not in ms:
 drawer_item = '''          ListTile(
             leading: Icon(Icons.memory),
             title: Text("Native GGUF Converter"),
-            selected: _moduleIndex == 7,
+            selected: _moduleIndex == 8,
             onTap: _openModelConverter,
           ),
 '''
 if 'title: Text("Native GGUF Converter")' not in ms:
-    anchor = '''          ListTile(
-            leading: Icon(Icons.multitrack_audio),
-            title: Text('音高检测'),
-            selected: _moduleIndex == 6,
-            onTap: _openPitchDetection,
-          ),
+    anchor = '''          ListTile(leading: const Icon(Icons.multitrack_audio), title: const Text('Pitch Detection'), selected: _moduleIndex == 7, onTap: _openPitchDetection),
 '''
     if anchor not in ms:
         raise RuntimeError('Pitch detection drawer item anchor missing')
@@ -559,7 +554,7 @@ if 'title: Text("Native GGUF Converter")' not in ms:
 
 screen_entry = '      ModelConverterScreen(),'
 if screen_entry not in ms:
-    anchor = '      PitchDetectionScreen(isActive: _moduleIndex == 6),'
+    anchor = '      PitchDetectionScreen(isActive: _moduleIndex == 7),'
     if anchor not in ms:
         raise RuntimeError('Pitch detection module screen anchor missing')
     ms = ms.replace(anchor, anchor + '\\n' + screen_entry, 1)
