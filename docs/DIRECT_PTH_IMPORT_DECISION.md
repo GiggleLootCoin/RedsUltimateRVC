@@ -45,7 +45,7 @@ The model library may retain source files, but only a compatible .pth checkpoint
 - Run inference in a cancellable background thread.
 - Use temporary output files and publish a result only after a complete valid WAV has been written.
 - Keep models, songs, stems and generated audio on-device.
-- Keep audio length bounded until chunked processing and low-memory device testing are complete.
+- Native inference now processes 15-second centres with one-second context and a short overlap to reduce feature-tensor memory; peak-memory and low-memory device testing remain outstanding.
 
 ## Verification completed
 
