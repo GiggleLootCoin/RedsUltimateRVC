@@ -304,10 +304,12 @@ jobs:
           name: Red's Ultimate RVC v0.2.0 Final (${{ github.run_number }})
           generate_release_notes: false
           body: |
-            Red's Ultimate RVC — ARM64 Android build.
-            
-            Includes the Red dashboard, model library, local ONNX inference, realtime/voice-changer modules, and an on-phone voice-sample dataset workspace. PTH conversion and neural-network RVC training are not included.
-            
+            Red's Ultimate RVC — ARM64 Android engineering preview.
+
+            Includes the Red dashboard, ONNX RVC inference, offline Spleeter song-cover pipeline, experimental native GGUF inference runner, realtime/voice-changer modules, and the voice-sample dataset workspace.
+
+            IMPORTANT: this build does not import or convert raw .pth/.pt checkpoints. GGUF files must already be exported. Standard FAISS .index files are not accepted by the GGUF runner. Physical Galaxy A12 runtime acceptance testing is still outstanding. This release is an engineering preview, not a certified production release.
+
             SHA-256 is provided in SHA256SUMS.txt.
           files: |
             release/Red-Ultimate-RVC.apk
