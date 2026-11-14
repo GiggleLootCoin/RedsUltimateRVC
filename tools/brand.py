@@ -470,7 +470,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
     return i >= 0 ? p.substring(i + 1) : '';
   }
 
-  bool _runtime(String path) => _ext(path) == 'onnx';
+  bool _runtime(String path) => ['onnx', 'pth'].contains(_ext(path));
 
   bool _sourceModel(String path) => ['pth', 'pt', 'zip'].contains(_ext(path));
 
@@ -510,10 +510,10 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
       setState(() {});
       if (_runtime(imported.path)) {
         widget.onModelSelected(imported.path);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ONNX model imported and ready.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_ext(imported.path) == 'pth' ? 'RVC v2 PTH model selected for native on-device conversion.' : 'ONNX model imported and ready.')));
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Model imported into the library. PTH/PT/ZIP is stored safely but is not directly runnable by the Android ONNX engine.')),
+          const SnackBar(content: Text('PT and ZIP source archives are stored safely but are not directly runnable. Use an RVC v2 .pth or compatible .onnx model.')),
         );
       }
     } catch (e) {
@@ -566,7 +566,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
 
   Future<void> _use(String path) async {
     if (!_runtime(path)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This source model is stored, but Android inference requires an ONNX model.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This source is storage-only. Select an RVC v2 .pth or compatible ONNX voice model.')));
       return;
     }
     _selectedModelPath = path;
@@ -642,7 +642,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 7),
-              Text(ready ? 'READY — ONNX model can be used for conversion.' : 'Choose an ONNX model for conversion. Source RVC models can also be stored below.', style: const TextStyle(color: Color(0xFFAAAAB5))),
+              Text(ready ? (_ext(selected!) == 'pth' ? 'READY — native RVC v2 PTH conversion is available.' : 'READY — ONNX model can be used for conversion.') : 'Choose an RVC v2 PTH or compatible ONNX model for conversion. PT/ZIP archives can be stored below.', style: const TextStyle(color: Color(0xFFAAAAB5))),
               const SizedBox(height: 13),
               Row(children: [
                 Expanded(child: ElevatedButton.icon(onPressed: _busy || !_libraryLoaded ? null : _pickModel, icon: const Icon(Icons.upload_file), label: const Text('IMPORT MODEL'))),
@@ -682,7 +682,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
                 }),
               ],
               const SizedBox(height: 9),
-              const Text('PTH → ONNX conversion is not included in this offline mobile engine. Imported PTH files remain stored safely, but cannot be selected for inference until a genuine converter is integrated.', style: TextStyle(color: Color(0xFFFFA3AE), height: 1.35)),
+              const Text('Native PTH inference currently supports 768-dimensional RVC v2 checkpoints. Standard FAISS .index retrieval is not yet connected to this PTH route.', style: TextStyle(color: Color(0xFFFFA3AE), height: 1.35)),
             ]),
           ),
           const SizedBox(height: 12),
@@ -697,7 +697,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
                     contentPadding: EdgeInsets.zero,
                     leading: Icon(runtime ? Icons.check_circle : Icons.inventory_2, color: runtime ? const Color(0xFF5DE58A) : const Color(0xFFFF334F)),
                     title: Text(File(p).uri.pathSegments.last, maxLines: 1, overflow: TextOverflow.ellipsis),
-                    subtitle: Text(runtime ? 'READY FOR MOBILE INFERENCE' : source ? 'SOURCE MODEL — CONVERSION REQUIRED' : 'IMPORTED FILE'),
+                    subtitle: Text(runtime ? (_ext(p) == 'pth' ? 'RVC V2 PTH — NATIVE ON-DEVICE INFERENCE' : 'READY FOR MOBILE INFERENCE') : source ? 'SOURCE ARCHIVE — STORAGE ONLY' : 'IMPORTED FILE'),
                     trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                       if (runtime) IconButton(onPressed: () => _use(p), icon: const Icon(Icons.play_arrow), tooltip: 'Use model'),
                       IconButton(onPressed: () => _delete(p), icon: const Icon(Icons.delete_outline), tooltip: 'Delete'),
