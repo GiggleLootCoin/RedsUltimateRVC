@@ -3,10 +3,12 @@
 #include <stdlib.h>
 
 int main(int argc, char **argv) {
-    if (argc != 2) {
-        fprintf(stderr, "usage: pth-check MODEL.pth\n");
+    if (argc < 2 || argc > 4) {
+        fprintf(stderr, "usage: pth-check MODEL.pth [EXPECTED_DIM] [EXPECTED_FPS]\n");
         return 2;
     }
+    const int expected_dim = argc >= 3 ? atoi(argv[2]) : 0;
+    const int expected_fps = argc >= 4 ? atoi(argv[3]) : 0;
     rvc_model_t *model = (rvc_model_t *)calloc(1, sizeof(*model));
     if (!model) return 3;
     if (rvc_load(model, argv[1]) != 0) {
@@ -20,7 +22,9 @@ int main(int argc, char **argv) {
     const int supported = model->cfg.version == 2 &&
         (model->cfg.ques == 256 || model->cfg.ques == 768) &&
         (model->cfg.sr == 32000 || model->cfg.sr == 40000 || model->cfg.sr == 48000) &&
-        model->fps > 0;
+        model->fps > 0 &&
+        (expected_dim == 0 || model->cfg.ques == expected_dim) &&
+        (expected_fps == 0 || model->fps == expected_fps);
     rvc_free(model);
     free(model);
     return supported ? 0 : 5;
