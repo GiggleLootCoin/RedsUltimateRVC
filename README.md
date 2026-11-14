@@ -40,7 +40,7 @@ Changing a file extension does not convert a model or index. The model-conversio
 
 The native migration branch now includes a JNI bridge to the MIT-licensed RVC-GGML C++ inference core. GitHub Actions has successfully cross-compiled both the complete inference core and the JNI shared library for Android ARM64 using the NDK CPU backend. The bridge accepts HuBERT, RMVPE, voice-model and optional retrieval-index GGUF files and processes WAV audio locally.
 
-The native migration branch now packages the compiled ARM64 JNI library into an engineering APK and exposes a dedicated native conversion screen. The screen accepts HuBERT GGUF, RMVPE GGUF, a voice GGUF, an optional index GGUF and a WAV input. This exercises the native inference route without asking the user to supply ONNX voice models. It is still **not raw .pth support**: the upstream exporter requires Python, PyTorch, NumPy and `gguf` (plus FAISS for standard index files), and has not been ported into the Android app. No real model/audio or Galaxy A12 runtime test has passed yet.
+The native migration branch now packages the compiled ARM64 JNI library into an engineering APK and exposes a dedicated native inference screen. The screen accepts HuBERT GGUF, RMVPE GGUF, a voice GGUF, an optional index GGUF and a WAV input. This exercises the native inference route without asking the user to supply ONNX voice models. It is still **not raw .pth support**: the upstream exporter requires Python, PyTorch, NumPy and `gguf` (plus FAISS for standard index files), and has not been ported into the Android app. No real model/audio or Galaxy A12 runtime test has passed yet.
 
 ## Native migration branch warning
 
