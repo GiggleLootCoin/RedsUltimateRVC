@@ -176,7 +176,7 @@ def test_song_cover_uses_android_media_codec_to_prepare_common_audio_formats():
     assert "output.write(pcm.array())" in integration
     assert "decodeAudioSegment(source, 0L, durationUs)" not in integration
     assert "writeDecodedAudioWav(File(outputPath), decoded)" not in integration
-    assert "Android decodes it locally to PCM WAV" in screen
+    assert "Processing stays on this phone." in screen
     assert "type: FileType.audio" in screen
 
 
