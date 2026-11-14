@@ -510,7 +510,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
       setState(() {});
       if (_runtime(imported.path)) {
         widget.onModelSelected(imported.path);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_ext(imported.path) == 'pth' ? 'RVC v2 PTH model selected for native on-device conversion.' : 'ONNX model imported and ready.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_ext(imported.path) == 'pth' ? 'PTH file selected; native conversion requires a 768-dimensional, 100-fps RVC v2 checkpoint.' : 'ONNX model imported and ready.')));
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('PT and ZIP source archives are stored safely but are not directly runnable. Use an RVC v2 .pth or compatible .onnx model.')),
@@ -642,7 +642,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 7),
-              Text(ready ? (_ext(selected!) == 'pth' ? 'READY — native RVC v2 PTH conversion is available.' : 'READY — ONNX model can be used for conversion.') : 'Choose an RVC v2 PTH or compatible ONNX model for conversion. PT/ZIP archives can be stored below.', style: const TextStyle(color: Color(0xFFAAAAB5))),
+              Text(ready ? (_ext(selected!) == 'pth' ? 'PTH SELECTED — 768 dimensions and 100 fps required; compatibility is checked during conversion.' : 'READY — ONNX model can be used for conversion.') : 'Choose an RVC v2 PTH or compatible ONNX model for conversion. PT/ZIP archives can be stored below.', style: const TextStyle(color: Color(0xFFAAAAB5))),
               const SizedBox(height: 13),
               Row(children: [
                 Expanded(child: ElevatedButton.icon(onPressed: _busy || !_libraryLoaded ? null : _pickModel, icon: const Icon(Icons.upload_file), label: const Text('IMPORT MODEL'))),
@@ -682,7 +682,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
                 }),
               ],
               const SizedBox(height: 9),
-              const Text('Native PTH inference currently supports 768-dimensional RVC v2 checkpoints. Standard FAISS .index retrieval is not yet connected to this PTH route.', style: TextStyle(color: Color(0xFFFFA3AE), height: 1.35)),
+              const Text('Native PTH inference currently supports 768-dimensional, 100-fps RVC v2 checkpoints. No .index or .mobile.index retrieval is applied in this PTH route.', style: TextStyle(color: Color(0xFFFFA3AE), height: 1.35)),
             ]),
           ),
           const SizedBox(height: 12),
@@ -2552,7 +2552,7 @@ checks = {
     "Index library is persistent and removable": "red_rvc_index_library" in final_picker and "_deleteIndex" in final_picker,
     "Index validator avoids full-file RAM copies": "val expectedLength = magic.size.toLong()" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8"),
     "Full RVC screen": (root / "lib" / "screens" / "full_rvc_screen.dart").exists() and "FullRvcScreen(" in final_main,
-    "PTH conversion limitation disclosed": "PTH → ONNX conversion is not included" in final_picker,
+    "Native PTH compatibility limit disclosed": "Native PTH inference currently supports 768-dimensional, 100-fps RVC v2 checkpoints." in final_picker,
     "Dashboard first": "final moduleScreens = [" in final_main and "RedHomeScreen(" in final_main.split("final moduleScreens = [",1)[1].split("GestureDetector(",1)[0],
     "Native Android SAF picker": "pickAndImportFile" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8") and "ACTION_OPEN_DOCUMENT" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8"),
     "Dart native SAF bridge": "pickAndImportFile" in (root / "lib/services/rvc_bridge.dart").read_text(encoding="utf-8"),
