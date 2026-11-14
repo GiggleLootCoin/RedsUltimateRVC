@@ -71,7 +71,7 @@ def test_workflow_runs_tests_and_supports_private_persistent_signing():
     ):
         assert secret in source
     assert "temporary GitHub runner debug key" in source
-    assert "if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'" in source
+    assert "if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'" in source
     assert "v0.2.0-preview-" in source
     assert "v0.2.0 Final" not in source
 
