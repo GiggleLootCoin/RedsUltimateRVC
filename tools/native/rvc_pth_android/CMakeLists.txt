@@ -37,9 +37,7 @@ target_include_directories(red_rvc_pth PRIVATE
   "${ONNXRUNTIME_INCLUDE_DIR}"
 )
 target_compile_definitions(red_rvc_pth PRIVATE _FILE_OFFSET_BITS=64)
-target_compile_options(red_rvc_pth PRIVATE
-  $<$<COMPILE_LANGUAGE:C>:-include;unistd.h>
-)
+target_compile_options(red_rvc_pth PRIVATE -include unistd.h)
 find_package(Threads REQUIRED)
 add_library(onnxruntime SHARED IMPORTED)
 set_target_properties(onnxruntime PROPERTIES IMPORTED_LOCATION "${ONNXRUNTIME_LIBRARY}")
