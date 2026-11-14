@@ -296,12 +296,14 @@ jobs:
           name: Red-Ultimate-RVC-APK
           path: release/*
 
+      # Feature-branch builds remain test artifacts. A public release is
+      # deliberately restricted to main after the real-device acceptance gate.
       - name: Publish downloadable GitHub release
-        if: github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.2.0-final-${{ github.run_number }}
-          name: Red's Ultimate RVC v0.2.0 Final (${{ github.run_number }})
+          tag_name: v0.2.0-preview-${{ github.run_number }}
+          name: Red's Ultimate RVC v0.2.0 Preview (${{ github.run_number }})
           generate_release_notes: false
           body: |
             Red's Ultimate RVC — ARM64 Android engineering preview.
