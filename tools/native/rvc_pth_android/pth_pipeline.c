@@ -189,7 +189,7 @@ int red_rvc_pth_convert(const char *input_wav, const char *pth_path,
     }
     const int64_t n16 = (int64_t)((double)wav.n * 16000.0 / (double)wav.sr);
     if (n16 <= 0 || n16 > 16000LL * 600LL) {
-        set_error(error,error_cap,"Audio duration is outside the supported 1–600 minute range."); goto cleanup;
+        set_error(error,error_cap,"Audio exceeds the 10-minute on-device processing limit."); goto cleanup;
     }
     audio16 = resample_1d(wav.data, wav.n, n16);
     if (!audio16) { set_error(error,error_cap,"Not enough memory to resample the audio."); goto cleanup; }
@@ -214,8 +214,6 @@ int red_rvc_pth_convert(const char *input_wav, const char *pth_path,
     }
     emb_model = resample_embed(embedding, hubert_dims[1], frames, model->cfg.ques);
     spcv_onnx_free_output(&hubert_out);
-    free(audio16); audio16 = NULL;
-    free(wav.data); wav.data = NULL;
     if (!emb_model) { set_error(error,error_cap,"Not enough memory to prepare HuBERT features."); goto cleanup; }
 
     const int mel_frames = (int)spcv_mel_n_frames(n16);
@@ -224,21 +222,14 @@ int red_rvc_pth_convert(const char *input_wav, const char *pth_path,
     }
     mel = (float *)malloc((size_t)mel_frames * 128u * sizeof(float));
     f0 = (float *)malloc((size_t)mel_frames * sizeof(float));
-    if (!mel || !f0 || spcv_mel_compute(NULL, 0, NULL, 128) == -999) {
+    if (!mel || !f0) {
         set_error(error,error_cap,"Could not prepare the pitch-analysis model."); goto cleanup;
     }
-    /* Re-read audio for mel because HuBERT's resampled buffer was released. */
-    red_wav wav_mel = {0};
-    if (read_wav(input_wav, &wav_mel) != 0) {
-        set_error(error,error_cap,"Could not reopen the audio for pitch analysis."); goto cleanup;
-    }
-    float *mel_audio = resample_1d(wav_mel.data, wav_mel.n, n16);
-    free(wav_mel.data);
-    if (!mel_audio || spcv_mel_compute(mel_audio, n16, mel, 128) < 0) {
-        free(mel_audio);
+    if (spcv_mel_compute(audio16, n16, mel, 128) < 0) {
         set_error(error,error_cap,"Mel spectrogram calculation failed."); goto cleanup;
     }
-    free(mel_audio);
+    free(audio16); audio16 = NULL;
+    free(wav.data); wav.data = NULL;
     if (spcv_f0_extract(mel, mel_frames, rmvpe, f0) != 0) {
         set_error(error,error_cap,"RMVPE pitch extraction failed."); goto cleanup;
     }
