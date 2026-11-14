@@ -17,7 +17,7 @@ def test_native_gguf_converter_has_a_real_navigation_entry():
     assert "import 'screens/model_converter_screen.dart';" in source
     assert "void _openModelConverter()" in source
     assert "setState(() => _moduleIndex = 8);" in source
-    assert 'title: Text("Native GGUF Converter")' in source
+    assert 'title: Text("Native GGUF Runner")' in source
     assert "selected: _moduleIndex == 8" in source
     assert "ModelConverterScreen()" in source
     assert "PitchDetectionScreen(isActive: _moduleIndex == 7)" in source
