@@ -9,6 +9,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 typedef struct { float *data; int64_t n; int sr; } red_wav;
 
 static void set_error(char *dst, size_t cap, const char *message) {
@@ -359,10 +363,8 @@ int red_rvc_pth_convert(const char *input_wav, const char *pth_path,
     rvc_model_t *model = NULL;
     spcv_onnx_session *hubert = NULL, *rmvpe = NULL;
     red_wav wav = {0};
-    float *audio16 = NULL, *mel = NULL, *f0 = NULL, *f0_model = NULL;
-    float *emb_model = NULL, *output = NULL;
+    float *audio16 = NULL, *phone = NULL, *pitchf = NULL, *output = NULL;
     int64_t *pitch = NULL;
-    spcv_onnx_output hubert_out = {0};
 
     if (!input_wav || !pth_path || !hubert_path || !rmvpe_path || !output_wav) {
         set_error(error,error_cap,"Missing input, PTH, HuBERT, RMVPE or output path."); goto cleanup;
@@ -371,6 +373,7 @@ int red_rvc_pth_convert(const char *input_wav, const char *pth_path,
         set_error(error,error_cap,"ONNX Runtime could not initialise."); goto cleanup;
     }
     ort_ready = 1;
+    spcv_onnx_set_ep(SPCV_EP_CPU);
 
     model = (rvc_model_t *)calloc(1, sizeof(rvc_model_t));
     if (!model) { set_error(error,error_cap,"Not enough memory to load the voice model."); goto cleanup; }
@@ -378,21 +381,21 @@ int red_rvc_pth_convert(const char *input_wav, const char *pth_path,
         set_error(error,error_cap,"This PTH checkpoint could not be read as a supported RVC v2 model."); goto cleanup;
     }
     model_ready = 1;
-    if (model->cfg.ques != 768) {
-        set_error(error,error_cap,"This build currently supports 768-dimensional RVC v2 PTH models. This checkpoint uses a different HuBERT dimension."); goto cleanup;
+    if (model->cfg.ques != RED_HUBERT_DIM || model->fps != 100) {
+        set_error(error,error_cap,"This build supports standard 100-fps, 768-dimensional RVC v2 PTH checkpoints only."); goto cleanup;
     }
-    if (model->cfg.sr <= 0 || model->fps <= 0 || model->cfg.sr % model->fps != 0) {
-        set_error(error,error_cap,"The PTH model contains unsupported sample-rate or frame-rate settings."); goto cleanup;
+    if (model->cfg.sr != 32000 && model->cfg.sr != 40000 && model->cfg.sr != 48000) {
+        set_error(error,error_cap,"This PTH checkpoint uses an unsupported output sample rate."); goto cleanup;
     }
 
     if (spcv_onnx_load(hubert_path, &hubert) != SPCV_ONNX_OK) {
-        set_error(error,error_cap,"The bundled HuBERT model could not be loaded."); goto cleanup;
+        set_error(error,error_cap,"The bundled 768-dimensional ContentVec model could not be loaded."); goto cleanup;
     }
     if (spcv_onnx_load(rmvpe_path, &rmvpe) != SPCV_ONNX_OK) {
-        set_error(error,error_cap,"The bundled RMVPE model could not be loaded."); goto cleanup;
+        set_error(error,error_cap,"The bundled RMVPE pitch model could not be loaded."); goto cleanup;
     }
     if (read_wav(input_wav, &wav) != 0) {
-        set_error(error,error_cap,"Input audio must be a valid PCM WAV file."); goto cleanup;
+        set_error(error,error_cap,"Input audio must be a valid 16-bit PCM WAV file."); goto cleanup;
     }
     const int64_t n16 = (int64_t)((double)wav.n * 16000.0 / (double)wav.sr);
     if (n16 <= 0 || n16 > 16000LL * 600LL) {
@@ -401,52 +404,23 @@ int red_rvc_pth_convert(const char *input_wav, const char *pth_path,
     audio16 = resample_1d(wav.data, wav.n, n16);
     if (!audio16) { set_error(error,error_cap,"Not enough memory to resample the audio."); goto cleanup; }
 
-    spcv_onnx_input hubert_in = {
-        .name = hubert->inputs[0].name, .data = audio16,
-        .ndim = 3, .dims = {1,1,n16}, .elem_type = 1
-    };
-    hubert_out.name = hubert->outputs[0].name;
-    if (spcv_onnx_run(hubert, &hubert_in, 1, &hubert_out, 1) != SPCV_ONNX_OK) {
-        set_error(error,error_cap,"HuBERT feature extraction failed."); goto cleanup;
-    }
-    int hubert_ndim = 0; int64_t hubert_dims[8] = {0};
-    spcv_onnx_output_shape(&hubert_out, &hubert_ndim, hubert_dims);
-    const float *embedding = (const float *)spcv_onnx_output_data(&hubert_out);
-    if (!embedding || hubert_ndim < 3 || hubert_dims[1] <= 0 || hubert_dims[2] != model->cfg.ques) {
-        set_error(error,error_cap,"HuBERT output does not match this voice model's feature dimension."); goto cleanup;
-    }
-    const int64_t frames = (int64_t)((double)n16 * model->fps / 16000.0);
+    const int frames = (int)((double)n16 * model->fps / 16000.0);
     if (frames <= 0 || frames > 60000) {
         set_error(error,error_cap,"Audio is too long for safe on-device RVC processing."); goto cleanup;
     }
-    emb_model = resample_embed(embedding, hubert_dims[1], frames, model->cfg.ques);
-    spcv_onnx_free_output(&hubert_out);
-    if (!emb_model) { set_error(error,error_cap,"Not enough memory to prepare HuBERT features."); goto cleanup; }
-
-    const int mel_frames = (int)spcv_mel_n_frames(n16);
-    if (mel_frames <= 0 || (uint64_t)mel_frames * 128u > SIZE_MAX / sizeof(float)) {
-        set_error(error,error_cap,"Could not allocate the pitch-analysis buffer."); goto cleanup;
+    int hubert_error = 0;
+    phone = extract_hubert_phone(hubert, audio16, n16, frames, &hubert_error);
+    if (!phone) {
+        const char *why = hubert_error == 1 ? "ContentVec model inputs are not the expected source/padding_mask pair."
+            : hubert_error == 5 ? "ContentVec output is not a 768-dimensional feature tensor."
+            : "ContentVec feature extraction failed.";
+        set_error(error,error_cap,why); goto cleanup;
     }
-    mel = (float *)malloc((size_t)mel_frames * 128u * sizeof(float));
-    f0 = (float *)malloc((size_t)mel_frames * sizeof(float));
-    if (!mel || !f0) {
-        set_error(error,error_cap,"Could not prepare the pitch-analysis model."); goto cleanup;
-    }
-    if (spcv_mel_compute(audio16, n16, mel, 128) < 0) {
-        set_error(error,error_cap,"Mel spectrogram calculation failed."); goto cleanup;
+    if (extract_rmvpe_pitch(rmvpe, audio16, n16, frames, pitch_shift, &pitchf, &pitch) != 0) {
+        set_error(error,error_cap,"RMVPE pitch extraction failed."); goto cleanup;
     }
     free(audio16); audio16 = NULL;
     free(wav.data); wav.data = NULL;
-    if (spcv_f0_extract(mel, mel_frames, rmvpe, f0) != 0) {
-        set_error(error,error_cap,"RMVPE pitch extraction failed."); goto cleanup;
-    }
-    spcv_f0_shift(f0, mel_frames, pitch_shift);
-    f0_model = resample_1d(f0, mel_frames, frames);
-    pitch = (int64_t *)malloc((size_t)frames * sizeof(int64_t));
-    if (!f0_model || !pitch) {
-        set_error(error,error_cap,"Not enough memory to prepare pitch data."); goto cleanup;
-    }
-    spcv_f0_quantize(f0_model, (int)frames, pitch);
 
     const int64_t samples_per_frame = model->cfg.sr / model->fps;
     if ((uint64_t)frames * (uint64_t)samples_per_frame > SIZE_MAX / sizeof(float)) {
@@ -457,7 +431,7 @@ int red_rvc_pth_convert(const char *input_wav, const char *pth_path,
     if (!output) { set_error(error,error_cap,"Not enough memory for converted audio."); goto cleanup; }
     int output_length = 0;
     uint32_t seed = 0x524544u;
-    if (rvc_infer(model, emb_model, (int)frames, pitch, f0_model,
+    if (rvc_infer(model, phone, frames, pitch, pitchf,
                   NULL, output, &output_length, &seed) != 0 || output_length <= 0 ||
         (size_t)output_length > max_samples) {
         set_error(error,error_cap,"The native RVC voice-conversion engine failed."); goto cleanup;
@@ -468,9 +442,7 @@ int red_rvc_pth_convert(const char *input_wav, const char *pth_path,
     result = 0;
 
 cleanup:
-    if (hubert_out.ort_value) spcv_onnx_free_output(&hubert_out);
-    free(wav.data); free(audio16); free(mel); free(f0); free(f0_model);
-    free(emb_model); free(pitch); free(output);
+    free(wav.data); free(audio16); free(phone); free(pitchf); free(pitch); free(output);
     if (hubert) spcv_onnx_free(hubert);
     if (rmvpe) spcv_onnx_free(rmvpe);
     if (model_ready) rvc_free(model);
