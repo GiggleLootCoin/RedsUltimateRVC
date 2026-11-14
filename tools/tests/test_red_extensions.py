@@ -227,9 +227,9 @@ def test_native_pth_runtime_is_built_and_connected_to_song_covers():
     kotlin = (ROOT / "tools/native/RvcPthNative.kt").read_text(encoding="utf-8")
     screen = (ROOT / "tools/ui/song_cover_screen.dart").read_text(encoding="utf-8")
     workflow = WORKFLOW.read_text(encoding="utf-8")
-    for required in ("rvc.c", "rvc_infer.c", "pth_loader.c", "onnx.c", "f0.c", "mel.c", "pth_pipeline.c", "pth_jni.cpp"):
+    for required in ("rvc.c", "rvc_infer.c", "pth_loader.c", "onnx.c", "pth_pipeline.c", "pth_jni.cpp"):
         assert required in cmake
-    for required in ("rvc_load(model, pth_path)", "rvc_infer(model,", "spcv_onnx_load(hubert_path", "spcv_onnx_load(rmvpe_path", "spcv_f0_extract"):
+    for required in ("rvc_load(model, pth_path)", "rvc_infer(model,", "spcv_onnx_load(hubert_path", "spcv_onnx_load(rmvpe_path", "extract_hubert_phone", "extract_rmvpe_pitch"):
         assert required in pipeline
     assert "Java_com_ultimatervc_mobile_RvcPthNative_convertPth" in jni
     assert 'System.loadLibrary("red_rvc_pth")' in kotlin
