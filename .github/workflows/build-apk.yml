@@ -146,6 +146,13 @@ jobs:
           name: red-rvc-ggml-arm64
           path: native-output
 
+      - name: Download native PTH conversion runtime
+        if: github.ref == 'refs/heads/feature/native-ncnn-rvc-backend' || (github.event_name == 'pull_request' && github.head_ref == 'feature/native-ncnn-rvc-backend')
+        uses: actions/download-artifact@v6
+        with:
+          name: red-rvc-pth-arm64
+          path: native-output-pth
+
       - name: Checkout local RVC engine
         uses: actions/checkout@v5
         with:
@@ -238,6 +245,17 @@ jobs:
           cp "$VOCALS" buildsrc/assets/models/separation/vocals.fp16.onnx
           cp "$ACCOMPANIMENT" buildsrc/assets/models/separation/accompaniment.fp16.onnx
           ls -lh buildsrc/assets/models/separation/
+
+      - name: Install native PTH conversion runtime
+        if: github.ref == 'refs/heads/feature/native-ncnn-rvc-backend' || (github.event_name == 'pull_request' && github.head_ref == 'feature/native-ncnn-rvc-backend')
+        run: |
+          set -euo pipefail
+          JNI_LIBS="buildsrc/android/app/src/main/jniLibs/arm64-v8a"
+          mkdir -p "$JNI_LIBS" buildsrc/android/app/src/main/assets/licenses
+          cp native-output-pth/libred_rvc_pth.so "$JNI_LIBS/"
+          cp native-output-pth/SPARTACVC-LICENSE.txt buildsrc/android/app/src/main/assets/licenses/
+          readelf -d "$JNI_LIBS/libred_rvc_pth.so" | grep -q 'libonnxruntime.so'
+          test -s "$JNI_LIBS/libred_rvc_pth.so"
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -340,7 +358,7 @@ jobs:
               ]
               import os
               if os.environ.get("RVC_NATIVE_BACKEND_BUILD") == "true":
-                  required_native.append("lib/arm64-v8a/libred_rvc_ggml.so")
+                  required_native.extend(["lib/arm64-v8a/libred_rvc_ggml.so", "lib/arm64-v8a/libred_rvc_pth.so"])
               for required in required_native:
                   matches = [i.filename for i in z.infolist() if i.filename.endswith(required)]
                   if len(matches) != 1:
