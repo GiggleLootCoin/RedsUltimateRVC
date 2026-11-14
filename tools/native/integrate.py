@@ -557,7 +557,7 @@ if screen_entry not in ms:
     anchor = '      PitchDetectionScreen(isActive: _moduleIndex == 7),'
     if anchor not in ms:
         raise RuntimeError('Pitch detection module screen anchor missing')
-    ms = ms.replace(anchor, anchor + '\\n' + screen_entry, 1)
+    ms = ms.replace(anchor, anchor + '\n' + screen_entry, 1)
 
 main.write_text(ms, encoding='utf-8')
 
