@@ -45,7 +45,7 @@ Other checkpoint dimensions/frame rates are rejected. Standard FAISS .index and 
 
 ## Performance and release gate
 
-The current pipeline has a 10-minute input guard but has not been certified for long files or low-memory Android devices. Chunked inference and peak-memory profiling are still required. A compiled native library is not proof of acceptable speed, audio quality or stability.
+The native PTH pipeline now processes 15-second centre windows with one-second context and a short overlap to reduce peak feature-tensor memory. It retains a 10-minute input guard, but peak-memory profiling, elapsed-time measurement and low-memory Android testing are still required. A compiled native library is not proof of acceptable speed, audio quality or stability.
 
 Before a public release:
 - Package the PTH library in the APK and pass Flutter/native regression tests.
