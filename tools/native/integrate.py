@@ -523,7 +523,7 @@ if "import 'screens/model_converter_screen.dart';" not in ms:
     import_anchor = "import 'screens/song_cover_screen.dart';"
     if import_anchor not in ms:
         raise RuntimeError('Song-cover import anchor missing for native GGUF screen')
-    ms = ms.replace(import_anchor, import_anchor + "\\nimport 'screens/model_converter_screen.dart';", 1)
+    ms = ms.replace(import_anchor, import_anchor + "\nimport 'screens/model_converter_screen.dart';", 1)
 
 open_converter = '''  void _openModelConverter() {
     setState(() => _moduleIndex = 7);
