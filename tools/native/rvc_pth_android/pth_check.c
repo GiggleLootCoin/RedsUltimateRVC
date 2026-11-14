@@ -17,7 +17,8 @@ int main(int argc, char **argv) {
     printf("PTH_OK ques=%d sample_rate=%d fps=%d version=%d speakers=%d\n",
            model->cfg.ques, model->cfg.sr, model->fps,
            model->cfg.version, model->emb_g_dim > 0 ? 1 : 0);
-    const int supported = model->cfg.ques == 768 &&
+    const int supported = model->cfg.version == 2 &&
+        (model->cfg.ques == 256 || model->cfg.ques == 768) &&
         (model->cfg.sr == 32000 || model->cfg.sr == 40000 || model->cfg.sr == 48000) &&
         model->fps > 0;
     rvc_free(model);
