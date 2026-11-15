@@ -26,7 +26,7 @@ jobs:
       - name: Validate integration tooling and regression tests
         run: |
           set -euo pipefail
-          python3 -m py_compile tools/brand.py tools/native/integrate.py tools/native/patch_spartacvc_ort_compat.py
+          python3 -m py_compile tools/brand.py tools/native/integrate.py tools/native/patch_spartacvc_ort_compat.py tools/native/patch_faiss_mobile.py
           bash -n tools/tests/check_pth_v2_profile.sh
           python3 -m pip install --quiet pytest
           python3 -m pytest -q tools/tests
@@ -151,9 +151,65 @@ jobs:
           path: pth-core-output/*
           if-no-files-found: error
 
+  faiss-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout Red's Ultimate RVC
+        uses: actions/checkout@v5
+
+      - name: Set up Android NDK for FAISS
+        uses: android-actions/setup-android@v4
+
+      - name: Restore the pinned FAISS ARM64 AAR cache
+        id: faiss-cache
+        uses: actions/cache@v4
+        with:
+          path: tools/native/faiss/faiss-android.aar
+          key: faiss-android-v1.14.1-arm64-ndk23.1-${{ hashFiles('tools/native/patch_faiss_mobile.py') }}
+
+      - name: Build FAISS Android runtime with mobile-index exporter
+        if: steps.faiss-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --install "ndk;23.1.7779620" "cmake;3.22.1"
+          git clone --depth 1 --branch v1.14.1 --recurse-submodules \
+            https://github.com/DeveloperMindset-com/faiss-mobile.git /tmp/faiss-mobile
+          python3 tools/native/patch_faiss_mobile.py /tmp/faiss-mobile
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/23.1.7779620"
+          export ANDROID_NDK="$ANDROID_NDK_HOME"
+          cd /tmp/faiss-mobile
+          bash faiss-android.sh build --abi=arm64-v8a
+          AAR="dist-android/faiss-android.aar"
+          test -s "$AAR"
+          # FAISS is linked with static libc++/OpenMP in this build. Avoid
+          # duplicate libc++_shared.so packaging against Sherpa-ONNX.
+          zip -d "$AAR" 'jni/*/libc++_shared.so' || true
+          unzip -l "$AAR" | grep -q 'jni/arm64-v8a/libfaiss_jni.so'
+          unzip -l "$AAR" | grep -q 'classes.jar'
+          ! unzip -l "$AAR" | grep -q 'libc++_shared.so'
+          mkdir -p "$GITHUB_WORKSPACE/tools/native/faiss"
+          cp "$AAR" "$GITHUB_WORKSPACE/tools/native/faiss/faiss-android.aar"
+
+      - name: Verify native FAISS converter AAR
+        run: |
+          set -euo pipefail
+          test -s tools/native/faiss/faiss-android.aar
+          unzip -l tools/native/faiss/faiss-android.aar | grep -q 'jni/arm64-v8a/libfaiss_jni.so'
+          unzip -l tools/native/faiss/faiss-android.aar | grep -q 'classes.jar'
+
+      - name: Upload native FAISS Android runtime
+        uses: actions/upload-artifact@v5
+        with:
+          name: red-rvc-faiss-arm64
+          path: tools/native/faiss/faiss-android.aar
+          if-no-files-found: error
+
   build:
-    needs: [quality-guard, pth-backend-probe]
-    if: always() && (needs.quality-guard.result == 'success' || needs.quality-guard.result == 'skipped') && (needs.pth-backend-probe.result == 'success' || needs.pth-backend-probe.result == 'skipped')
+    needs: [quality-guard, pth-backend-probe, faiss-android]
+    if: always() && (needs.quality-guard.result == 'success' || needs.quality-guard.result == 'skipped') && (needs.pth-backend-probe.result == 'success' || needs.pth-backend-probe.result == 'skipped') && needs.faiss-android.result == 'success'
     runs-on: ubuntu-latest
     env:
       RED_RVC_KEYSTORE_BASE64: ${{ secrets.RED_RVC_KEYSTORE_BASE64 }}
@@ -170,6 +226,12 @@ jobs:
         with:
           name: red-rvc-pth-arm64
           path: native-output-pth
+
+      - name: Download native FAISS index converter
+        uses: actions/download-artifact@v6
+        with:
+          name: red-rvc-faiss-arm64
+          path: tools/native/faiss
 
       - name: Checkout local RVC engine
         uses: actions/checkout@v5
