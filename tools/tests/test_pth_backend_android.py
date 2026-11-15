@@ -69,3 +69,22 @@ def test_android_model_picker_accepts_native_pth_instead_of_rejecting_it():
     assert "return lowerPath.endsWith('.onnx') || lowerPath.endsWith('.pth');" in integration
     assert "Choose a compatible ONNX or supported RVC v2 PTH voice model" in integration
     assert "Supported: RVC v2 PTH (768d / 100fps) or compatible ONNX" in integration
+
+
+def test_faiss_patch_exports_mobile_index_streaming_and_handles_ivf():
+    patch = (ROOT / "tools/native/patch_faiss_mobile.py").read_text(encoding="utf-8")
+    assert "nativeExportMobileIndex" in patch
+    assert "URVCIDX1" in patch
+    assert "faiss_IndexIVF_make_direct_map" in patch
+    assert "faiss_Index_reconstruct" in patch
+    assert "fwrite(vector, sizeof(float)" in patch
+    assert "remove(cpath)" in patch
+
+
+def test_faiss_android_converter_is_local_and_dimension_checked():
+    converter = (ROOT / "tools/native/FaissIndexConverter.kt").read_text(encoding="utf-8")
+    assert "FEATURE_DIMENSION = 768" in converter
+    assert "FAISS.readIndex" in converter
+    assert "exportMobileIndex" in converter
+    assert "TempWorkspaceManager" in converter
+    assert "importPickedFile(ImportedFileKind.INDEX" in converter
