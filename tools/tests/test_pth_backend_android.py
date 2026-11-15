@@ -67,5 +67,5 @@ def test_ort_128_compatibility_patch_preserves_mutable_release_handles_and_const
 def test_android_model_picker_accepts_native_pth_instead_of_rejecting_it():
     integration = (ROOT / "tools/native/integrate.py").read_text(encoding="utf-8")
     assert "return lowerPath.endsWith('.onnx') || lowerPath.endsWith('.pth');" in integration
-    assert "compatible .onnx or RVC v2 .pth" in integration
-    assert "RVC v2 .pth（768d / 100fps）" in integration
+    assert "Choose a compatible ONNX or supported RVC v2 PTH voice model" in integration
+    assert "Supported: RVC v2 PTH (768d / 100fps) or compatible ONNX" in integration
