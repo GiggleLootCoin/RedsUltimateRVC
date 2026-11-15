@@ -1,9 +1,35 @@
 import re
+import shutil
 from pathlib import Path
 import urllib.request
 
 root = Path("buildsrc")
 repo_root = Path(__file__).resolve().parent.parent
+
+# The FAISS Android runtime is built from source by CI and bundled in this APK.
+faiss_aar_source = repo_root / "tools" / "native" / "faiss" / "faiss-android.aar"
+faiss_converter_source = repo_root / "tools" / "native" / "FaissIndexConverter.kt"
+faiss_notice_source = repo_root / "tools" / "native" / "faiss" / "FAISS THIRD-PARTY NOTICES.txt"
+if not faiss_aar_source.is_file() or not faiss_converter_source.is_file() or not faiss_notice_source.is_file():
+    raise RuntimeError("The on-device FAISS converter runtime or its notices are missing.")
+faiss_lib_dir = root / "android" / "app" / "libs"
+faiss_lib_dir.mkdir(parents=True, exist_ok=True)
+shutil.copy2(faiss_aar_source, faiss_lib_dir / "faiss-android.aar")
+faiss_kotlin = root / "android" / "app" / "src" / "main" / "kotlin" / "com" / "ultimatervc" / "mobile" / "FaissIndexConverter.kt"
+faiss_kotlin.parent.mkdir(parents=True, exist_ok=True)
+shutil.copy2(faiss_converter_source, faiss_kotlin)
+faiss_assets = root / "assets"
+faiss_assets.mkdir(parents=True, exist_ok=True)
+shutil.copy2(faiss_notice_source, faiss_assets / "FAISS THIRD-PARTY NOTICES.txt")
+
+app_gradle = root / "android" / "app" / "build.gradle"
+app_gradle_text = app_gradle.read_text(encoding="utf-8")
+faiss_dependency = "implementation files('libs/faiss-android.aar')"
+if faiss_dependency not in app_gradle_text:
+    if app_gradle_text.count("dependencies {") != 1:
+        raise RuntimeError("Could not safely add the FAISS Android dependency.")
+    app_gradle_text = app_gradle_text.replace("dependencies {", "dependencies {\\n    " + faiss_dependency, 1)
+    app_gradle.write_text(app_gradle_text, encoding="utf-8")
 
 # Red's Ultimate RVC is a branded product layer around the verified local
 # Ultimate RVC Mobile engine. This script intentionally replaces the previous
@@ -1709,6 +1735,11 @@ for old, new in imports:
         raise RuntimeError("SAF import patch did not match: " + old[:90])
     kt = kt.replace(old, new, 1)
 
+handler_old = '            "convertIndex" -> convertIndex(call, result)\\n'
+if handler_old not in kt:
+    raise RuntimeError("FAISS method handler insertion point missing")
+kt = kt.replace(handler_old, handler_old + '            "convertFaissIndex" -> convertFaissIndex(call, result)\\n', 1)
+
 activity_methods = r'''
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
         activityBinding = binding
@@ -1863,6 +1894,42 @@ cleanup = "        scope.cancel()\n"
 if cleanup not in kt:
     raise RuntimeError("Plugin cleanup insertion point missing")
 kt = kt.replace(cleanup, "        pendingDocumentPickerResult?.error(\"PICKER_UNAVAILABLE\", \"App closed before import completed.\", null)\n        pendingDocumentPickerResult = null\n        pendingDocumentPickerKind = null\n        scope.cancel()\n", 1)
+faiss_method = r'''
+    private fun convertFaissIndex(call: MethodCall, result: Result) {
+        val sourcePath = call.argument<String>("sourcePath")
+        if (sourcePath.isNullOrBlank()) {
+            result.error("INVALID_ARGUMENTS", "Missing sourcePath.", null)
+            return
+        }
+        val source = File(sourcePath)
+        if (!source.isFile || !source.name.lowercase(Locale.ROOT).endsWith(".index") ||
+            source.name.lowercase(Locale.ROOT).endsWith(".mobile.index")) {
+            result.error("INVALID_INDEX", "Choose a standard FAISS .index file.", null)
+            return
+        }
+        scope.launch {
+            try {
+                val imported = FaissIndexConverter.convert(appContext, source)
+                withContext(Dispatchers.Main) {
+                    result.success(mapOf(
+                        "path" to imported.path,
+                        "referenceCount" to imported.referenceCount,
+                        "lastUpdatedAtMs" to imported.lastUpdatedAtMs,
+                    ))
+                }
+            } catch (error: Throwable) {
+                withContext(Dispatchers.Main) {
+                    result.error("FAISS_CONVERSION_FAILED", error.message ?: "Local FAISS conversion failed.", null)
+                }
+            }
+        }
+    }
+'''
+convert_needle = "    private fun convertIndex(call: MethodCall, result: Result) {"
+if kt.count(convert_needle) != 1:
+    raise RuntimeError("FAISS conversion method insertion point missing")
+kt = kt.replace(convert_needle, faiss_method + "\\n" + convert_needle, 1)
+
 plugin.write_text(kt, encoding="utf-8")
 
 bridge = root / "lib/services/rvc_bridge.dart"
@@ -1885,6 +1952,20 @@ bridge_method = """  /// Native Android document picker; null means the user can
 if bridge_needle not in bt:
     raise RuntimeError("RVCBridge import method insertion point missing")
 bt = bt.replace(bridge_needle, bridge_method + bridge_needle, 1)
+faiss_bridge_method = """  Future<ImportedFileHandle> convertFaissIndex(String sourcePath) async {
+    final result = await _channel.invokeMethod<Map<dynamic, dynamic>>(
+      'convertFaissIndex',
+      {'sourcePath': sourcePath},
+    );
+    if (result == null) throw Exception('The FAISS converter returned no result.');
+    return ImportedFileHandle.fromMap(Map<String, dynamic>.from(result));
+  }
+
+"""
+if "convertFaissIndex" not in bt:
+    if bridge_needle not in bt:
+        raise RuntimeError("FAISS Dart bridge insertion point missing")
+    bt = bt.replace(bridge_needle, faiss_bridge_method + bridge_needle, 1)
 bridge.write_text(bt, encoding="utf-8")
 
 picker = root / "lib/screens/model_picker_screen.dart"
@@ -1933,7 +2014,7 @@ for old, new in [(old_model,new_model),(old_index,new_index),(old_select,new_sel
     pt = pt.replace(old,new,1)
 pt = pt.replace(
     "Standard .index imported. Use Index Tools to convert it for mobile use.",
-    "Standard .index stored. It is not runtime-ready; an on-phone FAISS converter is not included yet.",
+    "Standard .index stored. Open Index Tools to convert it locally for mobile use.",
     1
 )
 picker.write_text(pt, encoding="utf-8")
@@ -2420,117 +2501,8 @@ for name, check in [
 # mobile index signature; it cannot parse a standard FAISS .index file.
 # ---------------------------------------------------------------------------
 index_screen = root / "lib/screens/index_converter_screen.dart"
-index_screen.write_text(r'''import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../services/rvc_bridge.dart';
-
-class IndexConverterScreen extends StatefulWidget {
-  const IndexConverterScreen({super.key});
-
-  @override
-  State<IndexConverterScreen> createState() => _IndexConverterScreenState();
-}
-
-class _IndexConverterScreenState extends State<IndexConverterScreen> {
-  final RVCBridge _bridge = RVCBridge();
-  bool _busy = false;
-  String _status = 'Select a mobile.index file to validate and install.';
-
-  Future<void> _selectAndValidate() async {
-    if (_busy) return;
-    setState(() { _busy = true; _status = 'Opening Android file picker…'; });
-    try {
-      final imported = await _bridge.pickAndImportFile(kind: 'index');
-      if (imported == null) {
-        if (mounted) setState(() => _status = 'No file selected.');
-        return;
-      }
-      final name = imported.path.split('/').last;
-      final prefs = await SharedPreferences.getInstance();
-      final savedIndexes = prefs.getStringList('red_rvc_index_library') ?? [];
-      if (savedIndexes.contains(imported.path)) {
-        await _bridge.releaseImportedFile(imported.path);
-      } else {
-        savedIndexes.insert(0, imported.path);
-        await prefs.setStringList('red_rvc_index_library', savedIndexes);
-      }
-      if (!name.toLowerCase().endsWith('.mobile.index')) {
-        if (mounted) {
-          setState(() => _status =
-            '$name was stored in your Index Library, but it is a standard FAISS index. This offline Android build does not include the FAISS-to-mobile converter, so it cannot be used for inference yet.');
-        }
-        return;
-      }
-      final installed = await _bridge.convertIndex(imported.path);
-      if (mounted) {
-        setState(() => _status =
-          'VALIDATION COMPLETE\n\n$name passed the mobile-index format check and was installed at:\n$installed');
-      }
-    } catch (e) {
-      if (mounted) setState(() => _status = 'INDEX CHECK FAILED\n\n$e');
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFF07070A),
-    appBar: AppBar(
-      backgroundColor: const Color(0xFF09090D),
-      title: const Text("RED'S ULTIMATE RVC — INDEX TOOLS"),
-      centerTitle: true,
-    ),
-    body: ListView(
-      padding: const EdgeInsets.all(18),
-      children: [
-        Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: const Color(0xFF111117),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFF62202B)),
-          ),
-          child: const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.data_object, color: Color(0xFFFF334F), size: 38),
-              SizedBox(height: 12),
-              Text('MOBILE INDEX CHECKER', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900)),
-              SizedBox(height: 8),
-              Text('The on-phone inference engine accepts a mobile.index file with the URVCIDX1 signature. This tool checks and installs that mobile format locally.', style: TextStyle(height: 1.4, color: Color(0xFFD0D0D8))),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 52,
-          child: ElevatedButton.icon(
-            onPressed: _busy ? null : _selectAndValidate,
-            icon: const Icon(Icons.folder_open),
-            label: Text(_busy ? 'CHECKING…' : 'SELECT & CHECK INDEX'),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF111117),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFF292932)),
-          ),
-          child: SelectableText(_status, style: const TextStyle(height: 1.45)),
-        ),
-        const SizedBox(height: 12),
-        const Text(
-          'IMPORTANT: A standard desktop .index file is not the same format as mobile.index. Standard FAISS-to-mobile conversion is not implemented in this offline build. The app will store the source file but will not falsely mark it as ready for inference.',
-          style: TextStyle(color: Color(0xFFFFA3AE), height: 1.4, fontSize: 12.5),
-        ),
-      ],
-    ),
-  );
-}
-''', encoding="utf-8")
+if not index_screen.is_file() or "convertFaissIndex" not in index_screen.read_text(encoding="utf-8"):
+    raise RuntimeError("The on-device FAISS index conversion screen is missing.")
 
 # Final static sanity checks.
 
@@ -2559,7 +2531,10 @@ checks = {
     "Model picker uses native SAF": "pickAndImportFile(kind: 'model')" in final_picker and "FilePicker.platform.pickFiles" not in final_picker,
     "PTH support": ".pth" in final_picker,
     "Mobile index support": ".mobile.index" in final_picker,
-    "Index tools clearly disclose the missing FAISS converter": "FAISS-to-mobile converter" in (root / "lib/screens/index_converter_screen.dart").read_text(encoding="utf-8"),
+    "On-device FAISS converter UI": "convertFaissIndex" in (root / "lib/screens/index_converter_screen.dart").read_text(encoding="utf-8"),
+    "On-device FAISS Kotlin converter": "FaissIndexConverter.convert" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8"),
+    "FAISS AAR dependency": "faiss-android.aar" in (root / "android/app/build.gradle").read_text(encoding="utf-8") and (root / "android/app/libs/faiss-android.aar").is_file(),
+    "FAISS converter source": (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/FaissIndexConverter.kt").is_file(),
     "ZIP archive extractor": "private fun extractModelArchive" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8") and "extractModelArchive" in (root / "lib/services/rvc_bridge.dart").read_text(encoding="utf-8") and "extractModelArchive(imported.path)" in final_picker,
     "Persistent model storage": workspace.exists() and "File(File(appFilesDir, IMPORTS_DIRECTORY_NAME)" in workspace.read_text(encoding="utf-8") and "File(File(appFilesDir, IMPORTS_DIRECTORY_NAME), REGISTRY_FILE_NAME)" in workspace.read_text(encoding="utf-8") if workspace.exists() else False,
 }
