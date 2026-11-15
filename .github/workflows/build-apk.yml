@@ -425,6 +425,7 @@ jobs:
                   "assets/flutter_assets/assets/models/rmvpe.onnx",
                   "assets/flutter_assets/assets/models/separation/vocals.fp16.onnx",
                   "assets/flutter_assets/assets/models/separation/accompaniment.fp16.onnx",
+                  "assets/flutter_assets/assets/FAISS THIRD-PARTY NOTICES.txt",
               )
               for required in required_assets:
                   if not any(i.filename.endswith(required) for i in z.infolist()):
@@ -433,6 +434,7 @@ jobs:
                   "lib/arm64-v8a/libred_source_separation.so",
                   "lib/arm64-v8a/libsherpa-onnx-c-api.so",
                   "lib/arm64-v8a/libonnxruntime.so",
+                  "lib/arm64-v8a/libfaiss_jni.so",
               ]
               import os
               if os.environ.get("RVC_NATIVE_BACKEND_BUILD") == "true":
@@ -463,7 +465,7 @@ jobs:
 
             Includes the Red dashboard, ONNX RVC inference, offline Spleeter song-cover pipeline, experimental native GGUF inference runner, realtime/voice-changer modules, and the voice-sample dataset workspace.
 
-            IMPORTANT: this build does not import or convert raw .pth/.pt checkpoints. GGUF files must already be exported. Standard FAISS .index files are not accepted by the GGUF runner. Physical Galaxy A12 runtime acceptance testing is still outstanding. This release is an engineering preview, not a certified production release.
+            Native PTH conversion is included for 768-dimensional, 100-fps RVC v2 checkpoints using bundled feature models; no user-supplied ONNX feature files are required. Standard 768-dimensional FAISS .index files can be converted locally to .mobile.index for compatible ONNX voice models. The direct PTH route does not yet apply retrieval-index blending. Physical Galaxy A12 runtime acceptance testing remains outstanding, so this is an engineering preview rather than a device-certified release.
 
             SHA-256 is provided in SHA256SUMS.txt.
           files: |
