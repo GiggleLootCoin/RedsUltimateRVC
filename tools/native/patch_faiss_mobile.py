@@ -116,15 +116,15 @@ JNI_METHOD(jlong, nativeExportMobileIndex)(JNIEnv *env, jclass cls, jlong indexP
     free(vector);
     if (fflush(out) != 0) ok = 0;
     if (fclose(out) != 0) ok = 0;
-    (*env)->ReleaseStringUTFChars(env, path, cpath);
-
     if (!ok) {
         remove(cpath);
+        (*env)->ReleaseStringUTFChars(env, path, cpath);
         if (!(*env)->ExceptionCheck(env)) {
             throw_java_exception(env, "FAISS index conversion did not complete.");
         }
         return 0;
     }
+    (*env)->ReleaseStringUTFChars(env, path, cpath);
     return (jlong)total;
 }
 
