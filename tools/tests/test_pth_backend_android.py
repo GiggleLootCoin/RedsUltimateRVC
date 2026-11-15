@@ -59,5 +59,5 @@ def test_ort_128_compatibility_patch_preserves_mutable_release_handles_and_const
     assert "float *const rs_w[3]" in patch
     assert "OrtValue *ort_inputs[8]" in patch
     assert "const OrtValue *ort_input_values[8]" in patch
-    assert "api->ReleaseValue(ort_inputs[i])" in patch
+    assert "const OrtValue *ort_inputs[8]" not in patch
     assert "in_names,  ort_input_values" in patch
