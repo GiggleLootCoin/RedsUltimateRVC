@@ -26,12 +26,12 @@ The app targets Android ARM64 (API 24+). Performance and memory use depend on th
 | RVC v2 .pth voice model | Native route supports 768-dimensional, 100-fps F0 checkpoints at 32/40/48 kHz |
 | Other .pth variants | Rejected by the native engine with a compatibility error |
 | .pt and ZIP archives | May be stored in the library; not runnable |
-| Standard FAISS .index | Stored only; native PTH retrieval is not implemented |
-| .mobile.index | Existing ONNX route only, when the file matches the mobile format |
+| Standard FAISS `.index` | On-device conversion to `.mobile.index` for compatible 768-dimensional RVC v2 ONNX models; direct PTH retrieval is not implemented |
+| `.mobile.index` | Existing ONNX route only, when the file matches the mobile format; the PTH route currently runs without retrieval-index blending |
 | Voice model training | Not included; Dataset Lab prepares and exports samples only |
 | Realtime RVC | Experimental; Android routing and performance may stutter |
 
-The native PTH route does not ask the user for an ONNX voice checkpoint and does not convert the voice checkpoint into ONNX. It uses the bundled ContentVec/HuBERT and RMVPE ONNX feature models internally, then runs the voice model through the native C RVC engine. Standard FAISS retrieval is not yet connected to this route.
+The native PTH route does not ask the user for an ONNX voice checkpoint and does not convert the voice checkpoint into ONNX. It uses the bundled ContentVec/HuBERT and RMVPE ONNX feature models internally, then runs the voice model through the native C RVC engine. The new Index Tools screen converts standard 768-dimensional RVC v2 FAISS `.index` files locally into `.mobile.index` for the compatible ONNX route; retrieval-index blending is not yet connected to direct PTH conversion.
 
 Changing a file extension does not convert a model or index. Unsupported model variants must be reported as unsupported rather than marked ready.
 
@@ -57,7 +57,7 @@ GitHub Actions run #337 (15 November 2026) has successfully:
 
 This proves a narrow supported-profile PTH-to-audio path in CI. It does not yet prove conversion of every user's model, full-song separation/mix quality, standard FAISS index retrieval, or acceptable speed/memory/heat on a physical Samsung Galaxy A12. Those remain the final handset and compatibility acceptance checks.
 
-The native PTH implementation is based on the Apache-2.0-licensed Spartacvc C inference/checkpoint code. The app's ContentVec/HuBERT and RMVPE feature extraction uses the bundled ONNX models and ONNX Runtime.
+The native PTH implementation is based on the Apache-2.0-licensed Spartacvc C inference/checkpoint code. The app's ContentVec/HuBERT and RMVPE feature extraction uses the bundled ONNX models and ONNX Runtime. The on-device index converter bundles FAISS Android and writes the app's verified `URVCIDX1` mobile-index format.
 
 ## Build and automated checks
 
@@ -91,4 +91,4 @@ The workflow validates the key and signs subsequent APKs with it automatically. 
 
 **LittleRedBigSmile** is the original creator, project developer, designer and maker of Red's Ultimate RVC and its branded app experience.
 
-The Android application is based on Ultimate RVC Mobile by Sharl210. The native PTH backend uses the Apache-2.0-licensed Spartacvc project. This repository does not claim ownership of upstream inference implementations.
+The Android application is based on Ultimate RVC Mobile by Sharl210. The native PTH backend uses the Apache-2.0-licensed Spartacvc project. The local index converter bundles FAISS Android, FAISS and OpenBLAS under their respective licenses; notices are included in the app. This repository does not claim ownership of upstream inference implementations.
