@@ -328,7 +328,7 @@ if "return lowerPath.endsWith('.onnx') || lowerPath.endsWith('.pth');" not in ps
     ps = ps.replace(old_model_filter,
         "    return lowerPath.endsWith('.onnx') || lowerPath.endsWith('.pth');", 1)
 ps = ps.replace("请选择 .onnx 模型文件", "Choose a compatible ONNX or supported RVC v2 PTH voice model")
-ps = ps.replace("'支持：.onnx 模型'", "'支持：RVC v2 .pth（768d / 100fps）或兼容 .onnx'")
+ps = ps.replace("'支持：.onnx 模型'", "'Supported: RVC v2 PTH (768d / 100fps) or compatible ONNX'")
 ps = ps.replace("Text('选择音色模型')", "Text('Select Voice Model')")
 ps = ps.replace("Text('更换模型')", "Text('Change Model')")
 ps = ps.replace("Text('选择模型')", "Text('Choose Model')")
