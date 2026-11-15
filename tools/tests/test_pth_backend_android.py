@@ -38,3 +38,16 @@ def test_ci_pins_and_cross_compiles_the_apache_licensed_pth_engine_for_arm64():
     assert "ANDROID_ABI=arm64-v8a" in source
     assert "red-rvc-pth-arm64" in source
     assert "SPARTACVC-LICENSE.txt" in source
+
+def test_ci_runs_real_end_to_end_native_pth_conversion_with_feature_models():
+    source = WORKFLOW.read_text(encoding="utf-8")
+    probe = ROOT / "tools/native/rvc_pth_android/pth_convert_probe.c"
+    assert probe.is_file()
+    assert "Prove end-to-end PTH conversion with real voice and feature models" in source
+    assert "onnxruntime-linux-x64-1.28.0.tgz" in source
+    assert "aether-rvc-v2.pth" in source
+    assert "hubert.onnx" in source and "rmvpe.onnx" in source
+    assert "pth_convert_probe.c" in source
+    assert "./pth-e2e-probe" in source
+    assert "RIFF" in probe.read_text(encoding="utf-8")
+    assert "red_rvc_pth_convert(" in probe.read_text(encoding="utf-8")
