@@ -88,6 +88,44 @@ jobs:
             -o onnxruntime-android.aar
           unzip -q onnxruntime-android.aar -d ort-aar
           test -s ort-aar/jni/arm64-v8a/libonnxruntime.so
+      - name: Prove end-to-end PTH conversion with real voice and feature models
+        run: |
+          set -euo pipefail
+          ORT_ARCHIVE="/tmp/onnxruntime-linux-x64-1.28.0.tgz"
+          ORT_ROOT="/tmp/onnxruntime-linux-x64-1.28.0"
+          curl --fail --location --retry 3 --silent --show-error \
+            "https://github.com/microsoft/onnxruntime/releases/download/v1.28.0/onnxruntime-linux-x64-1.28.0.tgz" \
+            -o "$ORT_ARCHIVE"
+          mkdir -p "$ORT_ROOT"
+          tar -xzf "$ORT_ARCHIVE" -C /tmp
+          test -s "$ORT_ROOT/lib/libonnxruntime.so"
+
+          mkdir -p pth-fixtures/upstream-assets pth-fixtures/e2e
+          curl --fail --location --retry 3 --silent --show-error \
+            "https://github.com/Sharl210/ultimate-rvc-mobile/releases/download/v2.0.0/app-release.apk" \
+            -o pth-fixtures/upstream-assets/upstream.apk
+          echo "2821b659bd113a8df7281b5ec2db1cccd3c524fcde68c93a7e46be44dba8e4b6  pth-fixtures/upstream-assets/upstream.apk" | sha256sum --check
+          unzip -q pth-fixtures/upstream-assets/upstream.apk -d pth-fixtures/upstream-assets/extracted
+          HUBERT="$(find pth-fixtures/upstream-assets/extracted -type f -name hubert.onnx -print -quit)"
+          RMVPE="$(find pth-fixtures/upstream-assets/extracted -type f -name rmvpe.onnx -print -quit)"
+          test -s "$HUBERT"
+          test -s "$RMVPE"
+          MODEL="pth-fixtures/aether/aether-rvc-v2.pth"
+          test -s "$MODEL"
+
+          cc -std=c99 -O2 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -DM_PI=3.14159265358979323846 \
+            -include sys/types.h -include unistd.h \
+            -I spartacvc/src -I tools/native/rvc_pth_android -I "$ORT_ROOT/include" \
+            tools/native/rvc_pth_android/pth_convert_probe.c \
+            tools/native/rvc_pth_android/pth_pipeline.c \
+            tools/native/rvc_pth_android/threads_android.c \
+            spartacvc/src/debug.c spartacvc/src/pickle.c spartacvc/src/zip_reader.c \
+            spartacvc/src/pth_loader.c spartacvc/src/rvc.c spartacvc/src/rvc_infer.c \
+            spartacvc/src/tensor.c spartacvc/src/onnx.c \
+            -L "$ORT_ROOT/lib" -Wl,-rpath,"$ORT_ROOT/lib" -lonnxruntime -lm -pthread \
+            -o pth-e2e-probe
+          ./pth-e2e-probe "$MODEL" "$HUBERT" "$RMVPE" pth-fixtures/e2e
+
       - name: Cross-compile direct PTH-to-audio runtime for Android ARM64
         run: |
           set -euo pipefail
