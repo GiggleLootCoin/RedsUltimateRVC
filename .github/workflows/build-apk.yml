@@ -178,9 +178,9 @@ jobs:
           git clone --depth 1 --branch v1.14.1 --recurse-submodules \
             https://github.com/DeveloperMindset-com/faiss-mobile.git /tmp/faiss-mobile
           python3 tools/native/patch_faiss_mobile.py /tmp/faiss-mobile
-          # OpenBLAS 0.3.28's optional CTest compiler check expands an unset
-          # Fortran compiler ID into invalid CMake syntax when NOFORTRAN=ON.
-          # Quote the expansion so the check evaluates safely on Android.
+          # OpenBLAS 0.3.28 contains optional CTest-only compiler checks that
+          # assume a Fortran compiler. This Android build uses NOFORTRAN=ON
+          # and BUILD_TESTING=OFF, so disable those four test-only branches.
           mkdir -p /tmp/faiss-mobile/build-android/OpenBLAS
           curl --fail --location --silent --show-error \
             "https://github.com/OpenMathLib/OpenBLAS/releases/download/v0.3.28/OpenBLAS-0.3.28.tar.gz" \
@@ -191,11 +191,10 @@ jobs:
           from pathlib import Path
           p = Path("/tmp/faiss-mobile/build-android/OpenBLAS/ctest/CMakeLists.txt")
           s = p.read_text()
-          old = "(${CMAKE_Fortran_COMPILER_ID} STREQUAL GNU)"
-          new = '("${CMAKE_Fortran_COMPILER_ID}" STREQUAL GNU)'
+          old = "if (USE_OPENMP AND (${CMAKE_Fortran_COMPILER_ID} STREQUAL GNU) AND (${CMAKE_C_COMPILER_ID} STREQUAL Clang))"
           if s.count(old) != 4:
               raise SystemExit("OpenBLAS CTest compiler-check patch anchor changed")
-          p.write_text(s.replace(old, new))
+          p.write_text(s.replace(old, "if (FALSE)"))
           PY
           export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/23.1.7779620"
           export ANDROID_NDK="$ANDROID_NDK_HOME"
