@@ -317,6 +317,22 @@ if "if (path.toLowerCase().endsWith('.onnx')) await _bridge.validateVoiceModel(p
     }
 '''
     ps = ps.replace(use_selection, guard + use_selection, 1)
+
+# The upstream picker originally rejects every voice checkpoint except ONNX.
+# Add the native PTH route to the picker itself; otherwise Android users can
+# never select a .pth file even though the native runtime is packaged.
+if "return lowerPath.endsWith('.onnx') || lowerPath.endsWith('.pth');" not in ps:
+    old_model_filter = "    return lowerPath.endsWith('.onnx');"
+    if old_model_filter not in ps:
+        raise RuntimeError('Model picker supported-file filter changed; refusing unsafe PTH patch')
+    ps = ps.replace(old_model_filter,
+        "    return lowerPath.endsWith('.onnx') || lowerPath.endsWith('.pth');", 1)
+ps = ps.replace("请选择 .onnx 模型文件", "请选择兼容的 .onnx 或 RVC v2 .pth 音色模型")
+ps = ps.replace("'支持：.onnx 模型'", "'支持：RVC v2 .pth（768d / 100fps）或兼容 .onnx'")
+ps = ps.replace("Text('选择音色模型')", "Text('Select Voice Model')")
+ps = ps.replace("Text('更换模型')", "Text('Change Model')")
+ps = ps.replace("Text('选择模型')", "Text('Choose Model')")
+
 picker.write_text(ps, encoding='utf-8')
 
 plugin.write_text(s, encoding='utf-8')
