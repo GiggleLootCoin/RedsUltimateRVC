@@ -28,7 +28,7 @@ faiss_dependency = "implementation files('libs/faiss-android.aar')"
 if faiss_dependency not in app_gradle_text:
     if app_gradle_text.count("dependencies {") != 1:
         raise RuntimeError("Could not safely add the FAISS Android dependency.")
-    app_gradle_text = app_gradle_text.replace("dependencies {", "dependencies {\\n    " + faiss_dependency, 1)
+    app_gradle_text = app_gradle_text.replace("dependencies {", "dependencies {\n    " + faiss_dependency, 1)
     app_gradle.write_text(app_gradle_text, encoding="utf-8")
 
 # Red's Ultimate RVC is a branded product layer around the verified local
@@ -1735,10 +1735,10 @@ for old, new in imports:
         raise RuntimeError("SAF import patch did not match: " + old[:90])
     kt = kt.replace(old, new, 1)
 
-handler_old = '            "convertIndex" -> convertIndex(call, result)\\n'
+handler_old = '            "convertIndex" -> convertIndex(call, result)\n'
 if handler_old not in kt:
     raise RuntimeError("FAISS method handler insertion point missing")
-kt = kt.replace(handler_old, handler_old + '            "convertFaissIndex" -> convertFaissIndex(call, result)\\n', 1)
+kt = kt.replace(handler_old, handler_old + '            "convertFaissIndex" -> convertFaissIndex(call, result)\n', 1)
 
 activity_methods = r'''
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
@@ -1928,7 +1928,7 @@ faiss_method = r'''
 convert_needle = "    private fun convertIndex(call: MethodCall, result: Result) {"
 if kt.count(convert_needle) != 1:
     raise RuntimeError("FAISS conversion method insertion point missing")
-kt = kt.replace(convert_needle, faiss_method + "\\n" + convert_needle, 1)
+kt = kt.replace(convert_needle, faiss_method + "\n" + convert_needle, 1)
 
 plugin.write_text(kt, encoding="utf-8")
 
