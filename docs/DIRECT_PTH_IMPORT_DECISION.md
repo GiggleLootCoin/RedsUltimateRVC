@@ -33,7 +33,7 @@ The following are not currently supported by the PTH inference route:
 - Non-standard frame rates such as 187 fps.
 - No-F0 checkpoints.
 - Arbitrary .pt snapshots, training checkpoints or ZIP archives.
-- Standard FAISS .index retrieval or .mobile.index retrieval.
+- Standard FAISS .index retrieval or .mobile.index retrieval on the direct PTH route. The app now includes an on-device converter for compatible 768-dimensional RVC v2 indexes used by the ONNX route.
 - Multi-speaker selection beyond the native engine's default speaker path.
 
 The model library may retain source files, but only a compatible .pth checkpoint can run through the native PTH route. The existing ONNX route remains available for compatible ONNX voice models.
@@ -58,7 +58,7 @@ The model library may retain source files, but only a compatible .pth checkpoint
 ## Still required before calling it complete
 
 1. Run a full-song cover acceptance test using a real user-selected compatible PTH checkpoint and real song audio; verify converted vocals, duration alignment, accompaniment preservation and playable export.
-2. Implement and test standard FAISS retrieval before claiming .index support on the PTH route. Index retrieval is optional; PTH conversion must remain usable without an index.
+2. Implement and test standard FAISS retrieval inside the direct PTH route before claiming index blending for PTH. The standalone on-device converter already prepares compatible 768-dimensional indexes for the ONNX route. Index retrieval is optional; PTH conversion must remain usable without an index.
 3. Test on a physical Samsung Galaxy A12: peak memory, elapsed time, heat, cancellation, low-storage behaviour and a full-length song.
 
 Do not call direct PTH support complete until steps 1–4 pass. Do not call the Galaxy A12 supported until step 6 passes.
