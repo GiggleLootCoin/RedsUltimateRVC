@@ -178,6 +178,25 @@ jobs:
           git clone --depth 1 --branch v1.14.1 --recurse-submodules \
             https://github.com/DeveloperMindset-com/faiss-mobile.git /tmp/faiss-mobile
           python3 tools/native/patch_faiss_mobile.py /tmp/faiss-mobile
+          # OpenBLAS 0.3.28's optional CTest compiler check expands an unset
+          # Fortran compiler ID into invalid CMake syntax when NOFORTRAN=ON.
+          # Quote the expansion so the check evaluates safely on Android.
+          mkdir -p /tmp/faiss-mobile/build-android/OpenBLAS
+          curl --fail --location --silent --show-error \
+            "https://github.com/OpenMathLib/OpenBLAS/releases/download/v0.3.28/OpenBLAS-0.3.28.tar.gz" \
+            -o /tmp/openblas-0.3.28.tar.gz
+          tar -xzf /tmp/openblas-0.3.28.tar.gz --strip-components=1 \
+            -C /tmp/faiss-mobile/build-android/OpenBLAS
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("/tmp/faiss-mobile/build-android/OpenBLAS/ctest/CMakeLists.txt")
+          s = p.read_text()
+          old = "(${CMAKE_Fortran_COMPILER_ID} STREQUAL GNU)"
+          new = '("${CMAKE_Fortran_COMPILER_ID}" STREQUAL GNU)'
+          if s.count(old) != 4:
+              raise SystemExit("OpenBLAS CTest compiler-check patch anchor changed")
+          p.write_text(s.replace(old, new))
+          PY
           export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/23.1.7779620"
           export ANDROID_NDK="$ANDROID_NDK_HOME"
           # The pinned mobile wrapper builds an older OpenBLAS CMake project.
