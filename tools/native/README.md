@@ -6,7 +6,7 @@ then mixes converted vocals with the accompaniment into a new WAV.
 
 All audio paths are app-private local files. The Spleeter model files and
 Sherpa-ONNX shared libraries are packaged into the APK by the build workflow.
-No audio is uploaded and no remote inference is used.
+No audio is uploaded and no remote inference is used. The app also bundles an on-device FAISS converter for standard 768-dimensional RVC v2 indexes; conversion is local and produces the app's `.mobile.index` format for compatible ONNX voice models. The direct native PTH route does not yet apply retrieval-index blending.
 
 The Galaxy A12 must still be tested for peak memory, processing time, thermal
 behaviour and output quality before this feature is advertised as certified.
