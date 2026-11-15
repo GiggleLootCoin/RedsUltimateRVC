@@ -76,7 +76,7 @@ jobs:
           set -euo pipefail
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" --install "ndk;23.1.7779620" "cmake;3.22.1"
+          "$SDKMANAGER" "ndk;23.1.7779620" "cmake;3.22.1"
       - name: Fetch matching ONNX Runtime headers and Android library
         run: |
           set -euo pipefail
