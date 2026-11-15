@@ -48,12 +48,14 @@ The PTH route currently has no retrieval-index support. Long-song memory, speed,
 
 ## Native PTH backend status
 
-GitHub Actions has successfully:
+GitHub Actions run #337 (15 November 2026) has successfully:
 - Loaded a real public RVC v2 .pth checkpoint with the native checkpoint parser.
+- Ran end-to-end native conversion using that real checkpoint, the bundled ContentVec/HuBERT and RMVPE feature models, and a generated PCM WAV input; the probe produced a valid non-empty WAV.
 - Cross-compiled the native PTH inference shared library for Android ARM64.
-- Built the feature extraction path against the app's ONNX Runtime 1.28.0 library.
+- Integrated and packaged the PTH runtime into the ARM64 APK.
+- Passed Flutter analysis, widget/unit tests, project regression tests, APK alignment/signature checks and packaged-library checks.
 
-The remaining release checks are APK packaging, Flutter integration, a real compatible 768-dimensional/100-fps PTH song-cover conversion, and physical Samsung Galaxy A12 testing. A successful native-library compile is not proof of end-to-end audio conversion.
+This proves a narrow supported-profile PTH-to-audio path in CI. It does not yet prove conversion of every user's model, full-song separation/mix quality, standard FAISS index retrieval, or acceptable speed/memory/heat on a physical Samsung Galaxy A12. Those remain the final handset and compatibility acceptance checks.
 
 The native PTH implementation is based on the Apache-2.0-licensed Spartacvc C inference/checkpoint code. The app's ContentVec/HuBERT and RMVPE feature extraction uses the bundled ONNX models and ONNX Runtime.
 
