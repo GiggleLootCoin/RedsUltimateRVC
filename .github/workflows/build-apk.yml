@@ -26,7 +26,7 @@ jobs:
       - name: Validate integration tooling and regression tests
         run: |
           set -euo pipefail
-          python3 -m py_compile tools/brand.py tools/native/integrate.py
+          python3 -m py_compile tools/brand.py tools/native/integrate.py tools/native/patch_spartacvc_ort_compat.py
           bash -n tools/tests/check_pth_v2_profile.sh
           python3 -m pip install --quiet pytest
           python3 -m pytest -q tools/tests
@@ -43,6 +43,8 @@ jobs:
           repository: f-cero/Spartacvc
           ref: c0b000778e5ff680ef0ab5b445d2ac583048d731
           path: spartacvc
+      - name: Apply checked Spartacvc compatibility fixes for ONNX Runtime 1.28
+        run: python3 tools/native/patch_spartacvc_ort_compat.py spartacvc
       - name: Cache a public RVC v2 PTH acceptance fixture
         uses: actions/cache@v4
         with:
