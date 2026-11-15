@@ -1,6 +1,6 @@
 # Direct RVC PTH import — implementation and limits
 
-Status: native Android ARM64 library compiles and a real public RVC v2 checkpoint loads. APK packaging and device-level end-to-end acceptance remain pending.
+Status (15 November 2026): native Android ARM64 library compiles; a real public RVC v2 checkpoint loads; CI end-to-end conversion with real PTH + bundled feature models + generated PCM WAV succeeds; the PTH runtime is integrated into and packaged in the ARM64 APK. Full song-cover quality and physical-device acceptance remain pending.
 
 ## User-facing contract
 
@@ -50,17 +50,15 @@ The model library may retain source files, but only a compatible .pth checkpoint
 ## Verification completed
 
 - The native parser loaded a real public RVC v2 .pth checkpoint in CI.
-- The native Android ARM64 PTH shared library compiled successfully.
+- CI ran the native conversion end-to-end with the real checkpoint, ContentVec/HuBERT and RMVPE feature models, and generated PCM WAV input; it produced a valid, non-empty WAV.
+- The native Android ARM64 PTH shared library compiled and was integrated into the APK.
 - The runtime is linked against the app's ONNX Runtime 1.28.0 feature-extraction library.
-- The Flutter bridge and song-cover screen have a native PTH route in source.
+- Flutter analysis, widget/unit tests, project regression tests, APK alignment/signature and packaged-library checks passed.
 
 ## Still required before calling it complete
 
-1. Build and package the final ARM64 APK with the PTH library.
-2. Run Flutter analysis and widget/unit tests on the integrated app.
-3. Run an end-to-end conversion with a real 768-dimensional, 100-fps RVC v2 PTH checkpoint and real audio.
-4. Verify the output is non-silent, genuinely converted, duration-aligned and mixed with the original accompaniment.
-5. Implement and test standard FAISS retrieval before claiming .index support.
-6. Test on a physical Samsung Galaxy A12: peak memory, elapsed time, heat, cancellation, low-storage behaviour and a full-length song.
+1. Run a full-song cover acceptance test using a real user-selected compatible PTH checkpoint and real song audio; verify converted vocals, duration alignment, accompaniment preservation and playable export.
+2. Implement and test standard FAISS retrieval before claiming .index support on the PTH route. Index retrieval is optional; PTH conversion must remain usable without an index.
+3. Test on a physical Samsung Galaxy A12: peak memory, elapsed time, heat, cancellation, low-storage behaviour and a full-length song.
 
 Do not call direct PTH support complete until steps 1–4 pass. Do not call the Galaxy A12 supported until step 6 passes.
