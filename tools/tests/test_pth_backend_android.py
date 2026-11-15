@@ -51,3 +51,13 @@ def test_ci_runs_real_end_to_end_native_pth_conversion_with_feature_models():
     assert "./pth-e2e-probe" in source
     assert "RIFF" in probe.read_text(encoding="utf-8")
     assert "red_rvc_pth_convert(" in probe.read_text(encoding="utf-8")
+
+
+def test_ort_128_compatibility_patch_preserves_mutable_release_handles_and_const_run_view():
+    patch = (ROOT / "tools/native/patch_spartacvc_ort_compat.py").read_text(encoding="utf-8")
+    assert "float *const in_w[3]" in patch
+    assert "float *const rs_w[3]" in patch
+    assert "OrtValue *ort_inputs[8]" in patch
+    assert "const OrtValue *ort_input_values[8]" in patch
+    assert "api->ReleaseValue(ort_inputs[i])" in patch
+    assert "in_names,  ort_input_values" in patch
