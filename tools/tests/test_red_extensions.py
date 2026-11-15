@@ -53,10 +53,18 @@ def test_gradle_can_use_a_private_persistent_release_keystore():
     assert "signingConfigs.debug" in source
 
 
-def test_index_tools_discloses_faiss_conversion_is_not_on_device():
+def test_index_tools_uses_the_real_on_device_faiss_converter():
     source = INDEX_TOOLS.read_text(encoding="utf-8")
-    assert "Standard RVC/FAISS .index files are not converted by this Android app yet" in source
-    assert "Importing or renaming one does not make it compatible" in source
+    assert "Converting locally with FAISS" in source
+    assert "_bridge.convertFaissIndex(imported.path)" in source
+    assert "Conversion complete." in source
+    converter = (ROOT / "tools/native/FaissIndexConverter.kt").read_text(encoding="utf-8")
+    assert "FAISS.readIndex(source.absolutePath)" in converter
+    assert "index.exportMobileIndex(temporary.absolutePath)" in converter
+    assert "index.dimension() == FEATURE_DIMENSION" in converter
+    assert "validateMobileIndex(temporary, total)" in converter
+    assert "MAX_SOURCE_BYTES = 512L * 1024L * 1024L" in converter
+    assert "MAX_OUTPUT_BYTES = 1_500_000_000L" in converter
 
 
 def test_workflow_runs_tests_and_supports_private_persistent_signing():
