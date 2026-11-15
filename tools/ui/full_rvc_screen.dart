@@ -46,7 +46,7 @@ class FullRvcScreen extends StatelessWidget {
                 Text("FULL PHONE WORKSPACE", style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
                 SizedBox(height: 8),
                 Text(
-                  "Phone-local conversion is available for compatible ONNX models. This build does not include local PTH-to-ONNX conversion or a neural-network RVC training engine.",
+                  "Phone-local conversion supports compatible ONNX models and standard RVC v2 PTH checkpoints (100-fps, 768-dimensional). PTH files are run natively; they are not converted to ONNX. Standard FAISS .index retrieval and neural-network RVC training are not included.",
                   style: TextStyle(color: Color(0xFFC8C8D1), height: 1.35),
                 ),
               ],
@@ -54,7 +54,7 @@ class FullRvcScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           _button(Icons.graphic_eq, "AUDIO CONVERSION", "Convert audio with the local RVC engine.", onConvert),
-          _button(Icons.library_music, "MODEL LIBRARY", "Import ONNX models and store PTH/PT/ZIP source files.", onModels),
+          _button(Icons.library_music, "MODEL LIBRARY", "Import compatible ONNX or RVC v2 PTH voices; store PT/ZIP files.", onModels),
           _button(Icons.settings_voice, "REALTIME RVC — EXPERIMENTAL", "Android audio routing and performance are limited; stuttering may occur.", onRealtime),
           _button(Icons.record_voice_over, "VOICE CHANGER", "Record and process through the selected voice.", onVoiceChanger),
           _button(Icons.sync_alt, "INDEX CHECKER", "Import and validate compatible mobile index files.", onIndexTools),
@@ -65,7 +65,7 @@ class FullRvcScreen extends StatelessWidget {
             child: Padding(
               padding: EdgeInsets.all(16),
               child: Text(
-                "Important: importing a standard RVC .pth model is supported for storage, but the bundled Android inference engine runs ONNX voice models. A true RVC trainer is a separate neural-network training engine and is not present in the upstream mobile engine. This app will never claim a model was trained when it was not.",
+                "PTH inference is limited to standard RVC v2 checkpoints with 768-dimensional features and 100-fps timing. PT/ZIP files are storage-only. Standard FAISS .index retrieval and neural-network training are not included. This app will never claim a model was trained when it was not.",
                 style: TextStyle(color: Color(0xFFAAAAB5), height: 1.35, fontSize: 12.5),
               ),
             ),
