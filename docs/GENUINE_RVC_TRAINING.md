@@ -18,7 +18,7 @@ Red's Ultimate RVC now has an optional **real RVC v2 training workflow**. It use
 3. Open [Train a genuine RVC voice model](https://github.com/GiggleLootCoin/RedsUltimateRVC/actions/workflows/train-rvc-cpu.yml).
 4. Choose **Run workflow**, paste the direct HTTPS ZIP link, enter a voice name, and choose 5, 10, 20, or 40 epochs.
 5. When the run succeeds, open its **Artifacts** section and download the trained voice ZIP.
-6. Extract the ZIP on Android and import the `.pth` model and matching `.index` into the app. The app's current PTH runtime accepts the supported RVC v2 768-dimensional / 100-fps checkpoint profile; verify compatibility before relying on a newly trained model.
+6. Extract the ZIP on Android and import the `.pth` model into the app. The trained `.index` is included for use with compatible RVC interfaces, but the app's current native PTH conversion path does not yet blend a retrieval index. The app's PTH runtime accepts the supported RVC v2 768-dimensional / 100-fps profile; verify compatibility before relying on a newly trained model.
 
 ## Training configuration
 
