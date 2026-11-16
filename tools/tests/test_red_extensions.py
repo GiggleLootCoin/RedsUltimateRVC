@@ -111,15 +111,14 @@ def test_upstream_song_picker_is_translated_to_english_before_build():
 
 
 
-def test_dataset_lab_is_phone_local_and_does_not_advertise_cloud_training():
+def test_dataset_lab_exposes_real_rvc_training_without_claiming_on_device_training():
     training = (ROOT / "tools/ui/training_screen.dart").read_text(encoding="utf-8")
-    assert "ON-PHONE DATASET WORKSPACE" in training
-    assert "This phone prepares and exports your voice dataset locally" in training
-    assert "It does not train an RVC neural network" in training
-    assert "Kaggle" not in training
-    assert "Colab" not in training
-    assert "url_launcher/url_launcher.dart" not in training
-
+    assert "VOICE DATASET + NEURAL TRAINING" in training
+    assert "Your samples are prepared and stored on this phone" in training
+    assert "trains the PyTorch generator and discriminator" in training
+    assert "github.com/GiggleLootCoin/RedsUltimateRVC/actions/workflows/train-rvc-cpu.yml" in training
+    assert "url_launcher/url_launcher.dart" in training
+    assert "does not train an RVC neural network" not in training
 
 def test_dataset_export_creates_a_single_zip_for_android_sharing():
     training = (ROOT / "tools/ui/training_screen.dart").read_text(encoding="utf-8")
