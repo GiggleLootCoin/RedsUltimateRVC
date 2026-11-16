@@ -174,7 +174,10 @@ jobs:
           set -euo pipefail
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" --install "ndk;23.1.7779620" "cmake;3.22.1"
+          # FAISS/IVF-PQ template compilation crashes in the legacy Clang 12
+          # bundled with NDK 23. Keep the app's upstream NDK pinned separately;
+          # build this standalone ARM64 AAR with the newer Clang toolchain.
+          "$SDKMANAGER" --install "ndk;27.2.12479018" "cmake;3.22.1"
           git clone --depth 1 --branch v1.14.1 --recurse-submodules \
             https://github.com/DeveloperMindset-com/faiss-mobile.git /tmp/faiss-mobile
           python3 tools/native/patch_faiss_mobile.py /tmp/faiss-mobile
@@ -204,7 +207,7 @@ jobs:
               raise SystemExit("Could not uniquely locate OpenBLAS extraction point in pinned build script")
           script.write_text(source.replace(anchor, injected, 1), encoding="utf-8")
           PY
-          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/23.1.7779620"
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/27.2.12479018"
           export ANDROID_NDK="$ANDROID_NDK_HOME"
           # The pinned mobile wrapper builds an older OpenBLAS CMake project.
           # CMake 4+ requires an explicit minimum policy compatibility version.
