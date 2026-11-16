@@ -219,6 +219,10 @@ jobs:
           openblas_flags = anchor + '        -DCMAKE_C_FLAGS_RELEASE=-O0 \\\n        -DCMAKE_CXX_FLAGS_RELEASE=-O0 \\\n'
           faiss_flags = anchor + '        -DCMAKE_C_FLAGS_RELEASE=-O2 \\\n        -DCMAKE_CXX_FLAGS_RELEASE=-O2 \\\n'
           source = blocks[0] + openblas_flags + blocks[1] + faiss_flags + blocks[2] + faiss_flags + blocks[3]
+          if source.count("-DBUILD_WITHOUT_LAPACK=OFF") != 1 or source.count("-DC_LAPACK=ON") != 1:
+              raise SystemExit("Could not uniquely locate optional OpenBLAS LAPACK build flags")
+          source = source.replace("-DBUILD_WITHOUT_LAPACK=OFF", "-DBUILD_WITHOUT_LAPACK=ON", 1)
+          source = source.replace("-DC_LAPACK=ON", "-DC_LAPACK=OFF", 1)
           script.write_text(source, encoding="utf-8")
           PY
           export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/27.2.12479018"
