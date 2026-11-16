@@ -13,6 +13,7 @@ def test_integrated_model_picker_imports_source_models_without_android_extension
     assert "_bridge.importPickedFile(kind: 'model', sourcePath: source)" in source
     assert "bool _runtime(String path) => ['onnx', 'pth'].contains(_ext(path));" in source
     assert "PT and ZIP source archives are stored safely but are not directly runnable" in source
+    assert "_section('VOICE LIBRARY & DATASET')" in source
 
 
 def test_integrated_index_library_accepts_faiss_and_mobile_indexes_without_fake_conversion():
