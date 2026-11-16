@@ -19,7 +19,11 @@ def test_integrated_index_library_accepts_faiss_and_mobile_indexes_without_fake_
     source = BRAND.read_text(encoding="utf-8")
     assert "Select an RVC .index or .mobile.index file" in source
     assert "Standard .index stored in your Index Library" in source
-    assert "does not include FAISS-to-mobile conversion" in source
+    assert "Open Index Tools to convert compatible 768-dimensional RVC v2 indexes for the ONNX route" in source
+    assert "Direct PTH retrieval is not yet supported" in source
+    converter = INDEX_TOOLS.read_text(encoding="utf-8")
+    assert "Converting locally with FAISS" in converter
+    assert "_bridge.convertFaissIndex(imported.path)" in converter
 
 
 def test_dashboard_and_full_engine_open_the_integrated_model_picker():
