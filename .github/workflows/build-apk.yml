@@ -178,29 +178,28 @@ jobs:
           git clone --depth 1 --branch v1.14.1 --recurse-submodules \
             https://github.com/DeveloperMindset-com/faiss-mobile.git /tmp/faiss-mobile
           python3 tools/native/patch_faiss_mobile.py /tmp/faiss-mobile
-          # Patch OpenBLAS immediately after faiss-mobile extracts it.
-          # Its build() clears build-android first, so pre-patching that
-          # directory is discarded before CMake configures the source.
+          # Inject a deterministic patch hook into the pinned FAISS build
+          # script. It runs after OpenBLAS is extracted and before CMake.
+          cat > /tmp/faiss-mobile/patch-openblas.py <<'PATCH_OPENBLAS'
+          from pathlib import Path
+          import re
+
+          path = Path("OpenBLAS/ctest/CMakeLists.txt")
+          source = path.read_text(encoding="utf-8")
+          pattern = r"if\s*\(USE_OPENMP\s+AND\s+\(\$\{CMAKE_Fortran_COMPILER_ID\}\s+STREQUAL\s+GNU\)\s+AND\s+\(\$\{CMAKE_C_COMPILER_ID\}\s+STREQUAL\s+Clang\)\)"
+          updated, count = re.subn(pattern, "if (FALSE)", source)
+          if count != 4:
+              raise SystemExit(f"Expected four optional OpenBLAS CTest checks, patched {count}")
+          path.write_text(updated, encoding="utf-8")
+          print(f"Patched {count} optional OpenBLAS CTest checks.")
+          PATCH_OPENBLAS
           python3 - <<'PY'
           from pathlib import Path
 
           script = Path("/tmp/faiss-mobile/faiss-android.sh")
           source = script.read_text(encoding="utf-8")
-          anchor = '        tar xf openblas.tar.gz --strip-components=1 -C OpenBLAS\\n        rm -f openblas.tar.gz'
-          injected = '''        tar xf openblas.tar.gz --strip-components=1 -C OpenBLAS
-                  python3 - <<'PATCH_OPENBLAS'
-          from pathlib import Path
-          import re
-          p = Path("OpenBLAS/ctest/CMakeLists.txt")
-          s = p.read_text(encoding="utf-8")
-          pattern = r"if\\s*\\(USE_OPENMP\\s+AND\\s+\\(\\$\\{CMAKE_Fortran_COMPILER_ID\\}\\s+STREQUAL\\s+GNU\\)\\s+AND\\s+\\(\\$\\{CMAKE_C_COMPILER_ID\\}\\s+STREQUAL\\s+Clang\\)\\)"
-          updated, count = re.subn(pattern, "if (FALSE)", s)
-          if count != 4:
-              raise SystemExit(f"Expected four optional CTest checks, patched {count}")
-          p.write_text(updated, encoding="utf-8")
-          print(f"Patched {count} OpenBLAS CTest-only compiler checks.")
-          PATCH_OPENBLAS
-                  rm -f openblas.tar.gz'''
+          anchor = '        tar xf openblas.tar.gz --strip-components=1 -C OpenBLAS'
+          injected = anchor + '\n        python3 "$ROOT/patch-openblas.py"'
           if source.count(anchor) != 1:
               raise SystemExit("Could not uniquely locate OpenBLAS extraction point in pinned build script")
           script.write_text(source.replace(anchor, injected, 1), encoding="utf-8")
