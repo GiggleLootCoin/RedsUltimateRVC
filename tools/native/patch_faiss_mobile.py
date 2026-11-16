@@ -70,7 +70,7 @@ JNI_METHOD(jlong, nativeExportMobileIndex)(JNIEnv *env, jclass cls, jlong indexP
 
     /* Standard RVC IVF indexes commonly omit a direct map. Build one so
        reconstruct() can retrieve each original vector by its sequential ID. */
-    FaissIndexIVF *ivf = faiss_IndexIVF_downcast(index);
+    FaissIndexIVF *ivf = faiss_IndexIVF_cast(index);
     if (ivf && check_faiss_error(env, faiss_IndexIVF_make_direct_map(ivf, 1))) {
         (*env)->ReleaseStringUTFChars(env, path, cpath);
         return 0;
