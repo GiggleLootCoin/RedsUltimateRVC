@@ -207,6 +207,17 @@ jobs:
               raise SystemExit("Could not uniquely locate OpenBLAS extraction point in pinned build script")
           script.write_text(source.replace(anchor, injected, 1), encoding="utf-8")
           PY
+          python3 - <<'PY'
+          from pathlib import Path
+
+          script = Path("/tmp/faiss-mobile/faiss-android.sh")
+          source = script.read_text(encoding="utf-8")
+          anchor = '        -DCMAKE_BUILD_TYPE=Release \\\n'
+          replacement = anchor + '        -DCMAKE_C_FLAGS_RELEASE=-O2 \\\n        -DCMAKE_CXX_FLAGS_RELEASE=-O2 \\\n'
+          if source.count(anchor) != 3:
+              raise SystemExit("Expected three pinned FAISS Release CMake blocks")
+          script.write_text(source.replace(anchor, replacement), encoding="utf-8")
+          PY
           export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/27.2.12479018"
           export ANDROID_NDK="$ANDROID_NDK_HOME"
           # The pinned mobile wrapper builds an older OpenBLAS CMake project.
