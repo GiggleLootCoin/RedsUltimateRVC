@@ -580,7 +580,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(ext == 'mobile.index' ? 'mobile.index imported and ready.' : 'Standard .index stored in your Index Library. This offline Android build does not include FAISS-to-mobile conversion.')),
+          SnackBar(content: Text(ext == 'mobile.index' ? 'mobile.index imported and ready.' : 'Standard .index stored in your Index Library. Open Index Tools to convert compatible 768-dimensional RVC v2 indexes for the ONNX route. Direct PTH retrieval is not yet supported.')),
         );
       }
     } catch (e) {
