@@ -204,6 +204,7 @@ def main() -> int:
         raise RuntimeError("RVC v2 48 kHz pretrained generator/discriminator weights are missing.")
 
     patch_cpu_loader(repo)
+    (repo / "assets" / "weights").mkdir(parents=True, exist_ok=True)
     run([python, "train/train.py", "-e", name, "-sr", "48k", "-f0", "1",
          "-bs", "1", "-te", str(epochs), "-se", "5",
          "-pg", str(generator), "-pd", str(discriminator),
