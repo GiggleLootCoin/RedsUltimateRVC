@@ -7,6 +7,7 @@ Red's Ultimate RVC now has an optional **real RVC v2 training workflow**. It use
 - The Galaxy A12 app still prepares and exports datasets locally; it does not run PyTorch neural training on the handset.
 - The actual training runs on a GitHub-hosted CPU runner. It is free for this public-repository workflow, but CPU training can take hours and the job has a six-hour limit. There is no GPU acceleration.
 - The workflow needs a direct HTTPS link to the exported ZIP. The link is supplied as a workflow input and the audio is downloaded to the runner. Do not use recordings you consider private or confidential with this hosted route.
+- This repository is public. Treat the workflow input URL, run details, logs, and finished model artifact as potentially accessible to anyone with repository read access. I have not uploaded or trained on your personal recordings. For private voice data, use a private repository/workflow with enough free Actions quota instead of this public route.
 - The workflow downloads public HuBERT and RVC pretrained weights from the upstream model repository. The resulting voice model is packaged as a ZIP containing an inference-ready `.pth`, its retrieval `.index`, and training metadata.
 - The training workflow does not upload the raw dataset as an artifact. Only the finished model package is retained for 14 days.
 - Use only audio you own or have permission to use.
