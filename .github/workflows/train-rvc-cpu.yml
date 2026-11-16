@@ -1,0 +1,111 @@
+name: Train a genuine RVC voice model (CPU)
+
+on:
+  workflow_dispatch:
+    inputs:
+      dataset_url:
+        description: Direct HTTPS download URL for the exported voice-dataset ZIP
+        required: true
+        type: string
+      voice_name:
+        description: Name for the new voice model
+        required: true
+        default: MyVoice
+        type: string
+      epochs:
+        description: Training epochs (more takes longer)
+        required: true
+        default: "10"
+        type: choice
+        options:
+          - "5"
+          - "10"
+          - "20"
+          - "40"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: red-rvc-training-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  train:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - name: Check out the training launcher
+        uses: actions/checkout@v5
+
+      - name: Check out pinned upstream RVC training engine
+        uses: actions/checkout@v5
+        with:
+          repository: RVC-Project/Retrieval-based-Voice-Conversion-WebUI
+          ref: 81eed5e8f68b6bed1789f682fe78cdd324495afc
+          path: rvc-engine
+
+      - name: Install CPU training dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg libsndfile1
+          python -m pip install --upgrade pip setuptools wheel
+          sed -i 's#https://mirrors.pku.edu.cn/pypi/simple#https://pypi.org/simple#; s#https://mirrors.nju.edu.cn/pytorch/whl/cpu#https://download.pytorch.org/whl/cpu#' rvc-engine/requirments_cpu_py312.txt
+          python -m pip install -r rvc-engine/requirments_cpu_py312.txt
+          python -m pip install --upgrade huggingface_hub
+          python - <<'PY'
+          import torch
+          print("PyTorch:", torch.__version__)
+          print("CUDA available:", torch.cuda.is_available())
+          assert not torch.cuda.is_available(), "This workflow is intentionally CPU-only."
+          PY
+
+      - name: Download public RVC v2 HuBERT and pretrained weights
+        working-directory: rvc-engine
+        run: |
+          set -euo pipefail
+          hf download lj1995/VoiceConversionWebUI --revision main \
+            --include "hubert_base/*" "pretrained_v2/*" --local-dir assets
+          test -s assets/hubert_base/config.json
+          test -s assets/pretrained_v2/f0G48k.pth
+          test -s assets/pretrained_v2/f0D48k.pth
+
+      - name: Download and validate the user's dataset ZIP
+        env:
+          DATASET_URL: ${{ inputs.dataset_url }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os
+          from urllib.parse import urlparse
+          value = os.environ["DATASET_URL"].strip()
+          parsed = urlparse(value)
+          if parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.password:
+              raise SystemExit("Dataset link must be a direct HTTPS URL without embedded credentials.")
+          PY
+          mkdir -p training-input
+          curl --fail --location --retry 2 --max-time 900 --max-filesize 1073741824 \
+            --silent --show-error "$DATASET_URL" -o training-input/dataset.zip
+          python -m zipfile -t training-input/dataset.zip
+
+      - name: Run genuine RVC v2 neural training and build retrieval index
+        env:
+          VOICE_NAME: ${{ inputs.voice_name }}
+          EPOCHS: ${{ inputs.epochs }}
+        run: |
+          set -euo pipefail
+          python tools/training/run_rvc_cpu_training.py \
+            --dataset-zip training-input/dataset.zip \
+            --voice-name "$VOICE_NAME" \
+            --epochs "$EPOCHS" \
+            --rvc-root rvc-engine \
+            --output training-output
+
+      - name: Upload trained voice model and index
+        uses: actions/upload-artifact@v5
+        with:
+          name: reds-ultimate-rvc-trained-${{ inputs.voice_name }}
+          path: training-output/*.zip
+          if-no-files-found: error
+          retention-days: 14
