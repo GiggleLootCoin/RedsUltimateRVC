@@ -111,6 +111,11 @@ def test_upstream_song_picker_is_translated_to_english_before_build():
 
 
 
+def test_training_screen_dependency_is_added_to_generated_flutter_project():
+    integration = (ROOT / "tools/native/integrate.py").read_text(encoding="utf-8")
+    assert "if 'url_launcher:' not in pubspec_text" in integration
+    assert "url_launcher: ^6.3.1" in integration
+
 def test_dataset_lab_exposes_real_rvc_training_without_claiming_on_device_training():
     training = (ROOT / "tools/ui/training_screen.dart").read_text(encoding="utf-8")
     assert "VOICE DATASET + NEURAL TRAINING" in training

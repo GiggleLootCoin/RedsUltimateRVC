@@ -349,6 +349,8 @@ gradle.write_text(g, encoding='utf-8')
 # Include the separately bundled Spleeter ONNX models in Flutter's asset manifest.
 pubspec = BUILD / 'pubspec.yaml'
 pubspec_text = pubspec.read_text(encoding='utf-8')
+if 'url_launcher:' not in pubspec_text:
+    pubspec_text = pubspec_text.replace('dependencies:\n', 'dependencies:\n  url_launcher: ^6.3.1\n', 1)
 separation_asset = '    - assets/models/separation/\n'
 if separation_asset not in pubspec_text:
     model_asset = '    - assets/models/\n'
