@@ -45,6 +45,12 @@ jobs:
           ref: 81eed5e8f68b6bed1789f682fe78cdd324495afc
           path: rvc-engine
 
+      - name: Validate training launcher and dataset safety tests
+        run: |
+          python -m pip install --disable-pip-version-check pytest
+          python -m pytest -q tools/tests/test_rvc_training_pipeline.py
+          python -m py_compile tools/training/run_rvc_cpu_training.py
+
       - name: Install CPU training dependencies
         run: |
           set -euo pipefail
