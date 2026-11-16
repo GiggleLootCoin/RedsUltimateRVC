@@ -105,7 +105,7 @@ jobs:
       - name: Upload trained voice model and index
         uses: actions/upload-artifact@v5
         with:
-          name: reds-ultimate-rvc-trained-${{ inputs.voice_name }}
+          name: reds-ultimate-rvc-trained-${{ github.run_id }}
           path: training-output/*.zip
           if-no-files-found: error
           retention-days: 14
