@@ -189,12 +189,26 @@ jobs:
             -C /tmp/faiss-mobile/build-android/OpenBLAS
           python3 - <<'PY'
           from pathlib import Path
-          p = Path("/tmp/faiss-mobile/build-android/OpenBLAS/ctest/CMakeLists.txt")
-          s = p.read_text()
-          old = "if (USE_OPENMP AND (${CMAKE_Fortran_COMPILER_ID} STREQUAL GNU) AND (${CMAKE_C_COMPILER_ID} STREQUAL Clang))"
-          if s.count(old) != 4:
-              raise SystemExit("OpenBLAS CTest compiler-check patch anchor changed")
-          p.write_text(s.replace(old, "if (FALSE)"))
+          import re
+
+          # faiss-android.sh may populate OpenBLAS under a lowercase build
+          # directory, so patch the actual CTest source selected by CMake
+          # rather than assuming a case-sensitive extraction path.
+          candidates = list(Path("/tmp/faiss-mobile").rglob("ctest/CMakeLists.txt"))
+          patched = 0
+          for path in candidates:
+              source = path.read_text(encoding="utf-8")
+              updated, count = re.subn(
+                  r"if\\s*\\(USE_OPENMP\\s+AND\\s+\\(\\$\\{CMAKE_Fortran_COMPILER_ID\\}\\s+STREQUAL\\s+GNU\\)\\s+AND\\s+\\(\\$\\{CMAKE_C_COMPILER_ID\\}\\s+STREQUAL\\s+Clang\\)\\)",
+                  "if (FALSE)",
+                  source,
+              )
+              if count:
+                  path.write_text(updated, encoding="utf-8")
+                  patched += count
+          if patched != 4:
+              raise SystemExit(f"Expected to disable 4 optional OpenBLAS CTest checks; patched {patched} across {candidates}")
+          print(f"Disabled {patched} optional OpenBLAS CTest compiler checks.")
           PY
           export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/23.1.7779620"
           export ANDROID_NDK="$ANDROID_NDK_HOME"
