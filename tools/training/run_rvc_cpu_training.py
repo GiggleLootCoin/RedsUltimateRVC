@@ -210,7 +210,7 @@ def main() -> int:
          "-l", "1", "-c", "0", "-sw", "1", "-v", "v2"],
         cwd=repo, env=env)
 
-    model = repo / "weights" / f"{name}.pth"
+    model = repo / "assets" / "weights" / f"{name}.pth"
     if not model.is_file() or model.stat().st_size < 10_000_000:
         raise RuntimeError("RVC training finished without producing a valid inference-ready .pth model.")
 
