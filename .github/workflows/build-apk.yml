@@ -199,7 +199,7 @@ jobs:
           for path in candidates:
               source = path.read_text(encoding="utf-8")
               updated, count = re.subn(
-                  r"if\\s*\\(USE_OPENMP\\s+AND\\s+\\(\\$\\{CMAKE_Fortran_COMPILER_ID\\}\\s+STREQUAL\\s+GNU\\)\\s+AND\\s+\\(\\$\\{CMAKE_C_COMPILER_ID\\}\\s+STREQUAL\\s+Clang\\)\\)",
+                  r"if\s*\(USE_OPENMP\s+AND\s+\(\$\{CMAKE_Fortran_COMPILER_ID\}\s+STREQUAL\s+GNU\)\s+AND\s+\(\$\{CMAKE_C_COMPILER_ID\}\s+STREQUAL\s+Clang\)\)",
                   "if (FALSE)",
                   source,
               )
