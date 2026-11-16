@@ -213,10 +213,13 @@ jobs:
           script = Path("/tmp/faiss-mobile/faiss-android.sh")
           source = script.read_text(encoding="utf-8")
           anchor = '        -DCMAKE_BUILD_TYPE=Release \\\n'
-          replacement = anchor + '        -DCMAKE_C_FLAGS_RELEASE=-O2 \\\n        -DCMAKE_CXX_FLAGS_RELEASE=-O2 \\\n'
-          if source.count(anchor) != 3:
+          blocks = source.split(anchor)
+          if len(blocks) != 4:
               raise SystemExit("Expected three pinned FAISS Release CMake blocks")
-          script.write_text(source.replace(anchor, replacement), encoding="utf-8")
+          openblas_flags = anchor + '        -DCMAKE_C_FLAGS_RELEASE=-O0 \\\n        -DCMAKE_CXX_FLAGS_RELEASE=-O0 \\\n'
+          faiss_flags = anchor + '        -DCMAKE_C_FLAGS_RELEASE=-O2 \\\n        -DCMAKE_CXX_FLAGS_RELEASE=-O2 \\\n'
+          source = blocks[0] + openblas_flags + blocks[1] + faiss_flags + blocks[2] + faiss_flags + blocks[3]
+          script.write_text(source, encoding="utf-8")
           PY
           export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/27.2.12479018"
           export ANDROID_NDK="$ANDROID_NDK_HOME"
