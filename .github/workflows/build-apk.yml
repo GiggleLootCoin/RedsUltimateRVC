@@ -178,37 +178,32 @@ jobs:
           git clone --depth 1 --branch v1.14.1 --recurse-submodules \
             https://github.com/DeveloperMindset-com/faiss-mobile.git /tmp/faiss-mobile
           python3 tools/native/patch_faiss_mobile.py /tmp/faiss-mobile
-          # OpenBLAS 0.3.28 contains optional CTest-only compiler checks that
-          # assume a Fortran compiler. This Android build uses NOFORTRAN=ON
-          # and BUILD_TESTING=OFF, so disable those four test-only branches.
-          mkdir -p /tmp/faiss-mobile/build-android/OpenBLAS
-          curl --fail --location --silent --show-error \
-            "https://github.com/OpenMathLib/OpenBLAS/releases/download/v0.3.28/OpenBLAS-0.3.28.tar.gz" \
-            -o /tmp/openblas-0.3.28.tar.gz
-          tar -xzf /tmp/openblas-0.3.28.tar.gz --strip-components=1 \
-            -C /tmp/faiss-mobile/build-android/OpenBLAS
+          # Patch OpenBLAS immediately after faiss-mobile extracts it.
+          # Its build() clears build-android first, so pre-patching that
+          # directory is discarded before CMake configures the source.
           python3 - <<'PY'
           from pathlib import Path
-          import re
 
-          # faiss-android.sh may populate OpenBLAS under a lowercase build
-          # directory, so patch the actual CTest source selected by CMake
-          # rather than assuming a case-sensitive extraction path.
-          candidates = list(Path("/tmp/faiss-mobile").rglob("ctest/CMakeLists.txt"))
-          patched = 0
-          for path in candidates:
-              source = path.read_text(encoding="utf-8")
-              updated, count = re.subn(
-                  r"if\s*\(USE_OPENMP\s+AND\s+\(\$\{CMAKE_Fortran_COMPILER_ID\}\s+STREQUAL\s+GNU\)\s+AND\s+\(\$\{CMAKE_C_COMPILER_ID\}\s+STREQUAL\s+Clang\)\)",
-                  "if (FALSE)",
-                  source,
-              )
-              if count:
-                  path.write_text(updated, encoding="utf-8")
-                  patched += count
-          if patched != 4:
-              raise SystemExit(f"Expected to disable 4 optional OpenBLAS CTest checks; patched {patched} across {candidates}")
-          print(f"Disabled {patched} optional OpenBLAS CTest compiler checks.")
+          script = Path("/tmp/faiss-mobile/faiss-android.sh")
+          source = script.read_text(encoding="utf-8")
+          anchor = '        tar xf openblas.tar.gz --strip-components=1 -C OpenBLAS\\n        rm -f openblas.tar.gz'
+          injected = '''        tar xf openblas.tar.gz --strip-components=1 -C OpenBLAS
+                  python3 - <<'PATCH_OPENBLAS'
+          from pathlib import Path
+          import re
+          p = Path("OpenBLAS/ctest/CMakeLists.txt")
+          s = p.read_text(encoding="utf-8")
+          pattern = r"if\\s*\\(USE_OPENMP\\s+AND\\s+\\(\\$\\{CMAKE_Fortran_COMPILER_ID\\}\\s+STREQUAL\\s+GNU\\)\\s+AND\\s+\\(\\$\\{CMAKE_C_COMPILER_ID\\}\\s+STREQUAL\\s+Clang\\)\\)"
+          updated, count = re.subn(pattern, "if (FALSE)", s)
+          if count != 4:
+              raise SystemExit(f"Expected four optional CTest checks, patched {count}")
+          p.write_text(updated, encoding="utf-8")
+          print(f"Patched {count} OpenBLAS CTest-only compiler checks.")
+          PATCH_OPENBLAS
+                  rm -f openblas.tar.gz'''
+          if source.count(anchor) != 1:
+              raise SystemExit("Could not uniquely locate OpenBLAS extraction point in pinned build script")
+          script.write_text(source.replace(anchor, injected, 1), encoding="utf-8")
           PY
           export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/23.1.7779620"
           export ANDROID_NDK="$ANDROID_NDK_HOME"
