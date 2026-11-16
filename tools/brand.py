@@ -248,7 +248,7 @@ class RedHomeScreen extends StatelessWidget {
               _Action(Icons.record_voice_over, 'VOICE CHANGER', 'Use RVC while recording', onVoiceChanger),
             ]),
             const SizedBox(height: 16),
-            _section('VOICES & TRAINING'),
+            _section('VOICE LIBRARY & DATASET'),
             _grid([
               _Action(Icons.library_music, 'MODEL LIBRARY', 'Import, manage and select voices', onModels),
               _Action(Icons.model_training, 'VOICE DATASET LAB', 'Record and organise voice samples on this phone', onTrain),
