@@ -26,7 +26,7 @@ jobs:
       - name: Validate integration tooling and regression tests
         run: |
           set -euo pipefail
-          python3 -m py_compile tools/brand.py tools/native/integrate.py tools/native/patch_spartacvc_ort_compat.py tools/native/patch_faiss_mobile.py
+          python3 -m py_compile tools/brand.py tools/native/integrate.py tools/native/patch_spartacvc_ort_compat.py tools/native/patch_faiss_mobile.py tools/training/run_rvc_cpu_training.py
           bash -n tools/tests/check_pth_v2_profile.sh
           python3 -m pip install --quiet pytest
           python3 -m pytest -q tools/tests
