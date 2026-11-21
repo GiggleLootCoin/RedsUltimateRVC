@@ -117,6 +117,8 @@ jobs:
           ORT_LIB="/tmp/onnxruntime-java/ai/onnxruntime/native/linux-x64/libonnxruntime.so"
           test -s "$ORT_LIB"
           cp "$ORT_LIB" "$ORT_ROOT/lib/libonnxruntime.so"
+          # Match the SONAME required by the Linux ONNX Runtime shared object.
+          ln -sf libonnxruntime.so "$ORT_ROOT/lib/libonnxruntime.so.1"
           mkdir -p "$ORT_ROOT/include"
           cp ort-aar/headers/* "$ORT_ROOT/include/"
 
