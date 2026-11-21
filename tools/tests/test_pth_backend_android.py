@@ -44,7 +44,8 @@ def test_ci_runs_real_end_to_end_native_pth_conversion_with_feature_models():
     probe = ROOT / "tools/native/rvc_pth_android/pth_convert_probe.c"
     assert probe.is_file()
     assert "Prove end-to-end PTH conversion with real voice and feature models" in source
-    assert "onnxruntime-linux-x64-1.28.0.tgz" in source
+    assert "onnxruntime-1.28.0.jar" in source
+    assert "native/linux-x64/libonnxruntime.so" in source
     assert "MODEL=\"pth-fixtures/nahida-jp.pth\"" in source
     assert "repo1.maven.org/maven2" in source
     assert "repo.maven.apache.org/maven2" in source
