@@ -81,10 +81,6 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p ort-headers ort-aar
-          BASE="https://raw.githubusercontent.com/microsoft/onnxruntime/v1.28.0/include/onnxruntime/core/session"
-          for header in onnxruntime_c_api.h onnxruntime_error_code.h; do
-            curl --fail --location --silent --show-error "$BASE/$header" -o "ort-headers/$header"
-          done
           AAR_PATH="com/microsoft/onnxruntime/onnxruntime-android/1.28.0/onnxruntime-android-1.28.0.aar"
           for MAVEN_BASE in "https://repo1.maven.org/maven2" "https://repo.maven.apache.org/maven2"; do
             if curl --fail --location --retry 2 --silent --show-error "$MAVEN_BASE/$AAR_PATH" -o onnxruntime-android.aar; then
@@ -94,6 +90,12 @@ jobs:
           done
           test -s onnxruntime-android.aar
           unzip -q onnxruntime-android.aar -d ort-aar
+          # The matching AAR ships its own headers; use them rather than a
+          # separate raw-GitHub download that can fail independently.
+          for header in onnxruntime_c_api.h onnxruntime_error_code.h; do
+            test -s "ort-aar/headers/$header"
+            cp "ort-aar/headers/$header" "ort-headers/$header"
+          done
           test -s ort-aar/jni/arm64-v8a/libonnxruntime.so
       - name: Prove end-to-end PTH conversion with real voice and feature models
         run: |
