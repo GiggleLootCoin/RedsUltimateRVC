@@ -444,9 +444,9 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
     return i >= 0 ? p.substring(i + 1) : '';
   }
 
-  bool _runtime(String path) => _ext(path) == 'onnx';
+  bool _runtime(String path) => ['onnx', 'pth'].contains(_ext(path));
 
-  bool _sourceModel(String path) => ['pth', 'pt', 'zip'].contains(_ext(path));
+  bool _sourceModel(String path) => ['pt', 'zip'].contains(_ext(path));
 
 
   Future<void> _pickModel() async {
@@ -484,10 +484,10 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
       setState(() {});
       if (_runtime(imported.path)) {
         widget.onModelSelected(imported.path);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ONNX model imported and ready.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_ext(imported.path) == 'pth' ? 'Native RVC v2 PTH model imported. Supported profile: 768 dimensions / 100 fps.' : 'ONNX model imported and ready.')));
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Model imported into the library. PTH/PT/ZIP is stored safely but is not directly runnable by the Android ONNX engine.')),
+          const SnackBar(content: Text('Model imported into the library. PT/ZIP files are storage-only; supported PTH and ONNX models can be used for conversion.')),
         );
       }
     } catch (e) {
@@ -540,7 +540,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
 
   Future<void> _use(String path) async {
     if (!_runtime(path)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This source model is stored, but Android inference requires an ONNX model.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This source file is storage-only. Choose a compatible ONNX or supported RVC v2 PTH model.')));
       return;
     }
     _selectedModelPath = path;
@@ -616,7 +616,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 7),
-              Text(ready ? 'READY — ONNX model can be used for conversion.' : 'Choose an ONNX model for conversion. Source RVC models can also be stored below.', style: const TextStyle(color: Color(0xFFAAAAB5))),
+              Text(ready ? (_ext(selected!) == 'pth' ? 'READY — Native PTH supports RVC v2, 768 dimensions / 100 fps only.' : 'READY — ONNX model can be used for conversion.') : 'Choose a compatible ONNX or supported RVC v2 PTH model. PT/ZIP files are storage-only.', style: const TextStyle(color: Color(0xFFAAAAB5))),
               const SizedBox(height: 13),
               Row(children: [
                 Expanded(child: ElevatedButton.icon(onPressed: _busy || !_libraryLoaded ? null : _pickModel, icon: const Icon(Icons.upload_file), label: const Text('IMPORT MODEL'))),
@@ -671,7 +671,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
                     contentPadding: EdgeInsets.zero,
                     leading: Icon(runtime ? Icons.check_circle : Icons.inventory_2, color: runtime ? const Color(0xFF5DE58A) : const Color(0xFFFF334F)),
                     title: Text(File(p).uri.pathSegments.last, maxLines: 1, overflow: TextOverflow.ellipsis),
-                    subtitle: Text(runtime ? 'READY FOR MOBILE INFERENCE' : source ? 'SOURCE MODEL — CONVERSION REQUIRED' : 'IMPORTED FILE'),
+                    subtitle: Text(runtime ? (_ext(p) == 'pth' ? 'READY — NATIVE PTH (768D / 100FPS)' : 'READY FOR MOBILE INFERENCE') : source ? 'SOURCE MODEL — STORAGE ONLY' : 'IMPORTED FILE'),
                     trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                       if (runtime) IconButton(onPressed: () => _use(p), icon: const Icon(Icons.play_arrow), tooltip: 'Use model'),
                       IconButton(onPressed: () => _delete(p), icon: const Icon(Icons.delete_outline), tooltip: 'Delete'),
