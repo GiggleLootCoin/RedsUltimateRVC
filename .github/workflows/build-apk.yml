@@ -2,7 +2,7 @@ name: Build Red's Ultimate RVC APK
 
 on:
   push:
-    branches: [main, feature/rvc-dataset-export-zip, red-rvc-native-pth-integration]
+    branches: [main, feature/rvc-dataset-export-zip, red-rvc-native-pth-integration-ci]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -18,7 +18,7 @@ jobs:
   # Build and package the native GGUF runtime for an installable engineering APK.
   # Raw .pth export and physical-device qualification remain separate milestones.
   quality-guard:
-    if: github.ref == 'refs/heads/red-rvc-native-pth-integration' || (github.event_name == 'pull_request' && github.head_ref == 'red-rvc-native-pth-integration')
+    if: github.ref == 'refs/heads/red-rvc-native-pth-integration-ci' || (github.event_name == 'pull_request' && github.head_ref == 'red-rvc-native-pth-integration-ci')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Red's Ultimate RVC
@@ -32,7 +32,7 @@ jobs:
           python3 -m pytest -q tools/tests
 
   pth-backend-probe:
-    if: github.ref == 'refs/heads/red-rvc-native-pth-integration' || (github.event_name == 'pull_request' && github.head_ref == 'red-rvc-native-pth-integration')
+    if: github.ref == 'refs/heads/red-rvc-native-pth-integration-ci' || (github.event_name == 'pull_request' && github.head_ref == 'red-rvc-native-pth-integration-ci')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Red's Ultimate RVC
@@ -271,7 +271,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Download native PTH conversion runtime
-        if: github.ref == 'refs/heads/red-rvc-native-pth-integration' || (github.event_name == 'pull_request' && github.head_ref == 'red-rvc-native-pth-integration')
+        if: github.ref == 'refs/heads/red-rvc-native-pth-integration-ci' || (github.event_name == 'pull_request' && github.head_ref == 'red-rvc-native-pth-integration-ci')
         uses: actions/download-artifact@v6
         with:
           name: red-rvc-pth-arm64
@@ -375,7 +375,7 @@ jobs:
           ls -lh buildsrc/assets/models/separation/
 
       - name: Install native PTH conversion runtime
-        if: github.ref == 'refs/heads/red-rvc-native-pth-integration' || (github.event_name == 'pull_request' && github.head_ref == 'red-rvc-native-pth-integration')
+        if: github.ref == 'refs/heads/red-rvc-native-pth-integration-ci' || (github.event_name == 'pull_request' && github.head_ref == 'red-rvc-native-pth-integration-ci')
         run: |
           set -euo pipefail
           JNI_LIBS="buildsrc/android/app/src/main/jniLibs/arm64-v8a"
@@ -451,7 +451,7 @@ jobs:
 
       - name: Verify APK alignment, signature and packaged size
         env:
-          RVC_NATIVE_BACKEND_BUILD: ${{ (github.ref == 'refs/heads/red-rvc-native-pth-integration' || (github.event_name == 'pull_request' && github.head_ref == 'red-rvc-native-pth-integration')) && 'true' || 'false' }}
+          RVC_NATIVE_BACKEND_BUILD: ${{ (github.ref == 'refs/heads/red-rvc-native-pth-integration-ci' || (github.event_name == 'pull_request' && github.head_ref == 'red-rvc-native-pth-integration-ci')) && 'true' || 'false' }}
         run: |
           APK="release/Red-Ultimate-RVC.apk"
           ZIPALIGN="$(find "$ANDROID_HOME/build-tools" -type f -name zipalign | sort -V | tail -n 1)"
