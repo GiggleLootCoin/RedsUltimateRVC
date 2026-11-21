@@ -46,7 +46,7 @@ def test_ci_runs_real_end_to_end_native_pth_conversion_with_feature_models():
     assert "Prove end-to-end PTH conversion with real voice and feature models" in source
     assert "onnxruntime-1.28.0.jar" in source
     assert "native/linux-x64/libonnxruntime.so" in source
-    assert 'cp ort-aar/headers/onnxruntime_c_api.h ort-aar/headers/onnxruntime_error_code.h "$ORT_ROOT/include/"' in source
+    assert 'cp ort-aar/headers/* "$ORT_ROOT/include/"' in source
     assert "MODEL=\"pth-fixtures/nahida-jp.pth\"" in source
     assert "repo1.maven.org/maven2" in source
     assert "repo.maven.apache.org/maven2" in source
