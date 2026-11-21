@@ -681,9 +681,9 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
           ),
           const SizedBox(height: 14),
           SizedBox(height: 52, child: ElevatedButton.icon(
-            onPressed: ready && widget.selectedSongPath != null ? widget.onContinue : null,
+            onPressed: ready && widget.selectedSongPath != null && _ext(selected!) == 'onnx' ? widget.onContinue : null,
             icon: const Icon(Icons.arrow_forward),
-            label: const Text('CONTINUE TO CONVERSION'),
+            label: Text(selected != null && _ext(selected) == 'pth' ? 'PTH VOICE — USE SONG COVERS' : 'CONTINUE TO ONNX CONVERSION'),
           )),
         ],
       ),
@@ -793,9 +793,9 @@ dashboard = '''    final moduleScreens = [
         onGenerate: _openAudioConversion,
         onSongCovers: () {
           final modelPath = _selectedModelPath;
-          if (modelPath == null || modelPath.isEmpty || !modelPath.toLowerCase().endsWith('.onnx')) {
+          if (modelPath == null || modelPath.isEmpty || (!modelPath.toLowerCase().endsWith('.onnx') && !modelPath.toLowerCase().endsWith('.pth'))) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Song Covers needs a compatible RVC v2 ONNX voice model. Choose one in Voice Library first.')),
+              const SnackBar(content: Text('Song Covers needs a compatible ONNX or supported RVC v2 PTH voice (768 dimensions / 100 fps). Choose one in Voice Library first.')),
             );
             Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(
               onModelSelected: _onModelSelected,
