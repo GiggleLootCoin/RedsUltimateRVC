@@ -112,7 +112,7 @@ jobs:
           RMVPE="$(find pth-fixtures/upstream-assets/extracted -type f -name rmvpe.onnx -print -quit)"
           test -s "$HUBERT"
           test -s "$RMVPE"
-          MODEL="pth-fixtures/aether/aether-rvc-v2.pth"
+          MODEL="pth-fixtures/nahida-jp.pth"
           test -s "$MODEL"
 
           cc -std=c99 -O2 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -DM_PI=3.14159265358979323846 \
