@@ -7,10 +7,11 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:archive/archive_io.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/rvc_bridge.dart';
 
-/// Local dataset preparation only. The bundled Android RVC engine has no
-/// neural-network training implementation; never present this as training.
+/// Prepares voice datasets locally and opens the optional genuine RVC CPU
+/// training workflow. Neural training itself runs on the hosted runner.
 class TrainingScreen extends StatefulWidget {
   const TrainingScreen({super.key});
   @override
@@ -30,6 +31,14 @@ class _TrainingScreenState extends State<TrainingScreen> {
   void initState() {
     super.initState();
     _restorePreparedDataset();
+  }
+
+  Future<void> _openTrainingWorkflow() async {
+    final uri = Uri.parse('https://github.com/GiggleLootCoin/RedsUltimateRVC/actions/workflows/train-rvc-cpu.yml');
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      setState(() => _status = 'Could not open the training workflow. Open the GitHub link from the training guide instead.');
+    }
   }
 
   Future<void> _restorePreparedDataset() async {
@@ -159,7 +168,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
       }
       final totalSamples = await data.list().where((entity) => entity is File).length;
       await File('${root.path}/README.txt').writeAsString(
-        "RED'S ULTIMATE RVC — DATASET\nVoice: ${_name.text.trim()}\nAudio files: $totalSamples\n\nThis is prepared training data only. It has NOT trained a voice model. The bundled Android engine currently supports ONNX inference and does not contain an RVC training engine.\n",
+        "RED'S ULTIMATE RVC — DATASET\nVoice: ${_name.text.trim()}\nAudio files: $totalSamples\n\nThis is prepared training data only; the phone has not trained a model. Use the optional genuine RVC v2 PyTorch CPU workflow in GitHub Actions to train the generator/discriminator and build a retrieval index.\n",
       );
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('red_rvc_last_dataset_path', root.path);
@@ -231,11 +240,11 @@ class _TrainingScreenState extends State<TrainingScreen> {
       Card(color: const Color(0xFF171117), child: const Padding(
         padding: EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('ON-PHONE DATASET WORKSPACE', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFFFF334F))),
+          Text('VOICE DATASET + NEURAL TRAINING', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFFFF334F))),
           SizedBox(height: 8),
           Text('Import or record clean samples and organise them privately on this phone.'),
           SizedBox(height: 10),
-          Text('This phone prepares and exports your voice dataset locally. It does not train an RVC neural network. Full RVC training needs a supported PyTorch runtime and substantially more memory and compute than this phone provides. No cloud training service is built into this app.', style: TextStyle(height: 1.35)),
+          Text('Your samples are prepared and stored on this phone. Genuine RVC v2 neural training is available through the linked GitHub-hosted CPU workflow: it trains the PyTorch generator and discriminator, then builds a retrieval index. Training runs remotely, can take hours, and requires uploading the exported ZIP through a direct HTTPS link. The link is supplied to GitHub Actions and the audio is processed on its runner. Do not use recordings you consider private or confidential with this hosted route.', style: TextStyle(height: 1.35)),
         ]),
       )),
       const SizedBox(height: 12),
@@ -261,6 +270,16 @@ class _TrainingScreenState extends State<TrainingScreen> {
         onPressed: _busy || _recording || _samples.isEmpty ? null : _prepareDataset,
         icon: const Icon(Icons.folder_copy), label: Text(_busy ? 'PREPARING…' : 'PREPARE LOCAL DATASET'),
       )),
+      const SizedBox(height: 12),
+      SizedBox(height: 50, child: ElevatedButton.icon(
+        onPressed: _busy || _recording ? null : _openTrainingWorkflow,
+        icon: const Icon(Icons.model_training),
+        label: const Text('OPEN GENUINE RVC TRAINING WORKFLOW'),
+      )),
+      const Padding(
+        padding: EdgeInsets.only(top: 7),
+        child: Text('Export your dataset ZIP first. In GitHub Actions, provide a direct HTTPS download link, choose the voice name and epochs, then download the trained .pth + .index artifact when the run finishes.', style: TextStyle(color: Color(0xFFB8B8C2), fontSize: 11.5, height: 1.35)),
+      ),
       if (_datasetPath != null) ...[
         Padding(
           padding: const EdgeInsets.only(top: 10),
