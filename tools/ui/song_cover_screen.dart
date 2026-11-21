@@ -80,20 +80,29 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
       if (!mounted) return;
       setState(() => _status = 'Converting the isolated vocals with your RVC model…');
 
-      final convertedVocals = await _bridge.infer(
-        songPath: vocalsPath,
-        modelPath: widget.modelPath,
-        indexPath: widget.indexPath,
-        parallelChunkCount: 1,
-        allowResume: false,
-        onProgress: (value, status) {
-          if (!mounted) return;
-          setState(() {
-            _progress = (value / 100).clamp(0.0, 1.0).toDouble();
-            _status = status;
-          });
-        },
-      );
+      final isPth = widget.modelPath.toLowerCase().endsWith('.pth');
+      final String convertedVocals;
+      if (isPth) {
+        convertedVocals = await _bridge.convertPth(
+          inputWavPath: vocalsPath,
+          pthModelPath: widget.modelPath,
+        );
+      } else {
+        convertedVocals = await _bridge.infer(
+          songPath: vocalsPath,
+          modelPath: widget.modelPath,
+          indexPath: widget.indexPath,
+          parallelChunkCount: 1,
+          allowResume: false,
+          onProgress: (value, status) {
+            if (!mounted) return;
+            setState(() {
+              _progress = (value / 100).clamp(0.0, 1.0).toDouble();
+              _status = status;
+            });
+          },
+        );
+      }
 
       if (!mounted) return;
       setState(() => _status = 'Mixing the converted vocals with the original accompaniment…');
@@ -154,7 +163,7 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
           ),
           const SizedBox(height: 9),
           const Text(
-            'Choose an audio file. Android decodes it locally to PCM WAV, then the app separates vocals and accompaniment, converts the vocals with your selected ONNX voice, and mixes them back with the original music. Processing stays on this phone.',
+            'Choose an audio file. Android decodes it locally to PCM WAV, then the app separates vocals and accompaniment, converts the vocals with your selected ONNX or supported RVC v2 PTH voice, and mixes them back with the original music. Processing stays on this phone.',
             style: TextStyle(color: Color(0xFFBEBEC7), height: 1.45),
           ),
           const SizedBox(height: 18),
@@ -183,7 +192,7 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
                 const SizedBox(height: 8),
                 Text(File(widget.modelPath).uri.pathSegments.last),
                 const SizedBox(height: 4),
-                const Text('Compatible RVC v2 ONNX model', style: TextStyle(color: Color(0xFF9999A4), fontSize: 12)),
+                Text(widget.modelPath.toLowerCase().endsWith('.pth') ? 'Native RVC v2 PTH • 768 dimensions / 100 fps only' : 'Compatible RVC v2 ONNX model', style: const TextStyle(color: Color(0xFF9999A4), fontSize: 12)),
               ],
             ),
           ),
