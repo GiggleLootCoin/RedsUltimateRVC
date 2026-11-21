@@ -2,7 +2,7 @@ name: Build Red's Ultimate RVC APK
 
 on:
   push:
-    branches: [main, feature/rvc-dataset-export-zip, red-rvc-native-pth-verify]
+    branches: [main, feature/rvc-dataset-export-zip, red-rvc-native-pth-verify, red-rvc-native-pth-maven-fix]
   pull_request:
     branches: [main]
   workflow_dispatch:
