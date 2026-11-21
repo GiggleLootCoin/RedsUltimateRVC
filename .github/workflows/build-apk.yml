@@ -18,7 +18,7 @@ jobs:
   # Build and package the native GGUF runtime for an installable engineering APK.
   # Raw .pth export and physical-device qualification remain separate milestones.
   quality-guard:
-    if: github.ref == 'refs/heads/red-rvc-native-pth-verify' || (github.event_name == 'pull_request' && github.head_ref == 'red-rvc-native-pth-verify')
+    if: github.ref == 'refs/heads/red-rvc-native-pth-maven-fix' || (github.event_name == 'pull_request' && github.head_ref == 'red-rvc-native-pth-maven-fix')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Red's Ultimate RVC
@@ -32,7 +32,7 @@ jobs:
           python3 -m pytest -q tools/tests
 
   pth-backend-probe:
-    if: github.ref == 'refs/heads/red-rvc-native-pth-verify' || (github.event_name == 'pull_request' && github.head_ref == 'red-rvc-native-pth-verify')
+    if: github.ref == 'refs/heads/red-rvc-native-pth-maven-fix' || (github.event_name == 'pull_request' && github.head_ref == 'red-rvc-native-pth-maven-fix')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Red's Ultimate RVC
@@ -85,8 +85,8 @@ jobs:
           for header in onnxruntime_c_api.h onnxruntime_ep_c_api.h onnxruntime_error_code.h; do
             curl --fail --location --silent --show-error "$BASE/$header" -o "ort-headers/$header"
           done
-          curl --fail --location --silent --show-error \
-            "https://repo.maven.apache.org/maven2/com/microsoft/onnxruntime/onnxruntime-android/1.28.0/onnxruntime-android-1.28.0.aar" \
+          curl --fail --location --retry 3 --silent --show-error \
+            "https://repo1.maven.org/maven2/com/microsoft/onnxruntime/onnxruntime-android/1.28.0/onnxruntime-android-1.28.0.aar" \
             -o onnxruntime-android.aar
           unzip -q onnxruntime-android.aar -d ort-aar
           test -s ort-aar/jni/arm64-v8a/libonnxruntime.so
@@ -271,7 +271,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Download native PTH conversion runtime
-        if: github.ref == 'refs/heads/red-rvc-native-pth-verify' || (github.event_name == 'pull_request' && github.head_ref == 'red-rvc-native-pth-verify')
+        if: github.ref == 'refs/heads/red-rvc-native-pth-maven-fix' || (github.event_name == 'pull_request' && github.head_ref == 'red-rvc-native-pth-maven-fix')
         uses: actions/download-artifact@v6
         with:
           name: red-rvc-pth-arm64
@@ -375,7 +375,7 @@ jobs:
           ls -lh buildsrc/assets/models/separation/
 
       - name: Install native PTH conversion runtime
-        if: github.ref == 'refs/heads/red-rvc-native-pth-verify' || (github.event_name == 'pull_request' && github.head_ref == 'red-rvc-native-pth-verify')
+        if: github.ref == 'refs/heads/red-rvc-native-pth-maven-fix' || (github.event_name == 'pull_request' && github.head_ref == 'red-rvc-native-pth-maven-fix')
         run: |
           set -euo pipefail
           JNI_LIBS="buildsrc/android/app/src/main/jniLibs/arm64-v8a"
@@ -451,7 +451,7 @@ jobs:
 
       - name: Verify APK alignment, signature and packaged size
         env:
-          RVC_NATIVE_BACKEND_BUILD: ${{ (github.ref == 'refs/heads/red-rvc-native-pth-verify' || (github.event_name == 'pull_request' && github.head_ref == 'red-rvc-native-pth-verify')) && 'true' || 'false' }}
+          RVC_NATIVE_BACKEND_BUILD: ${{ (github.ref == 'refs/heads/red-rvc-native-pth-maven-fix' || (github.event_name == 'pull_request' && github.head_ref == 'red-rvc-native-pth-maven-fix')) && 'true' || 'false' }}
         run: |
           APK="release/Red-Ultimate-RVC.apk"
           ZIPALIGN="$(find "$ANDROID_HOME/build-tools" -type f -name zipalign | sort -V | tail -n 1)"
