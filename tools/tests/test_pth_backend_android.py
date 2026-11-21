@@ -48,7 +48,7 @@ def test_ci_runs_real_end_to_end_native_pth_conversion_with_feature_models():
     assert "native/linux-x64/libonnxruntime.so" in source
     assert 'cp ort-aar/headers/* "$ORT_ROOT/include/"' in source
     assert 'ln -sf libonnxruntime.so "$ORT_ROOT/lib/libonnxruntime.so.1"' in source
-    assert "MODEL=\"pth-fixtures/nahida-jp.pth\"" in source
+    assert "MODEL=\"pth-fixtures/aether/aether-rvc-v2.pth\"" in source
     assert "repo1.maven.org/maven2" in source
     assert "repo.maven.apache.org/maven2" in source
     assert "AAR_PATH=" in source
