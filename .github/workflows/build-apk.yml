@@ -100,14 +100,23 @@ jobs:
       - name: Prove end-to-end PTH conversion with real voice and feature models
         run: |
           set -euo pipefail
-          ORT_ARCHIVE="/tmp/onnxruntime-linux-x64-1.28.0.tgz"
+          ORT_JAR="onnxruntime-1.28.0.jar"
           ORT_ROOT="/tmp/onnxruntime-linux-x64-1.28.0"
-          curl --fail --location --retry 3 --silent --show-error \
-            "https://github.com/microsoft/onnxruntime/releases/download/v1.28.0/onnxruntime-linux-x64-1.28.0.tgz" \
-            -o "$ORT_ARCHIVE"
-          mkdir -p "$ORT_ROOT"
-          tar -xzf "$ORT_ARCHIVE" -C /tmp
-          test -s "$ORT_ROOT/lib/libonnxruntime.so"
+          mkdir -p "$ORT_ROOT/lib" /tmp/onnxruntime-java
+          JAR_PATH="com/microsoft/onnxruntime/onnxruntime/1.28.0/$ORT_JAR"
+          downloaded=false
+          for MAVEN_BASE in "https://repo1.maven.org/maven2" "https://repo.maven.apache.org/maven2"; do
+            if curl --fail --location --retry 2 --silent --show-error "$MAVEN_BASE/$JAR_PATH" -o "/tmp/$ORT_JAR"; then
+              downloaded=true
+              break
+            fi
+            rm -f "/tmp/$ORT_JAR"
+          done
+          test "$downloaded" = true
+          unzip -q "/tmp/$ORT_JAR" -d /tmp/onnxruntime-java
+          ORT_LIB="/tmp/onnxruntime-java/ai/onnxruntime/native/linux-x64/libonnxruntime.so"
+          test -s "$ORT_LIB"
+          cp "$ORT_LIB" "$ORT_ROOT/lib/libonnxruntime.so"
 
           mkdir -p pth-fixtures/upstream-assets pth-fixtures/e2e
           curl --fail --location --retry 3 --silent --show-error \
