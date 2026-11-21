@@ -46,7 +46,7 @@ class FullRvcScreen extends StatelessWidget {
                 Text("FULL PHONE WORKSPACE", style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900)),
                 SizedBox(height: 8),
                 Text(
-                  "Phone-local conversion supports compatible ONNX models and standard RVC v2 PTH checkpoints (100-fps, 768-dimensional). PTH files are run natively; they are not converted to ONNX. Standard FAISS .index retrieval and neural-network RVC training are not included.",
+                  "Phone-local conversion supports compatible ONNX models and standard RVC v2 PTH checkpoints (100-fps, 768-dimensional). PTH files run natively; they are not converted to ONNX. Compatible FAISS .index files can be converted locally for the ONNX route. PTH inference does not yet blend a retrieval index. Dataset Lab prepares samples; optional remote CPU training is separate and requires you to upload the dataset.",
                   style: TextStyle(color: Color(0xFFC8C8D1), height: 1.35),
                 ),
               ],
@@ -65,7 +65,7 @@ class FullRvcScreen extends StatelessWidget {
             child: Padding(
               padding: EdgeInsets.all(16),
               child: Text(
-                "PTH inference is limited to standard RVC v2 checkpoints with 768-dimensional features and 100-fps timing. PT/ZIP files are storage-only. Standard FAISS .index retrieval and neural-network training are not included. This app will never claim a model was trained when it was not.",
+                "PTH inference is limited to standard RVC v2 checkpoints with 768-dimensional features and 100-fps timing. PT/ZIP files are storage-only. FAISS index conversion is available locally for compatible ONNX models; native PTH index blending is not implemented yet. Dataset Lab does not train models on this phone. This app will never claim a model was trained when it was not.",
                 style: TextStyle(color: Color(0xFFAAAAB5), height: 1.35, fontSize: 12.5),
               ),
             ),
