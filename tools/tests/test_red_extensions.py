@@ -11,7 +11,9 @@ def test_integrated_model_picker_imports_source_models_without_android_extension
     assert "type: FileType.any" in source
     assert "['onnx', 'pth', 'pt', 'zip'].contains(ext)" in source
     assert "_bridge.importPickedFile(kind: 'model', sourcePath: source)" in source
-    assert "PTH/PT/ZIP is stored safely but is not directly runnable" in source
+    assert "bool _runtime(String path) => ['onnx', 'pth'].contains(_ext(path));" in source
+    assert "PT/ZIP files are storage-only; supported PTH and ONNX models can be used for conversion." in source
+    assert "READY — Native PTH supports RVC v2, 768 dimensions / 100 fps only." in source
 
 
 def test_integrated_index_library_accepts_faiss_and_mobile_indexes_without_fake_conversion():
