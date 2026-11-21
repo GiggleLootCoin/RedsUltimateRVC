@@ -13,6 +13,8 @@ def test_integrated_model_picker_imports_source_models_without_android_extension
     assert "_bridge.importPickedFile(kind: 'model', sourcePath: source)" in source
     assert "bool _runtime(String path) => ['onnx', 'pth'].contains(_ext(path));" in source
     assert "PT/ZIP files are storage-only; supported PTH and ONNX models can be used for conversion." in source
+    assert "onPressed: ready && widget.selectedSongPath != null && _ext(selected!) == 'onnx' ? widget.onContinue : null" in source
+    assert "PTH VOICE — USE SONG COVERS" in source
     assert "READY — Native PTH supports RVC v2, 768 dimensions / 100 fps only." in source
 
 
@@ -49,6 +51,8 @@ def test_dashboard_discloses_song_cover_and_realtime_limits():
     assert "modelPath: modelPath" in brand
     assert "indexPath: _selectedIndexPath" in brand
     assert "onSongCovers: _openAudioConversion" not in brand
+    assert "endsWith('.onnx') && !modelPath.toLowerCase().endsWith('.pth')" in brand
+    assert "Song Covers needs a compatible ONNX or supported RVC v2 PTH voice" in brand
     full_engine = (ROOT / "tools/ui/full_rvc_screen.dart").read_text(encoding="utf-8")
     assert "Song Covers is available from the main dashboard" in full_engine
     assert "bundled offline vocal separation" in full_engine
@@ -161,6 +165,8 @@ def test_offline_song_cover_native_pipeline_is_wired_into_android_build():
     assert "withContext(Dispatchers.Main) { result.success(output.absolutePath) }" in integration
     assert "await _bridge.separateSongVocals" in screen
     assert "await _bridge.infer" in screen
+    assert "await _bridge.convertPth" in screen
+    assert "final isPth = widget.modelPath.toLowerCase().endsWith('.pth')" in screen
     assert "await _bridge.mixSongCover" in screen
     assert ".clamp(0.0, 1.0).toDouble()" in screen
     assert "k2-fsa/sherpa-onnx" in workflow
