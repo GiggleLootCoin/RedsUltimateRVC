@@ -78,7 +78,7 @@ class RedHomeScreen extends StatelessWidget {
   }
 
   Widget _section(String title) => Padding(padding: const EdgeInsets.only(left: 3, bottom: 9), child: Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 1.25, color: Color(0xFFFF334F))));
-  Widget _grid(List<_Action> actions) => GridView.count(crossAxisCount: 2, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), mainAxisSpacing: 10, crossAxisSpacing: 10, childAspectRatio: 1.34, children: actions);
+  Widget _grid(List<_Action> actions) => GridView.count(crossAxisCount: 2, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), mainAxisSpacing: 10, crossAxisSpacing: 10, childAspectRatio: 1.12, children: actions);
 }
 
 class _Action extends StatelessWidget {
@@ -91,14 +91,15 @@ class _Action extends StatelessWidget {
     child: InkWell(
       borderRadius: BorderRadius.circular(20), onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(13),
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0xFF292932))),
+        padding: const EdgeInsets.all(15),
+        constraints: const BoxConstraints(minHeight: 124),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0xFF38232A)), boxShadow: const [BoxShadow(color: Color(0x44000000), blurRadius: 16, offset: Offset(0, 7))]),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
-          Container(width: 42, height: 42, decoration: BoxDecoration(color: const Color(0x22FF334F), borderRadius: BorderRadius.circular(13)), child: Icon(icon, color: const Color(0xFFFF334F), size: 23)),
+          Container(width: 46, height: 46, decoration: BoxDecoration(color: const Color(0x22FF334F), borderRadius: BorderRadius.circular(13)), child: Icon(icon, color: const Color(0xFFFF334F), size: 23)),
           const SizedBox(height: 9),
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12.5)),
-          const SizedBox(height: 4),
-          Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFF92929D), fontSize: 10.5, height: 1.2)),
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13.2, letterSpacing: .1)),
+          const SizedBox(height: 5),
+          Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFF92929D), fontSize: 11.2, height: 1.28)),
         ]),
       ),
     ),
