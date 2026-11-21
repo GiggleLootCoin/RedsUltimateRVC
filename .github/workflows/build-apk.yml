@@ -117,6 +117,8 @@ jobs:
           ORT_LIB="/tmp/onnxruntime-java/ai/onnxruntime/native/linux-x64/libonnxruntime.so"
           test -s "$ORT_LIB"
           cp "$ORT_LIB" "$ORT_ROOT/lib/libonnxruntime.so"
+          mkdir -p "$ORT_ROOT/include"
+          cp ort-aar/headers/onnxruntime_c_api.h ort-aar/headers/onnxruntime_error_code.h "$ORT_ROOT/include/"
 
           mkdir -p pth-fixtures/upstream-assets pth-fixtures/e2e
           curl --fail --location --retry 3 --silent --show-error \
