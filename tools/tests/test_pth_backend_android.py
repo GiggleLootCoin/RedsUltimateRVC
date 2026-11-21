@@ -45,7 +45,7 @@ def test_ci_runs_real_end_to_end_native_pth_conversion_with_feature_models():
     assert probe.is_file()
     assert "Prove end-to-end PTH conversion with real voice and feature models" in source
     assert "onnxruntime-linux-x64-1.28.0.tgz" in source
-    assert "aether-rvc-v2.pth" in source
+    assert "MODEL=\"pth-fixtures/nahida-jp.pth\"" in source
     assert "hubert.onnx" in source and "rmvpe.onnx" in source
     assert "pth_convert_probe.c" in source
     assert "./pth-e2e-probe" in source
