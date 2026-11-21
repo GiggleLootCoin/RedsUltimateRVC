@@ -43,7 +43,7 @@ class FullRvcScreen extends StatelessWidget {
           const SizedBox(height: 20),
           const Text('CONVERSION', style: TextStyle(color: _red, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.6)),
           const SizedBox(height: 9),
-          _Tool(Icons.graphic_eq_rounded, 'Audio conversion', 'Run local inference with a compatible ONNX or supported RVC v2 PTH voice.', onConvert, primary: true),
+          _Tool(Icons.graphic_eq_rounded, 'Audio conversion', 'Run standard conversion with a compatible ONNX voice; supported PTH voices work in Song Covers.', onConvert, primary: true),
           _Tool(Icons.record_voice_over_rounded, 'Voice changer', 'Record and process audio through the selected voice.', onVoiceChanger),
           _Tool(Icons.bolt_rounded, 'Realtime RVC', 'Experimental live conversion; audio routing and speed may vary.', onRealtime, caution: true),
           const SizedBox(height: 19),
