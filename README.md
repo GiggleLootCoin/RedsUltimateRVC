@@ -77,3 +77,13 @@ The workflow validates the key and signs subsequent APKs with it automatically. 
 ## Credits and licence
 
 The local Android inference implementation is based on [Ultimate RVC Mobile](https://github.com/Sharl210/ultimate-rvc-mobile) by Sharl210. This repository is a separate branded distribution and does not claim ownership of the underlying inference implementation. Refer to the upstream repository and its licence for the engine's terms.
+
+
+## Native RVC v2 PTH and FAISS support (engineering branch)
+
+- Supported native PTH inference: standard RVC v2 checkpoints with 768-dimensional features and 100-fps timing. Other checkpoint profiles are rejected rather than guessed.
+- Compatible standard FAISS `.index` files can be converted locally to `.mobile.index` for the existing ONNX inference route.
+- The native PTH route does not currently blend a retrieval index. `.pt` and `.zip` files remain storage-only.
+- Song Covers uses the local native PTH path when a supported `.pth` voice is selected, otherwise the ONNX route.
+- Dataset preparation stays on the phone. Optional genuine RVC v2 CPU training runs on GitHub Actions and requires the user to upload the exported dataset ZIP. Never upload private recordings without understanding that disclosure.
+- The current branch is an engineering build. Physical Galaxy A12 testing for speed, memory, heat, and audio quality remains required before a production release.
