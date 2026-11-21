@@ -89,3 +89,11 @@ def test_faiss_android_converter_is_local_and_dimension_checked():
     assert "exportMobileIndex" in converter
     assert "TempWorkspaceManager" in converter
     assert "importPickedFile(ImportedFileKind.INDEX" in converter
+
+
+def test_faiss_android_build_keeps_lapack_enabled_for_native_linking():
+    workflow = BUILD_WORKFLOW.read_text(encoding="utf-8")
+    assert "-DBUILD_WITHOUT_LAPACK=OFF" in workflow
+    assert "-DC_LAPACK=ON" in workflow
+    assert "source = source.replace(\"-DBUILD_WITHOUT_LAPACK=OFF\", \"-DBUILD_WITHOUT_LAPACK=ON\"" not in workflow
+    assert "source = source.replace(\"-DC_LAPACK=ON\", \"-DC_LAPACK=OFF\"" not in workflow
