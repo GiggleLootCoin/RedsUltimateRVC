@@ -18,7 +18,7 @@ def test_integrated_index_library_accepts_faiss_and_mobile_indexes_without_fake_
     source = BRAND.read_text(encoding="utf-8")
     assert "Select an RVC .index or .mobile.index file" in source
     assert "Standard .index stored in your Index Library" in source
-    assert "does not include FAISS-to-mobile conversion" in source
+    assert "Open Index Tools to convert a compatible 768-dimensional RVC v2 index locally" in source
 
 
 def test_dashboard_and_full_engine_open_the_integrated_model_picker():
@@ -50,7 +50,7 @@ def test_dashboard_discloses_song_cover_and_realtime_limits():
     full_engine = (ROOT / "tools/ui/full_rvc_screen.dart").read_text(encoding="utf-8")
     assert "Song Covers is available from the main dashboard" in full_engine
     assert "bundled offline vocal separation" in full_engine
-    assert "neural-network training are not included" in full_engine
+    assert "Dataset Lab prepares samples; optional CPU training is separate" in full_engine
     source = BRAND.read_text(encoding="utf-8")
     assert "Separate vocals, convert your voice, and mix the cover" in (ROOT / "tools/ui/red_home_screen.dart").read_text(encoding="utf-8")
     assert "REALTIME RVC — EXPERIMENTAL" in source
@@ -64,10 +64,13 @@ def test_gradle_can_use_a_private_persistent_release_keystore():
     assert "signingConfigs.debug" in source
 
 
-def test_index_tools_discloses_faiss_conversion_is_not_on_device():
+def test_index_tools_performs_local_faiss_conversion_for_supported_indexes():
     source = INDEX_TOOLS.read_text(encoding="utf-8")
-    assert "Standard RVC/FAISS .index files are not converted by this Android app yet" in source
-    assert "Importing or renaming one does not make it compatible" in source
+    assert "convertFaissIndex(imported.path)" in source
+    assert "pickAndImportFile(kind:" in source
+    assert "768-dimensional RVC v2 FAISS indexes" in source
+    assert "conversion runs locally" in source
+    assert "does not yet apply index blending" in source
 
 
 def test_workflow_runs_tests_and_supports_private_persistent_signing():
@@ -83,7 +86,7 @@ def test_workflow_runs_tests_and_supports_private_persistent_signing():
     ):
         assert secret in source
     assert "temporary GitHub runner debug key" in source
-    assert "if: github.event_name != 'pull_request'" in source
+    assert "if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'" in source
 
 
 def test_upstream_song_picker_is_translated_to_english_before_build():
@@ -109,12 +112,12 @@ def test_upstream_song_picker_is_translated_to_english_before_build():
 
 def test_dataset_lab_is_phone_local_and_does_not_advertise_cloud_training():
     training = (ROOT / "tools/ui/training_screen.dart").read_text(encoding="utf-8")
-    assert "ON-PHONE DATASET WORKSPACE" in training
-    assert "This phone prepares and exports your voice dataset locally" in training
-    assert "It does not train an RVC neural network" in training
-    assert "Kaggle" not in training
-    assert "Colab" not in training
-    assert "url_launcher/url_launcher.dart" not in training
+    assert "VOICE DATASET + NEURAL TRAINING" in training
+    assert "Your samples are prepared and stored on this phone" in training
+    assert "requires uploading the exported ZIP" in training
+    assert "Do not use recordings you consider private or confidential" in training
+    assert "OPEN GENUINE RVC TRAINING WORKFLOW" in training
+    assert "package:url_launcher/url_launcher.dart" in training
 
 
 def test_dataset_export_creates_a_single_zip_for_android_sharing():
