@@ -82,7 +82,7 @@ jobs:
           set -euo pipefail
           mkdir -p ort-headers ort-aar
           BASE="https://raw.githubusercontent.com/microsoft/onnxruntime/v1.28.0/include/onnxruntime/core/session"
-          for header in onnxruntime_c_api.h onnxruntime_ep_c_api.h onnxruntime_error_code.h; do
+          for header in onnxruntime_c_api.h onnxruntime_error_code.h; do
             curl --fail --location --silent --show-error "$BASE/$header" -o "ort-headers/$header"
           done
           curl --fail --location --retry 3 --silent --show-error \
