@@ -8,7 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/rvc_bridge.dart';
 
 /// Fully local song-cover workflow: separate the original, convert the vocal
-/// stem with a compatible ONNX or native RVC v2 PTH model, then mix it back.
+/// stem with your supported RVC v2 PTH model, then mix it back.
 class SongCoverScreen extends StatefulWidget {
   final String modelPath;
   final String? indexPath;
@@ -200,7 +200,7 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
           ),
           const SizedBox(height: 9),
           const Text(
-            'Choose an audio file. Android decodes it locally to PCM WAV, then the app separates vocals and accompaniment, converts the vocals with your selected ONNX or supported RVC v2 PTH voice, and mixes them back with the original music. Processing stays on this phone.',
+            'Choose an audio file. Android decodes it locally to PCM WAV, then the app separates vocals and accompaniment, converts the vocals directly with your selected RVC v2 PTH voice, and mixes them back with the original music. Processing stays on this phone.',
             style: TextStyle(color: Color(0xFFBEBEC7), height: 1.45),
           ),
           const SizedBox(height: 18),
@@ -229,7 +229,7 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
                 const SizedBox(height: 8),
                 Text(File(widget.modelPath).uri.pathSegments.last),
                 const SizedBox(height: 4),
-                Text(widget.modelPath.toLowerCase().endsWith('.pth') ? 'Native RVC v2 PTH • 768 dimensions / 100 fps only' : 'Compatible RVC v2 ONNX model', style: const TextStyle(color: Color(0xFF9999A4), fontSize: 12)),
+                Text('Native RVC v2 PTH • 768 dimensions / 100 fps only', style: const TextStyle(color: Color(0xFF9999A4), fontSize: 12)),
               ],
             ),
           ),
@@ -241,7 +241,7 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
                 const SizedBox(height: 7),
                 Text(
                   widget.indexPath == null
-                      ? 'Direct on-device PTH conversion is active. No ONNX export is required. Add the matching standard FAISS .index in Voice Library to enable retrieval blending.'
+                      ? 'Direct on-device PTH conversion is active. No ONNX voice-model export or upload is required. Add the matching standard .index to enable retrieval blending.'
                       : 'Direct on-device PTH conversion with FAISS retrieval search and blending. The original .index is read locally; the voice model and song are not uploaded.',
                   style: const TextStyle(color: Color(0xFFD0D0D8), height: 1.4),
                 ),
