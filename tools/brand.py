@@ -680,7 +680,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
           ),
           const SizedBox(height: 14),
           SizedBox(height: 52, child: ElevatedButton.icon(
-            onPressed: ready && widget.selectedSongPath != null && _ext(selected!) == 'onnx' ? widget.onContinue : null,
+            onPressed: ready && _ext(selected!) == 'pth' || (ready && widget.selectedSongPath != null && _ext(selected!) == 'onnx') ? widget.onContinue : null,
             icon: const Icon(Icons.arrow_forward),
             label: Text(selected != null && _ext(selected) == 'pth' ? 'PTH VOICE — USE SONG COVERS' : 'CONTINUE TO ONNX CONVERSION'),
           )),
