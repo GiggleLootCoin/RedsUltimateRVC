@@ -27,6 +27,8 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
   String? _inputPath;
   String? _inputName;
   String? _outputPath;
+  String? _vocalsPath;
+  String? _accompanimentPath;
   String _status = 'Choose a song to begin.';
   double _progress = 0;
   bool _busy = false;
@@ -55,6 +57,8 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
         _inputPath = imported.path;
         _inputName = File(imported.path).uri.pathSegments.last;
         _outputPath = null;
+        _vocalsPath = null;
+        _accompanimentPath = null;
         _progress = 0;
         _status = 'Audio imported into the app. Ready to separate vocals.';
       });
@@ -76,7 +80,11 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
       final vocalsPath = stems['vocalsPath']!;
       final accompanimentPath = stems['accompanimentPath']!;
       if (!mounted) return;
-      setState(() => _status = 'Converting the isolated vocals with your RVC model…');
+      setState(() {
+        _vocalsPath = vocalsPath;
+        _accompanimentPath = accompanimentPath;
+        _status = 'Vocal and accompaniment stems are ready. Converting the isolated vocals…';
+      });
 
       final isPth = widget.modelPath.toLowerCase().endsWith('.pth');
       final String convertedVocals;
@@ -202,6 +210,28 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
                 style: TextStyle(color: Color(0xFFFFB45F), height: 1.4, fontWeight: FontWeight.w600),
               ),
             ),
+          ],
+          if (_vocalsPath != null && _accompanimentPath != null) ...[
+            _panel(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('INTERMEDIATE STEMS', style: TextStyle(color: Color(0xFFFF405B), fontWeight: FontWeight.w900)),
+                const SizedBox(height: 8),
+                const Text('Listen to the separated parts before or after conversion.'),
+                const SizedBox(height: 10),
+                Row(children: [
+                  Expanded(child: OutlinedButton.icon(
+                    onPressed: _busy ? null : () => _player.play(DeviceFileSource(_vocalsPath!)),
+                    icon: const Icon(Icons.mic), label: const Text('PLAY VOCALS'),
+                  )),
+                  const SizedBox(width: 8),
+                  Expanded(child: OutlinedButton.icon(
+                    onPressed: _busy ? null : () => _player.play(DeviceFileSource(_accompanimentPath!)),
+                    icon: const Icon(Icons.music_note), label: const Text('PLAY BACKING'),
+                  )),
+                ]),
+              ]),
+            ),
+            const SizedBox(height: 12),
           ],
           const SizedBox(height: 18),
           Text(_status, style: const TextStyle(color: Color(0xFFD0D0D8))),
