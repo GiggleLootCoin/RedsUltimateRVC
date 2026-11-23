@@ -121,7 +121,7 @@ engine.write_text(es, encoding='utf-8')
 plugin = PKG / 'RVCPlugin.kt'
 s = plugin.read_text(encoding='utf-8')
 if "import com.developermindset.faiss.FAISS" not in s:
-    s = s.replace("package com.ultimatervc.mobile\\n", "package com.ultimatervc.mobile\\n\\nimport com.developermindset.faiss.FAISS\\n", 1)
+    s = s.replace("package com.ultimatervc.mobile", "package com.ultimatervc.mobile\\n\\nimport com.developermindset.faiss.FAISS", 1)
 dispatch = '            "convertIndex" -> convertIndex(call, result)'
 if '"convertFaissIndex" -> convertFaissIndex(call, result)' not in s:
     if dispatch not in s: raise RuntimeError('RVCPlugin convertIndex dispatch anchor missing for FAISS bridge')
