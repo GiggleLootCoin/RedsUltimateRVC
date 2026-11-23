@@ -50,7 +50,7 @@ class FullRvcScreen extends StatelessWidget {
           const Text('VOICE LIBRARY', style: TextStyle(color: _red, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.6)),
           const SizedBox(height: 9),
           _Tool(Icons.library_music_rounded, 'Manage voice models', 'Import ONNX or supported RVC v2 PTH voices; keep PT/ZIP files in storage.', onModels),
-          _Tool(Icons.folder_open_rounded, 'Dataset lab', 'Record, inspect and export voice samples. This does not train a model.', onTraining),
+          _Tool(Icons.folder_open_rounded, 'Train a voice model', 'Prepare samples, export your dataset and launch genuine RVC v2 training (5–40 epochs).', onTraining),
           _Tool(Icons.tune_rounded, 'Mobile index tools', 'Convert compatible 768-dimensional RVC v2 FAISS .index files locally for ONNX models.', onIndexTools),
           const SizedBox(height: 16),
           Container(
