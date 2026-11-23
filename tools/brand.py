@@ -710,6 +710,93 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
 main = root / "lib" / "main.dart"
 mt = main.read_text(encoding="utf-8")
 
+# The branded model picker already imports model/index files into managed
+# private storage. Re-importing those paths in MainScreen created duplicate
+# sidecars, separating .mobile.index from its original .index and breaking
+# native FAISS retrieval. Keep the exact managed paths selected by the picker.
+old_model_selection = '''  Future<void> _onModelSelected(String path) async {
+    final previousModelPath = _selectedModelPath;
+    final previousOutputPath = _generatedOutputPath;
+    final importedPath = await _importPickedFile(kind: 'model', sourcePath: path);
+    setState(() {
+      _selectedModelPath = importedPath;
+      _selectedModelDisplayName = File(path).uri.pathSegments.last;
+      _generatedOutputPath = null;
+      _generationDuration = null;
+    });
+    _queueOutputForDeletionAfterNextSuccess(previousOutputPath);
+    _saveState();
+    await _clearAudioInferenceTempWorkspace();
+    if (previousModelPath != path) {
+      await _deleteOwnedPathIfNeeded(previousModelPath);
+    }
+  }'''
+new_model_selection = '''  Future<void> _onModelSelected(String path) async {
+    final previousModelPath = _selectedModelPath;
+    final previousOutputPath = _generatedOutputPath;
+    final importedPath = File(path).absolute.path;
+    if (!await File(importedPath).exists()) {
+      throw StateError('The selected PTH voice model is no longer available in private storage.');
+    }
+    setState(() {
+      _selectedModelPath = importedPath;
+      _selectedModelDisplayName = File(importedPath).uri.pathSegments.last;
+      _generatedOutputPath = null;
+      _generationDuration = null;
+    });
+    _queueOutputForDeletionAfterNextSuccess(previousOutputPath);
+    _saveState();
+    await _clearAudioInferenceTempWorkspace();
+    if (previousModelPath != importedPath) {
+      await _deleteOwnedPathIfNeeded(previousModelPath);
+    }
+  }'''
+if old_model_selection not in mt:
+    raise RuntimeError('Model selection handler anchor missing')
+mt = mt.replace(old_model_selection, new_model_selection, 1)
+
+old_index_selection = '''  Future<void> _onIndexSelected(String? path) async {
+    final previousIndexPath = _selectedIndexPath;
+    final previousOutputPath = _generatedOutputPath;
+    final importedPath = path == null ? null : await _importPickedFile(kind: 'index', sourcePath: path);
+    setState(() {
+      _selectedIndexPath = importedPath;
+      _selectedIndexDisplayName = path == null ? null : File(path).uri.pathSegments.last;
+      _generatedOutputPath = null;
+      _generationDuration = null;
+    });
+    _queueOutputForDeletionAfterNextSuccess(previousOutputPath);
+    _saveState();
+    await _clearAudioInferenceTempWorkspace();
+    if (previousIndexPath != path) {
+      await _deleteOwnedPathIfNeeded(previousIndexPath);
+    }
+  }'''
+new_index_selection = '''  Future<void> _onIndexSelected(String? path) async {
+    final previousIndexPath = _selectedIndexPath;
+    final previousOutputPath = _generatedOutputPath;
+    final importedPath = path == null ? null : File(path).absolute.path;
+    if (importedPath != null && !await File(importedPath).exists()) {
+      throw StateError('The selected FAISS index is no longer available in private storage.');
+    }
+    setState(() {
+      _selectedIndexPath = importedPath;
+      _selectedIndexDisplayName = importedPath == null ? null : File(importedPath).uri.pathSegments.last;
+      _generatedOutputPath = null;
+      _generationDuration = null;
+    });
+    _queueOutputForDeletionAfterNextSuccess(previousOutputPath);
+    _saveState();
+    await _clearAudioInferenceTempWorkspace();
+    if (previousIndexPath != importedPath) {
+      await _deleteOwnedPathIfNeeded(previousIndexPath);
+    }
+  }'''
+if old_index_selection not in mt:
+    raise RuntimeError('Index selection handler anchor missing')
+mt = mt.replace(old_index_selection, new_index_selection, 1)
+
+
 # Add custom imports.
 if "import 'screens/red_home_screen.dart';" not in mt:
     mt = mt.replace("import 'screens/pitch_detection_screen.dart';",
