@@ -108,7 +108,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
       }
       if (!mounted) return;
       setState(() {
-        for (final path in paths) { if (!_samples.contains(path)) _samples.add(path); }
+        for (final p in paths) { if (!_samples.contains(p)) _samples.add(p); _importedSamples.add(p); }
         _status = paths.isEmpty
             ? 'No supported audio files were imported. Choose WAV, FLAC, MP3, M4A, OGG or AAC.'
             : '${_samples.length} sample(s) selected';
