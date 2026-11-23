@@ -2412,8 +2412,12 @@ new_add = """      final handles = await _bridge.pickAndImportAudioFiles();
       if (handles.isEmpty) return;
       final paths = handles.map((handle) => handle.path)
         .where((p) => File(p).existsSync()).toList();"""
-if old_add not in tr: raise RuntimeError("Dataset audio import callback missing")
-tr = tr.replace(old_add,new_add,1)
+if old_add in tr:
+    tr = tr.replace(old_add,new_add,1)
+elif "pickAndImportAudioFiles()" not in tr:
+    raise RuntimeError("Dataset audio import callback missing")
+# The custom Red Dataset Lab already uses the native SAF multi-select bridge.
+# Do not overwrite its file-type validation and content-URI handling.
 tr = tr.replace(
     "for (final p in paths) { if (!_samples.contains(p)) _samples.add(p); }",
     "for (final p in paths) { if (!_samples.contains(p)) _samples.add(p); _importedSamples.add(p); }",
