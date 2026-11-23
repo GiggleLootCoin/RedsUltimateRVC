@@ -135,6 +135,11 @@ if '"separateSongVocals" -> separateSongVocals(call, result)' not in s:
     if dispatch not in s:
         raise RuntimeError('RVCPlugin dispatch anchor missing')
     s = s.replace(dispatch, dispatch + '\n            "separateSongVocals" -> separateSongVocals(call, result)\n            "mixSongCover" -> mixSongCover(call, result)', 1)
+if '"validateVoiceModel" -> validateVoiceModel(call, result)' not in s:
+    if dispatch not in s:
+        raise RuntimeError('RVCPlugin dispatch anchor missing for ONNX validation')
+    s = s.replace(dispatch, dispatch + '\\n            "validateVoiceModel" -> validateVoiceModel(call, result)', 1)
+
 methods = '''
     private fun separateSongVocals(call: MethodCall, result: Result) {
         val inputPath = call.argument<String>("inputPath")
