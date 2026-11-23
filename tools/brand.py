@@ -2579,7 +2579,7 @@ checks = {
     "PTH conversion limitation disclosed": "PTH → ONNX conversion is not included" in final_picker,
     "Dashboard first": "final moduleScreens = [" in final_main and "RedHomeScreen(" in final_main.split("final moduleScreens = [",1)[1].split("GestureDetector(",1)[0],
     "Native Android SAF picker": "pickAndImportFile" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8") and "ACTION_OPEN_DOCUMENT" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8"),
-    "SAF picker does not grey out unknown model extensions": 'type = "*/*"' in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8"),
+    "SAF picker does not grey out unknown model extensions": ('type = "*/*"' in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8")) or ('type = if (kind == "audio") "audio/*" else "*/*"' in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8")),
     "SAF import validates PTH and index extensions after selection": all(x in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8") for x in ['".pth"', '".index"', '".mobile.index"']),
     "Dart native SAF bridge": "pickAndImportFile" in (root / "lib/services/rvc_bridge.dart").read_text(encoding="utf-8"),
     "Model picker uses native SAF": "pickAndImportFile(kind: 'model')" in final_picker and "FilePicker.platform.pickFiles" not in final_picker,
