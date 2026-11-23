@@ -12,11 +12,15 @@ import '../services/rvc_bridge.dart';
 class SongCoverScreen extends StatefulWidget {
   final String modelPath;
   final String? indexPath;
+  final String? initialSongPath;
+  final void Function(String outputPath, Duration duration)? onCoverComplete;
 
   const SongCoverScreen({
     super.key,
     required this.modelPath,
     this.indexPath,
+    this.initialSongPath,
+    this.onCoverComplete,
   });
 
   @override
@@ -35,6 +39,18 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
   double _progress = 0;
   double _indexRate = 0.75;
   bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final initial = widget.initialSongPath;
+    if (initial != null && File(initial).existsSync()) {
+      final selected = File(initial).absolute.path;
+      _inputPath = selected;
+      _inputName = File(selected).uri.pathSegments.last;
+      _status = 'Your selected song is ready. Start native PTH conversion when ready.';
+    }
+  }
 
   @override
   void dispose() {
@@ -98,6 +114,7 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
 
   Future<void> _createCover() async {
     if (_busy || _inputPath == null) return;
+    final stopwatch = Stopwatch()..start();
     setState(() {
       _busy = true;
       _progress = 0;
@@ -156,6 +173,8 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
         _status = 'Your song cover is ready.';
       });
       await _player.play(DeviceFileSource(mixed));
+      stopwatch.stop();
+      widget.onCoverComplete?.call(mixed, stopwatch.elapsed);
     } catch (e) {
       if (mounted) {
         setState(() => _status = 'Song-cover creation failed: $e');
