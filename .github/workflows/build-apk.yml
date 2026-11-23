@@ -122,7 +122,9 @@ jobs:
             "https://github.com/Sharl210/ultimate-rvc-mobile/releases/download/v2.0.0/app-release.apk" \
             -o pth-fixtures/upstream-assets/upstream.apk
           echo "2821b659bd113a8df7281b5ec2db1cccd3c524fcde68c93a7e46be44dba8e4b6  pth-fixtures/upstream-assets/upstream.apk" | sha256sum --check
-          unzip -q pth-fixtures/upstream-assets/upstream.apk -d pth-fixtures/upstream-assets/extracted
+          rm -rf pth-fixtures/upstream-assets/extracted
+          mkdir -p pth-fixtures/upstream-assets/extracted
+          unzip -oq pth-fixtures/upstream-assets/upstream.apk -d pth-fixtures/upstream-assets/extracted
           HUBERT="$(find pth-fixtures/upstream-assets/extracted -type f -name hubert.onnx -print -quit)"
           RMVPE="$(find pth-fixtures/upstream-assets/extracted -type f -name rmvpe.onnx -print -quit)"
           test -s "$HUBERT"
