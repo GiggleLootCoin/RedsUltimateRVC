@@ -22,6 +22,15 @@ def test_integrated_model_picker_imports_source_models_without_android_extension
     assert "READY — Native PTH supports RVC v2, 768 dimensions / 100 fps only." in source
 
 
+def test_model_picker_preserves_original_faiss_and_mobile_index_sibling_paths():
+    brand = BRAND.read_text(encoding="utf-8")
+    assert "Re-importing those paths in MainScreen created duplicate" in brand
+    assert "final importedPath = File(path).absolute.path;" in brand
+    assert "final importedPath = path == null ? null : File(path).absolute.path;" in brand
+    assert "mt = mt.replace(old_index_selection, new_index_selection, 1)" in brand
+    assert "The selected FAISS index is no longer available in private storage." in brand
+
+
 def test_integrated_index_library_converts_standard_faiss_and_validates_mobile_indexes():
     source = BRAND.read_text(encoding="utf-8")
     assert "Select an RVC .index or .mobile.index file" in source
