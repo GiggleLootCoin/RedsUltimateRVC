@@ -155,7 +155,7 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
       await _player.play(DeviceFileSource(mixed));
     } catch (e) {
       if (mounted) {
-        setState(() => _status = 'Song-cover creation failed.');
+        setState(() => _status = 'Song-cover creation failed: $e');
         _message('Song-cover creation failed: $e');
       }
     } finally {
