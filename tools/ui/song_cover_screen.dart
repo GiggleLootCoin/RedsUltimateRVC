@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:audioplayers/audioplayers.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../services/rvc_bridge.dart';
@@ -40,25 +39,24 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
 
   Future<void> _pickSong() async {
     if (_busy) return;
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.audio,
-      allowMultiple: false,
-      withData: false,
-    );
-    final path = result?.files.single.path;
-    if (path == null || path.isEmpty) return;
     try {
-      final imported = await _bridge.importPickedFile(
-        kind: 'audio',
-        sourcePath: path,
-      );
+      // Use Android's native Storage Access Framework. The Flutter file picker
+      // can return null filesystem paths for Samsung My Files content:// URIs.
+      final importedFiles = await _bridge.pickAndImportAudioFiles();
+      if (importedFiles.isEmpty) return;
+      final imported = importedFiles.first;
+      // This screen uses one source song. Release any additional selections so
+      // their temporary import references do not remain pinned in storage.
+      for (final extra in importedFiles.skip(1)) {
+        await _bridge.releaseImportedFile(extra.path);
+      }
       if (!mounted) return;
       setState(() {
         _inputPath = imported.path;
         _inputName = File(imported.path).uri.pathSegments.last;
         _outputPath = null;
         _progress = 0;
-        _status = 'Ready to separate vocals.';
+        _status = 'Audio imported into the app. Ready to separate vocals.';
       });
     } catch (e) {
       if (mounted) _message('Could not import that audio file: $e');
@@ -196,6 +194,15 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
               ],
             ),
           ),
+          if (widget.modelPath.toLowerCase().endsWith('.pth') && widget.indexPath != null) ...[
+            const SizedBox(height: 10),
+            _panel(
+              child: const Text(
+                'INDEX NOT APPLIED TO THIS PTH ROUTE: the current native PTH engine does not implement retrieval-index blending. Your PTH voice will convert without the selected .index. To use retrieval blending today, select a compatible ONNX voice with its converted mobile.index.',
+                style: TextStyle(color: Color(0xFFFFB45F), height: 1.4, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
           const SizedBox(height: 18),
           Text(_status, style: const TextStyle(color: Color(0xFFD0D0D8))),
           const SizedBox(height: 10),
