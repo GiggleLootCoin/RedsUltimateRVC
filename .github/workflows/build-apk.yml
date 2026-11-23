@@ -83,10 +83,14 @@ jobs:
           unzip -q onnxruntime-android.aar -d ort-aar
           # The matching AAR ships its own headers; use them rather than a
           # separate raw-GitHub download that can fail independently.
-          for header in onnxruntime_c_api.h onnxruntime_error_code.h; do
-            test -s "ort-aar/headers/$header"
-            cp "ort-aar/headers/$header" "ort-headers/$header"
-          done
+          # ONNX Runtime 1.28's C API header includes the execution-provider
+          # extension header (and may include additional public headers).
+          # Copy the complete header set from this exact matching AAR.
+          test -s ort-aar/headers/onnxruntime_c_api.h
+          test -s ort-aar/headers/onnxruntime_ep_c_api.h
+          cp ort-aar/headers/*.h ort-headers/
+          test -s ort-headers/onnxruntime_c_api.h
+          test -s ort-headers/onnxruntime_ep_c_api.h
           test -s ort-aar/jni/arm64-v8a/libonnxruntime.so
       - name: Prove end-to-end PTH conversion with real voice and feature models
         run: |
