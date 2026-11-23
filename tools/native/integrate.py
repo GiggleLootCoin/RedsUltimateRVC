@@ -522,17 +522,45 @@ new = """onSongCovers: () {
             return;
           }
           final selectedIndex = _selectedIndexPath;
-          final mobileIndex = selectedIndex != null && selectedIndex.toLowerCase().endsWith('.mobile.index')
-              ? selectedIndex
-              : null;
           Navigator.of(context).push(MaterialPageRoute(builder: (_) => SongCoverScreen(
             modelPath: selectedModel,
-            indexPath: mobileIndex,
+            // Pass the selected original .index or .mobile.index. The native
+            // PTH bridge resolves the original FAISS sidecar when necessary.
+            indexPath: selectedIndex,
           )));
         },"""
 if old in ms: ms = ms.replace(old, new, 1)
 elif 'onSongCovers: () {' not in ms: raise RuntimeError('Song Covers dashboard callback missing')
 main.write_text(ms, encoding='utf-8')
+
+# Route the workspace's primary conversion entry directly into the native PTH
+# song-cover pipeline. The legacy Generate screen only executes ONNX voice
+# models and was the reason PTH users were still being asked for ONNX.
+old_conversion = '''  void _openAudioConversion() {
+    setState(() => _moduleIndex = 0);
+    _saveState();
+    _scaffoldKey.currentState?.closeDrawer();
+  }'''
+new_conversion = '''  void _openAudioConversion() {
+    final selectedModel = _selectedModelPath;
+    if (selectedModel == null || !selectedModel.toLowerCase().endsWith('.pth')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Choose your compatible .pth voice model in Voice Library first.')),
+      );
+      _scaffoldKey.currentState?.closeDrawer();
+      return;
+    }
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => SongCoverScreen(
+      modelPath: selectedModel,
+      indexPath: _selectedIndexPath,
+    )));
+    _scaffoldKey.currentState?.closeDrawer();
+  }'''
+if old_conversion not in ms:
+    raise RuntimeError('Could not locate legacy conversion entry point; refusing to leave ONNX-only navigation active.')
+ms = ms.replace(old_conversion, new_conversion, 1)
+main.write_text(ms, encoding='utf-8')
+
 
 
 # Keep the app's Java API and Sherpa-ONNX native library on the same ONNX Runtime release.
