@@ -66,8 +66,8 @@ def test_dashboard_discloses_song_cover_and_realtime_limits():
     assert "modelPath: modelPath" in brand
     assert "indexPath: _selectedIndexPath" in brand
     assert "onSongCovers: _openAudioConversion" not in brand
-    assert "endsWith('.onnx') && !modelPath.toLowerCase().endsWith('.pth')" in brand
-    assert "Song Covers needs a compatible ONNX or supported RVC v2 PTH voice" in brand
+    assert "modelPath == null || modelPath.isEmpty || !modelPath.toLowerCase().endsWith('.pth')" in brand
+    assert "Choose your supported RVC v2 .pth voice model" in brand
     full_engine = (ROOT / "tools/ui/full_rvc_screen.dart").read_text(encoding="utf-8")
     assert "Song Covers is available from the main dashboard" in full_engine
     assert "bundled offline vocal separation" in full_engine
