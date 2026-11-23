@@ -1,6 +1,6 @@
 import re
 from pathlib import Path
-import urllib.request
+import shutil
 
 root = Path("buildsrc")
 repo_root = Path(__file__).resolve().parent.parent
@@ -12,10 +12,9 @@ repo_root = Path(__file__).resolve().parent.parent
 # ---------------------------------------------------------------------------
 # Assets / custom UI
 # ---------------------------------------------------------------------------
-logo_url = "https://cdn.websitepublisher.ai/custom/wid25042/images/reds-ultimate-rvc-logo.svg"
 logo = root / "assets" / "images" / "reds-ultimate-rvc-logo.svg"
 logo.parent.mkdir(parents=True, exist_ok=True)
-urllib.request.urlretrieve(logo_url, logo)
+logo.write_text("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"512\" height=\"512\" viewBox=\"0 0 512 512\"><defs><linearGradient id=\"r\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\"><stop stop-color=\"#FF8798\"/><stop offset=\".48\" stop-color=\"#FF2348\"/><stop offset=\"1\" stop-color=\"#A90027\"/></linearGradient><linearGradient id=\"s\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop stop-color=\"#FFFFFF\"/><stop offset=\"1\" stop-color=\"#9CA6B8\"/></linearGradient><filter id=\"g\" x=\"-50%\" y=\"-50%\" width=\"200%\" height=\"200%\"><feGaussianBlur stdDeviation=\"11\" result=\"b\"/><feMerge><feMergeNode in=\"b\"/><feMergeNode in=\"SourceGraphic\"/></feMerge></filter></defs><g fill=\"none\" stroke=\"url(#r)\" stroke-linecap=\"round\"><path d=\"M96 194a166 166 0 0 1 320 0\" stroke-width=\"15\" opacity=\".88\"/><path d=\"M75 236a188 188 0 0 0 362 0\" stroke-width=\"8\" opacity=\".48\"/><path d=\"M125 278a138 138 0 0 0 262 0\" stroke-width=\"8\" opacity=\".42\"/><path d=\"M157 170v54M184 132v104M212 104v141M300 104v141M328 132v104M355 170v54\" stroke-width=\"12\" opacity=\".7\"/></g><g filter=\"url(#g)\"><rect x=\"218\" y=\"83\" width=\"76\" height=\"190\" rx=\"38\" fill=\"#11141C\" stroke=\"url(#r)\" stroke-width=\"11\"/><path d=\"M234 130h44M234 158h44M234 186h44M234 214h44\" stroke=\"url(#s)\" stroke-width=\"9\" stroke-linecap=\"round\"/><path d=\"M183 226a73 73 0 0 0 146 0\" fill=\"none\" stroke=\"url(#r)\" stroke-width=\"15\" stroke-linecap=\"round\"/><path d=\"M256 300v55M213 355h86\" stroke=\"url(#s)\" stroke-width=\"14\" stroke-linecap=\"round\"/><path d=\"M170 392h172\" stroke=\"url(#r)\" stroke-width=\"12\" stroke-linecap=\"round\"/></g><circle cx=\"256\" cy=\"256\" r=\"225\" fill=\"none\" stroke=\"#FF3155\" stroke-opacity=\".18\" stroke-width=\"3\"/></svg>", encoding="utf-8")
 
 for name in ("red_home_screen.dart", "training_screen.dart", "full_rvc_screen.dart", "model_converter_screen.dart", "index_converter_screen.dart", "song_cover_screen.dart"):
     src = repo_root / "tools" / "ui" / name
@@ -1654,13 +1653,13 @@ if manifest.exists():
     if 'android.permission.INTERNET' not in m:
         m = m.replace('<manifest xmlns:android="http://schemas.android.com/apk/res/android">', '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <uses-permission android:name="android.permission.INTERNET" />', 1)
     if 'android:icon="' in m:
-        m = re.sub(r'android:icon="[^"]+"', 'android:icon="@drawable/reds_ultimate_rvc_logo"', m, count=1)
+        m = re.sub(r'android:icon="[^"]+"', 'android:icon="@mipmap/ic_launcher"', m, count=1)
     else:
-        m = m.replace('<application', '<application android:icon="@drawable/reds_ultimate_rvc_logo"', 1)
+        m = m.replace('<application', '<application android:icon="@mipmap/ic_launcher"', 1)
     if 'android:roundIcon="' in m:
-        m = re.sub(r'android:roundIcon="[^"]+"', 'android:roundIcon="@drawable/reds_ultimate_rvc_logo"', m, count=1)
+        m = re.sub(r'android:roundIcon="[^"]+"', 'android:roundIcon="@mipmap/ic_launcher"', m, count=1)
     else:
-        m = m.replace('android:icon="@drawable/reds_ultimate_rvc_logo"', 'android:icon="@drawable/reds_ultimate_rvc_logo" android:roundIcon="@drawable/reds_ultimate_rvc_logo"', 1)
+        m = m.replace('android:icon="@mipmap/ic_launcher"', 'android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher"', 1)
     write(manifest,m)
 
 # Render SVG icon into a drawable for Android.
@@ -1669,6 +1668,14 @@ try:
     out = root / "android/app/src/main/res/drawable/reds_ultimate_rvc_logo.png"
     out.parent.mkdir(parents=True, exist_ok=True)
     cairosvg.svg2png(url=str(logo), write_to=str(out), output_width=512, output_height=512)
+    mipmap = root / "android/app/src/main/res/mipmap-mdpi/ic_launcher.png"
+    mipmap.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(out, mipmap)
+    write(root / "android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml", """<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+  <background android:drawable="@color/reds_rvc_launcher_background"/>
+  <foreground android:drawable="@drawable/reds_ultimate_rvc_logo"/>
+</adaptive-icon>""")
+    write(root / "android/app/src/main/res/values/reds_rvc_launcher_colors.xml", """<resources><color name="reds_rvc_launcher_background">#080A10</color></resources>""")
 except Exception as exc:
     raise RuntimeError(f"Could not render approved logo: {exc}")
 
