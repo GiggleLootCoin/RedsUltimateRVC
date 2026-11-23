@@ -1,7 +1,9 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/rvc_bridge.dart';
 
@@ -67,6 +69,32 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
     }
   }
 
+  Future<Map<String, String>> _getOrCreateStems(String inputPath) async {
+    final source = File(inputPath);
+    final stat = await source.stat();
+    final encodedPath = base64Url.encode(utf8.encode(source.absolute.path)).replaceAll('=', '');
+    final cacheKey = 'rvc_song_stems_${encodedPath}_${stat.size}_${stat.modified.millisecondsSinceEpoch}';
+    final prefs = await SharedPreferences.getInstance();
+    final cachedVocals = prefs.getString('${cacheKey}_vocals');
+    final cachedBacking = prefs.getString('${cacheKey}_backing');
+    if (cachedVocals != null && cachedBacking != null &&
+        await File(cachedVocals).exists() && await File(cachedBacking).exists()) {
+      if (mounted) setState(() => _status = 'Reusing cached vocal and backing stems…');
+      return {'vocalsPath': cachedVocals, 'accompanimentPath': cachedBacking};
+    }
+
+    final stems = await _bridge.separateSongVocals(inputPath);
+    final vocals = stems['vocalsPath'];
+    final backing = stems['accompanimentPath'];
+    if (vocals == null || backing == null ||
+        !await File(vocals).exists() || !await File(backing).exists()) {
+      throw StateError('Vocal separation did not produce both usable audio stems.');
+    }
+    await prefs.setString('${cacheKey}_vocals', vocals);
+    await prefs.setString('${cacheKey}_backing', backing);
+    return {'vocalsPath': vocals, 'accompanimentPath': backing};
+  }
+
   Future<void> _createCover() async {
     if (_busy || _inputPath == null) return;
     setState(() {
@@ -76,7 +104,7 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
       _status = 'Separating vocals and accompaniment on this phone…';
     });
     try {
-      final stems = await _bridge.separateSongVocals(_inputPath!);
+      final stems = await _getOrCreateStems(_inputPath!);
       final vocalsPath = stems['vocalsPath']!;
       final accompanimentPath = stems['accompanimentPath']!;
       if (!mounted) return;
