@@ -443,7 +443,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
     return i >= 0 ? p.substring(i + 1) : '';
   }
 
-  bool _runtime(String path) => ['onnx', 'pth'].contains(_ext(path));
+  bool _runtime(String path) => _ext(path) == 'pth';
 
   bool _sourceModel(String path) => ['pt', 'zip'].contains(_ext(path));
 
@@ -463,8 +463,8 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
       final source = result?.files.single.path;
       if (source == null || source.isEmpty) return;
       final ext = _ext(source);
-      if (!['onnx', 'pth', 'pt', 'zip'].contains(ext)) {
-        throw Exception('Select an RVC model: .onnx, .pth, .pt or .zip');
+      if (!['pth', 'pt', 'zip'].contains(ext)) {
+        throw Exception('Select an RVC model: .pth, .pt or .zip. Only supported .pth files run natively.');
       }
 
       final imported = await _bridge.importPickedFile(kind: 'model', sourcePath: source);
@@ -486,7 +486,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_ext(imported.path) == 'pth' ? 'Native RVC v2 PTH model imported. Supported profile: 768 dimensions / 100 fps.' : 'ONNX model imported and ready.')));
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Model imported into the library. PT/ZIP files are storage-only; supported PTH and ONNX models can be used for conversion.')),
+          const SnackBar(content: Text('Model imported into the library. PT/ZIP files are storage-only; supported RVC v2 PTH checkpoints run natively.')),
         );
       }
     } catch (e) {
@@ -541,7 +541,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
 
   Future<void> _use(String path) async {
     if (!_runtime(path)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This source file is storage-only. Choose a compatible ONNX or supported RVC v2 PTH model.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This source file is storage-only. Choose a supported RVC v2 .pth voice model.')));
       return;
     }
     _selectedModelPath = path;
@@ -680,9 +680,9 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
           ),
           const SizedBox(height: 14),
           SizedBox(height: 52, child: ElevatedButton.icon(
-            onPressed: ready && _ext(selected!) == 'pth' || (ready && widget.selectedSongPath != null && _ext(selected!) == 'onnx') ? widget.onContinue : null,
+            onPressed: ready && _ext(selected!) == 'pth' ? widget.onContinue : null,
             icon: const Icon(Icons.arrow_forward),
-            label: Text(selected != null && _ext(selected) == 'pth' ? 'PTH VOICE — USE SONG COVERS' : 'CONTINUE TO ONNX CONVERSION'),
+            label: Text(selected != null && _ext(selected) == 'pth' ? 'PTH VOICE — USE SONG COVERS' : 'SELECT A PTH VOICE TO CONTINUE'),
           )),
         ],
       ),
