@@ -167,7 +167,7 @@ def test_offline_song_cover_native_pipeline_is_wired_into_android_build():
     assert "private fun convertPth(call: MethodCall, result: Result)" in integration
     assert "private fun validateVoiceModel(call: MethodCall, result: Result)" in integration
     assert "endsWith('.onnx')" in integration
-    assert "endsWith('.mobile.index')" in integration
+    assert 'endsWith(".mobile.index", ignoreCase = true)' in integration
     assert "SherpaOnnxCreateOfflineSourceSeparation" in native
     assert "SherpaOnnxOfflineSourceSeparationProcess" in native
     assert "Pcm16WaveReader" in native
