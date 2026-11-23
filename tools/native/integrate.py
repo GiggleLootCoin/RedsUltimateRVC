@@ -537,7 +537,7 @@ main.write_text(ms, encoding='utf-8')
 # song-cover pipeline. The legacy Generate screen only executes ONNX voice
 # models and was the reason PTH users were still being asked for ONNX.
 old_conversion = '''  void _openAudioConversion() {
-    setState(() => _moduleIndex = 0);
+    setState(() => _moduleIndex = 1);
     _saveState();
     _scaffoldKey.currentState?.closeDrawer();
   }'''
