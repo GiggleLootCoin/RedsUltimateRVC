@@ -358,7 +358,8 @@ static int extract_rmvpe_pitch(spcv_onnx_session *session,
 int red_rvc_pth_convert(const char *input_wav, const char *pth_path,
                         const char *hubert_path, const char *rmvpe_path,
                         const char *output_wav, int pitch_shift,
-                        char *error, size_t error_cap) {
+                        float index_rate, red_rvc_index_blend_fn blend_index,
+                        void *index_context, char *error, size_t error_cap) {
     int result = -1, ort_ready = 0, model_ready = 0;
     rvc_model_t *model = NULL;
     spcv_onnx_session *hubert = NULL, *rmvpe = NULL;
@@ -456,6 +457,13 @@ int red_rvc_pth_convert(const char *input_wav, const char *pth_path,
         if (!segment_output) {
             set_error(error,error_cap,"Not enough memory for an RVC processing segment."); goto cleanup;
         }
+        if (blend_index && index_rate > 0.0f) {
+            if (blend_index(index_context, phone, segment_frames, index_rate) != 0) {
+                set_error(error, error_cap, "FAISS retrieval-index blending failed. Check that the selected index matches this RVC v2 voice.");
+                goto cleanup;
+            }
+        }
+
         int segment_output_length = 0;
         uint32_t seed = 0x524544u + (uint32_t)segment_index;
         if (rvc_infer(model, phone, segment_frames, pitch, pitchf,
