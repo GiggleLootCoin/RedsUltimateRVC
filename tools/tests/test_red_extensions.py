@@ -78,6 +78,7 @@ def test_dashboard_discloses_song_cover_and_realtime_limits():
     assert "SongCoverScreen(" in brand
     assert "modelPath: modelPath" in brand
     assert "indexPath: _selectedIndexPath" in brand
+    assert "initialSongPath: _selectedSongPath" in brand
     assert "onSongCovers: _openAudioConversion" not in brand
     assert "modelPath == null || modelPath.isEmpty || !modelPath.toLowerCase().endsWith('.pth')" in brand
     assert "Choose your supported RVC v2 .pth voice model" in brand
