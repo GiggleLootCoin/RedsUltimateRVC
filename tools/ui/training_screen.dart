@@ -1,13 +1,11 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:archive/archive_io.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../services/rvc_bridge.dart';
 
 /// Prepares voice datasets locally and opens the optional genuine RVC CPU
@@ -33,20 +31,9 @@ class _TrainingScreenState extends State<TrainingScreen> {
     _restorePreparedDataset();
   }
 
-  Future<void> _openTrainingWorkflow() async {
-    final uri = Uri.parse('https://github.com/GiggleLootCoin/RedsUltimateRVC/actions/workflows/train-rvc-cpu.yml');
-    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!opened && mounted) {
-      setState(() => _status = 'Could not open the training workflow. Open the GitHub link from the training guide instead.');
-    }
-  }
-
-  Future<void> _openOfflineAndroidGuide() async {
-    final uri = Uri.parse('https://docs.aihub.gg/rvc/local/rvc-termux-android/');
-    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!opened && mounted) {
-      setState(() => _status = 'Could not open the offline Android guide. Search for RVC Termux Android.');
-    }
+  void _showTrainingLimits() {
+    setState(() => _status =
+        'Training setup is kept inside this app. Full RVC neural training needs more memory and sustained compute than this phone can reliably provide. Your samples remain private in app storage; conversion of an existing compatible voice model is available in the conversion tools.');
   }
 
   Future<void> _restorePreparedDataset() async {
@@ -102,18 +89,29 @@ class _TrainingScreenState extends State<TrainingScreen> {
   Future<void> _addAudio() async {
     if (_busy || _recording) return;
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.any, allowMultiple: true, withData: false,
-      );
-      if (result == null) return;
-      final paths = result.files.map((f) => f.path).whereType<String>()
-        .where((p) => File(p).existsSync())
-        .where((p) => ['.wav','.flac','.mp3','.m4a','.ogg','.aac']
-          .any((e) => p.toLowerCase().endsWith(e))).toList();
+      // Use the same Android Storage Access Framework import route as Song Covers.
+      // Samsung My Files often returns content:// URIs rather than filesystem paths;
+      // FilePicker's path-only filter silently discarded those valid selections.
+      final importedFiles = await _bridge.pickAndImportAudioFiles();
+      if (importedFiles.isEmpty) return;
+      final paths = <String>[];
+      for (final imported in importedFiles) {
+        final path = imported.path;
+        final lower = path.toLowerCase();
+        final supported = ['.wav','.flac','.mp3','.m4a','.ogg','.aac']
+            .any((extension) => lower.endsWith(extension));
+        if (supported && await File(path).exists()) {
+          if (!paths.contains(path)) paths.add(path);
+        } else {
+          await _bridge.releaseImportedFile(path);
+        }
+      }
       if (!mounted) return;
       setState(() {
-        for (final p in paths) { if (!_samples.contains(p)) _samples.add(p); }
-        _status = '${_samples.length} sample(s) selected';
+        for (final path in paths) { if (!_samples.contains(path)) _samples.add(path); }
+        _status = paths.isEmpty
+            ? 'No supported audio files were imported. Choose WAV, FLAC, MP3, M4A, OGG or AAC.'
+            : '${_samples.length} sample(s) selected';
       });
     } catch (e) {
       if (mounted) setState(() => _status = 'Could not import audio: $e');
@@ -252,7 +250,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
           SizedBox(height: 8),
           Text('Import or record clean samples and organise them privately on this phone.'),
           SizedBox(height: 10),
-          Text('Your samples are prepared and stored on this phone. The GitHub CPU option trains remotely and requires sending the dataset ZIP to a runner; do not use it for private recordings. Fully offline RVC training is possible only experimentally on higher-spec Android phones using Termux/Ubuntu. Published guidance lists 6 GB RAM as a minimum and 8 GB+ as recommended, warns that training can overheat or crash phones, and recommends inference rather than training on mobile. This Galaxy A12 is below that stated minimum, so this app does not claim it can train a full RVC model offline on this handset.', style: TextStyle(height: 1.35)),
+          Text('Build and organise your voice dataset entirely inside the app. Imported recordings are copied into private app storage. Full RVC model training is a separate, compute-heavy neural-network job; this handset cannot reliably complete that workload locally. We will not send your voice recordings to a server or pretend that dataset preparation is model training. Existing compatible ONNX and supported RVC v2 PTH voices can still be used for local conversion.', style: TextStyle(height: 1.4)),
         ]),
       )),
       const SizedBox(height: 12),
@@ -279,20 +277,14 @@ class _TrainingScreenState extends State<TrainingScreen> {
         icon: const Icon(Icons.folder_copy), label: Text(_busy ? 'PREPARING…' : 'PREPARE LOCAL DATASET'),
       )),
       const SizedBox(height: 12),
-      SizedBox(height: 50, child: ElevatedButton.icon(
-        onPressed: _busy || _recording ? null : _openTrainingWorkflow,
-        icon: const Icon(Icons.model_training),
-        label: const Text('OPEN GENUINE RVC TRAINING WORKFLOW'),
-      )),
-      const SizedBox(height: 8),
-      SizedBox(height: 46, child: OutlinedButton.icon(
-        onPressed: _busy || _recording ? null : _openOfflineAndroidGuide,
-        icon: const Icon(Icons.offline_bolt),
-        label: const Text('OFFLINE ANDROID TRAINING GUIDE (HIGH-SPEC PHONES)'),
+      SizedBox(height: 50, child: OutlinedButton.icon(
+        onPressed: _busy || _recording ? null : _showTrainingLimits,
+        icon: const Icon(Icons.memory_rounded),
+        label: const Text('CHECK ON-DEVICE TRAINING CAPABILITY'),
       )),
       const Padding(
         padding: EdgeInsets.only(top: 7),
-        child: Text('Export your dataset ZIP first. In GitHub Actions, provide a direct HTTPS download link, choose the voice name and epochs, then download the trained .pth + .index artifact when the run finishes.', style: TextStyle(color: Color(0xFFB8B8C2), fontSize: 11.5, height: 1.35)),
+        child: Text('No browser hand-off, external runner, or automatic upload is used. Dataset preparation, recording, import, review and storage stay in this app. Full neural training is not falsely marked as complete when the phone cannot safely run it.', style: TextStyle(color: Color(0xFFB8B8C2), fontSize: 11.5, height: 1.4)),
       ),
       if (_datasetPath != null) ...[
         Padding(
