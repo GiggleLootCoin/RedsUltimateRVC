@@ -26,6 +26,8 @@ def test_workspace_conversion_no_longer_routes_pth_to_onnx_generate_screen():
     assert "Choose your compatible .pth voice model in Voice Library first." in source
     assert "indexPath: _selectedIndexPath" in source
     assert "indexPath: selectedIndex" in source
+    assert "selectedModel == null || !selectedModel.toLowerCase().endsWith('.pth')" in source
+    assert "selectedModel.toLowerCase().endsWith('.onnx')" not in source
     assert "final mobileIndex = selectedIndex" not in source
     assert "No user-supplied ONNX voice model is required." in source or "No ONNX voice-model export or upload is required." in (ROOT / "tools/ui/song_cover_screen.dart").read_text(encoding="utf-8")
 
