@@ -515,9 +515,9 @@ if "import 'screens/song_cover_screen.dart';" not in ms:
 old = 'onSongCovers: _openAudioConversion,'
 new = """onSongCovers: () {
           final selectedModel = _selectedModelPath;
-          if (selectedModel == null || (!selectedModel.toLowerCase().endsWith('.onnx') && !selectedModel.toLowerCase().endsWith('.pth'))) {
+          if (selectedModel == null || !selectedModel.toLowerCase().endsWith('.pth')) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Select a compatible ONNX or supported RVC v2 PTH voice in Model Library first. PT/ZIP files are storage-only.')),
+              const SnackBar(content: Text('Choose your supported RVC v2 .pth voice model in Voice Library first. The converter does not require a user-supplied ONNX file.')),
             );
             return;
           }
