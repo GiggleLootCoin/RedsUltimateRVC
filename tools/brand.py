@@ -792,9 +792,9 @@ dashboard = '''    final moduleScreens = [
         onGenerate: _openAudioConversion,
         onSongCovers: () {
           final modelPath = _selectedModelPath;
-          if (modelPath == null || modelPath.isEmpty || (!modelPath.toLowerCase().endsWith('.onnx') && !modelPath.toLowerCase().endsWith('.pth'))) {
+          if (modelPath == null || modelPath.isEmpty || !modelPath.toLowerCase().endsWith('.pth')) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Song Covers needs a compatible ONNX or supported RVC v2 PTH voice (768 dimensions / 100 fps). Choose one in Voice Library first.')),
+              const SnackBar(content: Text('Choose your supported RVC v2 .pth voice model in Voice Library first. No ONNX voice model is required.')),
             );
             Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(
               onModelSelected: _onModelSelected,
