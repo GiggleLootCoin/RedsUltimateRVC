@@ -482,7 +482,7 @@ if 'Future<Map<String, String>> separateSongVocals' not in bs:
 if 'Future<String> convertPth({' not in bs:
     anchor = '  Future<void> startRecording() async {'
     if anchor not in bs: raise RuntimeError('RVCBridge insertion anchor missing for PTH method')
-    bs = bs.replace(anchor, "  Future<String> convertPth({\n    required String inputWavPath,\n    required String pthModelPath,\n    int pitchShift = 0,\n  }) async {\n    final result = await _channel.invokeMethod<String>('convertPth', {\n      'inputWavPath': inputWavPath,\n      'pthModelPath': pthModelPath,\n      'pitchShift': pitchShift.toDouble(),\n    });\n    if (result == null || result.isEmpty) {\n      throw StateError('The native PTH engine did not return a converted WAV.');\n    }\n    return result;\n  }\n\n" + anchor, 1)
+    bs = bs.replace(anchor, "  Future<String> convertPth({\n    required String inputWavPath,\n    required String pthModelPath,\n    String? indexPath,\n    double indexRate = 0.75,\n    int pitchShift = 0,\n  }) async {\n    final result = await _channel.invokeMethod<String>('convertPth', {\n      'inputWavPath': inputWavPath,\n      'pthModelPath': pthModelPath,\n      'indexPath': indexPath,\n      'indexRate': indexRate,\n      'pitchShift': pitchShift.toDouble(),\n    });\n    if (result == null || result.isEmpty) {\n      throw StateError('The native PTH converter did not return a converted WAV.');\n    }\n    return result;\n  }\n\n" + anchor, 1)
 bridge.write_text(bs, encoding='utf-8')
 
 main = BUILD / 'lib/main.dart'
