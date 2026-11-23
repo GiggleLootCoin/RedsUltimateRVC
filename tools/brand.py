@@ -1933,8 +1933,8 @@ for old, new in [(old_model,new_model),(old_index,new_index),(old_select,new_sel
         raise RuntimeError("Model/index picker source changed; cannot apply SAF patch")
     pt = pt.replace(old,new,1)
 pt = pt.replace(
+    "Standard .index imported. Convert it locally for mobile use.",
     "Standard FAISS .index converted on this phone and ready for compatible RVC v2 inference.",
-    "Standard .index stored. Convert it locally with Index Tools before inference.",
     1
 )
 picker.write_text(pt, encoding="utf-8")
