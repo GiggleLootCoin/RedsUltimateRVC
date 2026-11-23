@@ -2150,8 +2150,66 @@ plugin.write_text(kt, encoding="utf-8")
 
 # Validate mobile.index using a bounded header read; never load/copy a large index into RAM.
 plugin_text = plugin.read_text(encoding="utf-8")
+if "import com.developermindset.faiss.FAISS" not in plugin_text:
+    package_line = "package com.ultimatervc.mobile\\n"
+    if package_line not in plugin_text:
+        raise RuntimeError("Could not locate RVCPlugin package declaration for FAISS import")
+    plugin_text = plugin_text.replace(package_line, package_line + "\\nimport com.developermindset.faiss.FAISS\\n", 1)
 old_mobile_index = "private fun convertMobileIndex(source: File): File {\n        require(source.exists()) { \"索引文件不存在\" }\n        val bytes = source.readBytes()\n        val magic = FEATURE_INDEX_MAGIC.toByteArray(Charsets.US_ASCII)\n        require(bytes.size >= magic.size + Int.SIZE_BYTES) { \"请先在 mobile.index 转换页处理标准 RVC index\" }\n        require(bytes.copyOfRange(0, magic.size).contentEquals(magic)) { \"请先在 mobile.index 转换页处理标准 RVC index\" }\n        val buffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)\n        buffer.position(magic.size)\n        val frameCount = buffer.int\n        require(frameCount > 0) { \"mobile.index 数据无效\" }\n        val outputDir = File(appContext.filesDir, \"indexes\")\n        outputDir.mkdirs()\n        val output = File(outputDir, source.name)\n        source.copyTo(output, overwrite = true)\n        return output\n    }"
-new_mobile_index = "private fun convertMobileIndex(source: File): File {\n        require(source.isFile) { \"Index file does not exist.\" }\n        val magic = FEATURE_INDEX_MAGIC.toByteArray(Charsets.US_ASCII)\n        val header = ByteArray(magic.size + Int.SIZE_BYTES)\n        FileInputStream(source).use { input ->\n            var offset = 0\n            while (offset < header.size) {\n                val count = input.read(header, offset, header.size - offset)\n                require(count > 0) { \"The mobile index header is incomplete.\" }\n                offset += count\n            }\n        }\n        require(header.copyOfRange(0, magic.size).contentEquals(magic)) {\n            \"This is not a mobile.index file. Standard FAISS indexes need conversion first.\"\n        }\n        val frameCount = ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN).getInt(magic.size)\n        require(frameCount > 0) { \"The mobile index contains no feature vectors.\" }\n        val expectedLength = magic.size.toLong() + Int.SIZE_BYTES + frameCount.toLong() * 768L * Float.SIZE_BYTES\n        require(source.length() == expectedLength) { \"The mobile index is truncated or has an invalid feature-vector length.\" }\n        return source\n    }"
+new_mobile_index = """private fun convertMobileIndex(source: File): File {
+        require(source.isFile && source.length() > 0L) { "Index file does not exist or is empty." }
+        val lowerName = source.name.lowercase(Locale.ROOT)
+        val outputDir = File(appContext.filesDir, "indexes").apply { mkdirs() }
+
+        if (lowerName.endsWith(".mobile.index")) {
+            val magic = FEATURE_INDEX_MAGIC.toByteArray(Charsets.US_ASCII)
+            val header = ByteArray(magic.size + Int.SIZE_BYTES)
+            FileInputStream(source).use { input ->
+                var offset = 0
+                while (offset < header.size) {
+                    val count = input.read(header, offset, header.size - offset)
+                    require(count > 0) { "The mobile index header is incomplete." }
+                    offset += count
+                }
+            }
+            require(header.copyOfRange(0, magic.size).contentEquals(magic)) {
+                "This is not a valid URVCIDX1 mobile index."
+            }
+            val frameCount = ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN).getInt(magic.size)
+            require(frameCount > 0) { "The mobile index contains no feature vectors." }
+            val expectedLength = magic.size.toLong() + Int.SIZE_BYTES + frameCount.toLong() * 768L * Float.SIZE_BYTES
+            require(source.length() == expectedLength) { "The mobile index is truncated or has an invalid feature-vector length." }
+            val installed = File(outputDir, source.name)
+            if (source.absolutePath != installed.absolutePath) source.copyTo(installed, overwrite = true)
+            return installed
+        }
+
+        require(lowerName.endsWith(".index")) { "Choose a standard .index or compatible .mobile.index file." }
+        val output = File(outputDir, source.name.removeSuffix(".index") + "_converted.mobile.index")
+        val temporary = File(output.parentFile, output.name + ".tmp")
+        if (temporary.exists()) temporary.delete()
+        val index = FAISS.readIndex(source.absolutePath)
+        try {
+            val dimension = index.dimension()
+            require(dimension == 768) {
+                "This FAISS index is ${dimension}-dimensional. RVC v2 mobile conversion requires 768 dimensions."
+            }
+            require(index.isTrained()) { "This FAISS index has not been trained." }
+            val vectorCount = index.ntotal()
+            require(vectorCount > 0L && vectorCount <= Int.MAX_VALUE.toLong()) { "This FAISS index has no vectors or is too large." }
+            val exported = index.exportMobileIndex(temporary.absolutePath)
+            require(exported == vectorCount) { "FAISS exported an unexpected number of feature vectors." }
+        } finally {
+            index.close()
+        }
+        require(temporary.isFile && temporary.length() > 12L) {
+            "FAISS did not create a complete mobile index."
+        }
+        if (output.exists()) output.delete()
+        check(temporary.renameTo(output)) { "Could not install the converted mobile index." }
+        return output
+    }"""
+
 if old_mobile_index not in plugin_text:
     raise RuntimeError("Mobile index validator source changed; review before patching")
 plugin_text = plugin_text.replace(old_mobile_index, new_mobile_index, 1)
@@ -2558,7 +2616,7 @@ checks = {
     "Model picker uses native SAF": "pickAndImportFile(kind: 'model')" in final_picker and "FilePicker.platform.pickFiles" not in final_picker,
     "PTH support": ".pth" in final_picker,
     "Mobile index support": ".mobile.index" in final_picker,
-    "Index tools clearly disclose the missing FAISS converter": "FAISS-to-mobile converter" in (root / "lib/screens/index_converter_screen.dart").read_text(encoding="utf-8"),
+    "Index tools expose native FAISS conversion": "FAISS.readIndex(source.absolutePath)" in plugin_text and "exportMobileIndex" in plugin_text and "FAISS INDEX CONVERTER" in (root / "lib/screens/index_converter_screen.dart").read_text(encoding="utf-8"),
     "ZIP archive extractor": "private fun extractModelArchive" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8") and "extractModelArchive" in (root / "lib/services/rvc_bridge.dart").read_text(encoding="utf-8") and "extractModelArchive(imported.path)" in final_picker,
     "Persistent model storage": workspace.exists() and "File(File(appFilesDir, IMPORTS_DIRECTORY_NAME)" in workspace.read_text(encoding="utf-8") and "File(File(appFilesDir, IMPORTS_DIRECTORY_NAME), REGISTRY_FILE_NAME)" in workspace.read_text(encoding="utf-8") if workspace.exists() else False,
 }
