@@ -34,7 +34,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
 
   void _showTrainingLimits() {
     setState(() => _status =
-        'Training setup is kept inside this app. Full RVC neural training needs more memory and sustained compute than this phone can reliably provide. Your samples remain private in app storage; conversion of an existing compatible voice model is available in the conversion tools.');
+        'This phone can record and prepare voice samples, but it cannot reliably train a full RVC neural voice model locally. No model has been trained. Your samples remain private in app storage; conversion of an existing compatible voice model is available in the conversion tools.');
   }
 
   Future<void> _restorePreparedDataset() async {
@@ -175,7 +175,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
       }
       final totalSamples = await data.list().where((entity) => entity is File).length;
       await File('${root.path}/README.txt').writeAsString(
-        "RED'S ULTIMATE RVC — DATASET\nVoice: ${_name.text.trim()}\nAudio files: $totalSamples\n\nThis is prepared training data only; the phone has not trained a model. Use the optional genuine RVC v2 PyTorch CPU workflow in GitHub Actions to train the generator/discriminator and build a retrieval index.\n",
+        "RED'S ULTIMATE RVC — DATASET\nVoice: ${_name.text.trim()}\nAudio files: $totalSamples\n\nThis is a prepared dataset only; no neural voice model or retrieval index has been trained.\n",
       );
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('red_rvc_last_dataset_path', root.path);
@@ -247,7 +247,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
       Card(color: const Color(0xFF171117), child: const Padding(
         padding: EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('VOICE DATASET + NEURAL TRAINING', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFFFF334F))),
+          Text('VOICE DATASET LAB', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFFFF334F))),
           SizedBox(height: 8),
           Text('Import or record clean samples and organise them privately on this phone.'),
           SizedBox(height: 10),
