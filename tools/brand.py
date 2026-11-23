@@ -2399,7 +2399,8 @@ main.write_text(mt,encoding="utf-8")
 training = root / "lib/screens/training_screen.dart"
 tr = training.read_text(encoding="utf-8")
 tr = tr.replace("import 'package:file_picker/file_picker.dart';\n","")
-if "final Set<String> _importedSamples" not in tr:\n    tr = tr.replace("  final List<String> _samples = [];", "  final List<String> _samples = [];\\n  final Set<String> _importedSamples = {};")
+if "final Set<String> _importedSamples" not in tr:
+    tr = tr.replace("  final List<String> _samples = [];", "  final List<String> _samples = [];\n  final Set<String> _importedSamples = {};")
 old_add = """      final result = await FilePicker.platform.pickFiles(
         type: FileType.any, allowMultiple: true, withData: false,
       );
