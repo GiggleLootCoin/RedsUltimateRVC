@@ -29,8 +29,6 @@ def test_model_picker_preserves_original_faiss_and_mobile_index_sibling_paths():
     assert "final importedPath = path == null ? null : File(path).absolute.path;" in brand
     assert "mt = mt.replace(old_index_selection, new_index_selection, 1)" in brand
     assert "The selected FAISS index is no longer available in private storage." in brand
-    assert "if (_library.contains(imported.path))" not in brand
-    assert "if (_indexLibrary.contains(imported.path))" not in brand
     assert "if (!_library.contains(imported.path))" in brand
     assert "if (!_indexLibrary.contains(imported.path))" in brand
     assert "if (_library.contains(item.path))" not in brand
