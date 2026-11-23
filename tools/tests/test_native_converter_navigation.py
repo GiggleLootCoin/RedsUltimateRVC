@@ -30,6 +30,11 @@ def test_workspace_conversion_no_longer_routes_pth_to_onnx_generate_screen():
     assert "selectedModel.toLowerCase().endsWith('.onnx')" not in source
     assert 'ms = ms.replace("onContinue: _continueToGenerate,", "onContinue: _continueToPthConversion,")' in source
     assert "void _continueToPthConversion()" in source
+    assert "old_generate_screen = '''canGenerate" in source
+    assert "? SongCoverScreen(" in source
+    assert "initialSongPath: _selectedSongPath" in source
+    assert "onCoverComplete: _onGenerationComplete" in source
+    assert "label: 'PTH Cover'" in source
     assert "final mobileIndex = selectedIndex" not in source
     assert "No user-supplied ONNX voice model is required." in source or "No ONNX voice-model export or upload is required." in (ROOT / "tools/ui/song_cover_screen.dart").read_text(encoding="utf-8")
 
