@@ -518,17 +518,17 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
         _indexLibrary.insert(0, imported.path);
       }
       await _saveIndexLibrary();
-      if (ext == 'mobile.index') {
-        await _bridge.convertIndex(imported.path);
-        _selectedIndexPath = imported.path;
-        _selectedIndexDisplayName = File(imported.path).uri.pathSegments.last;
-        widget.onIndexSelected(imported.path);
-      }
+      final installed = await _bridge.convertIndex(imported.path);
+      if (!_indexLibrary.contains(installed)) _indexLibrary.insert(0, installed);
+      await _saveIndexLibrary();
+      _selectedIndexPath = installed;
+      _selectedIndexDisplayName = File(installed).uri.pathSegments.last;
+      widget.onIndexSelected(installed);
       if (mounted) setState(() {});
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(ext == 'mobile.index' ? 'mobile.index imported and ready.' : 'Standard .index stored in your Index Library. Open Index Tools to convert a compatible 768-dimensional RVC v2 index locally before using it with an ONNX voice.')),
+          SnackBar(content: Text(ext == 'mobile.index' ? 'mobile.index validated and ready.' : 'Standard FAISS index converted on this phone and ready for compatible RVC v2 inference.')),
         );
       }
     } catch (e) {
@@ -564,22 +564,18 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
   }
 
   Future<void> _useIndex(String path) async {
-    if (_ext(path) != 'mobile.index') {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Standard .index files require FAISS conversion before mobile inference.'),
-      ));
-      return;
-    }
     try {
-      await _bridge.convertIndex(path);
-      _selectedIndexPath = path;
-      _selectedIndexDisplayName = File(path).uri.pathSegments.last;
-      widget.onIndexSelected(path);
+      final installed = await _bridge.convertIndex(path);
+      if (!_indexLibrary.contains(installed)) _indexLibrary.insert(0, installed);
+      await _saveIndexLibrary();
+      _selectedIndexPath = installed;
+      _selectedIndexDisplayName = File(installed).uri.pathSegments.last;
+      widget.onIndexSelected(installed);
       if (mounted) setState(() {});
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('INDEX VALIDATION FAILED: $e')),
+          SnackBar(content: Text('INDEX CONVERSION FAILED: $e')),
         );
       }
     }
@@ -634,7 +630,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
               Text(_selectedIndexDisplayName ?? (_selectedIndexPath == null ? 'No index selected' : File(_selectedIndexPath!).uri.pathSegments.last),
                 style: const TextStyle(fontWeight: FontWeight.w800)),
               const SizedBox(height: 8),
-              const Text('mobile.index files can be used directly. Standard FAISS .index files require conversion, which is not included in this offline Android build.', style: TextStyle(color: Color(0xFF9E9EA8), height: 1.3)),
+              const Text('mobile.index files can be used directly. Standard 768-dimensional RVC v2 FAISS .index files can be converted locally to mobile.index on this phone.', style: TextStyle(color: Color(0xFF9E9EA8), height: 1.3)),
               const SizedBox(height: 12),
               OutlinedButton.icon(onPressed: _busy || !_libraryLoaded ? null : _pickIndex, icon: const Icon(Icons.upload_file), label: const Text('IMPORT INDEX')),
               if (_indexLibrary.isNotEmpty) ...[
@@ -647,7 +643,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
                     leading: Icon(mobile ? Icons.check_circle : Icons.inventory_2,
                       color: mobile ? const Color(0xFF5DE58A) : const Color(0xFFFFA3AE)),
                     title: Text(File(p).uri.pathSegments.last, maxLines: 1, overflow: TextOverflow.ellipsis),
-                    subtitle: Text(mobile ? 'MOBILE INDEX — VALIDATED WHEN SELECTED' : 'STANDARD FAISS INDEX — CONVERSION REQUIRED'),
+                    subtitle: Text(mobile ? 'MOBILE INDEX — VALIDATED WHEN SELECTED' : 'STANDARD FAISS INDEX — READY FOR ON-PHONE CONVERSION'),
                     trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                       if (mobile) IconButton(onPressed: () => _useIndex(p), icon: const Icon(Icons.check), tooltip: 'Use index'),
                       IconButton(onPressed: () => _deleteIndex(p), icon: const Icon(Icons.delete_outline), tooltip: 'Delete index'),
@@ -1931,8 +1927,8 @@ for old, new in [(old_model,new_model),(old_index,new_index),(old_select,new_sel
         raise RuntimeError("Model/index picker source changed; cannot apply SAF patch")
     pt = pt.replace(old,new,1)
 pt = pt.replace(
-    "Standard .index imported. Use Index Tools to convert it for mobile use.",
-    "Standard .index stored. It is not runtime-ready; an on-phone FAISS converter is not included yet.",
+    "Standard .index imported. Convert it locally for mobile use.",
+    "Standard .index stored. Convert it locally with Index Tools before inference.",
     1
 )
 picker.write_text(pt, encoding="utf-8")
@@ -2151,10 +2147,10 @@ plugin.write_text(kt, encoding="utf-8")
 # Validate mobile.index using a bounded header read; never load/copy a large index into RAM.
 plugin_text = plugin.read_text(encoding="utf-8")
 if "import com.developermindset.faiss.FAISS" not in plugin_text:
-    package_line = "package com.ultimatervc.mobile\\n"
+    package_line = "package com.ultimatervc.mobile\n"
     if package_line not in plugin_text:
         raise RuntimeError("Could not locate RVCPlugin package declaration for FAISS import")
-    plugin_text = plugin_text.replace(package_line, package_line + "\\nimport com.developermindset.faiss.FAISS\\n", 1)
+    plugin_text = plugin_text.replace(package_line, package_line + "\nimport com.developermindset.faiss.FAISS\n", 1)
 old_mobile_index = "private fun convertMobileIndex(source: File): File {\n        require(source.exists()) { \"索引文件不存在\" }\n        val bytes = source.readBytes()\n        val magic = FEATURE_INDEX_MAGIC.toByteArray(Charsets.US_ASCII)\n        require(bytes.size >= magic.size + Int.SIZE_BYTES) { \"请先在 mobile.index 转换页处理标准 RVC index\" }\n        require(bytes.copyOfRange(0, magic.size).contentEquals(magic)) { \"请先在 mobile.index 转换页处理标准 RVC index\" }\n        val buffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)\n        buffer.position(magic.size)\n        val frameCount = buffer.int\n        require(frameCount > 0) { \"mobile.index 数据无效\" }\n        val outputDir = File(appContext.filesDir, \"indexes\")\n        outputDir.mkdirs()\n        val output = File(outputDir, source.name)\n        source.copyTo(output, overwrite = true)\n        return output\n    }"
 new_mobile_index = """private fun convertMobileIndex(source: File): File {
         require(source.isFile && source.length() > 0L) { "Index file does not exist or is empty." }
@@ -2491,7 +2487,7 @@ class IndexConverterScreen extends StatefulWidget {
 class _IndexConverterScreenState extends State<IndexConverterScreen> {
   final RVCBridge _bridge = RVCBridge();
   bool _busy = false;
-  String _status = 'Select a mobile.index file to validate and install.';
+  String _status = 'Select a standard FAISS .index to convert or a mobile.index to validate.';
 
   Future<void> _selectAndValidate() async {
     if (_busy) return;
@@ -2511,14 +2507,11 @@ class _IndexConverterScreenState extends State<IndexConverterScreen> {
         savedIndexes.insert(0, imported.path);
         await prefs.setStringList('red_rvc_index_library', savedIndexes);
       }
-      if (!name.toLowerCase().endsWith('.mobile.index')) {
-        if (mounted) {
-          setState(() => _status =
-            '$name was stored in your Index Library, but it is a standard FAISS index. This offline Android build does not include the FAISS-to-mobile converter, so it cannot be used for inference yet.');
-        }
-        return;
-      }
       final installed = await _bridge.convertIndex(imported.path);
+      if (!savedIndexes.contains(installed)) {
+        savedIndexes.insert(0, installed);
+        await prefs.setStringList('red_rvc_index_library', savedIndexes);
+      }
       if (mounted) {
         setState(() => _status =
           'VALIDATION COMPLETE\n\n$name passed the mobile-index format check and was installed at:\n$installed');
@@ -2553,9 +2546,9 @@ class _IndexConverterScreenState extends State<IndexConverterScreen> {
             children: [
               Icon(Icons.data_object, color: Color(0xFFFF334F), size: 38),
               SizedBox(height: 12),
-              Text('MOBILE INDEX CHECKER', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900)),
+              Text('FAISS INDEX CONVERTER', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900)),
               SizedBox(height: 8),
-              Text('The on-phone inference engine accepts a mobile.index file with the URVCIDX1 signature. This tool checks and installs that mobile format locally.', style: TextStyle(height: 1.4, color: Color(0xFFD0D0D8))),
+              Text('Convert compatible 768-dimensional RVC v2 FAISS .index files to mobile.index entirely on this phone. Existing mobile.index files are validated and installed locally.', style: TextStyle(height: 1.4, color: Color(0xFFD0D0D8))),
             ],
           ),
         ),
@@ -2565,7 +2558,7 @@ class _IndexConverterScreenState extends State<IndexConverterScreen> {
           child: ElevatedButton.icon(
             onPressed: _busy ? null : _selectAndValidate,
             icon: const Icon(Icons.folder_open),
-            label: Text(_busy ? 'CHECKING…' : 'SELECT & CHECK INDEX'),
+            label: Text(_busy ? 'CONVERTING…' : 'SELECT & CONVERT INDEX'),
           ),
         ),
         const SizedBox(height: 12),
@@ -2580,7 +2573,7 @@ class _IndexConverterScreenState extends State<IndexConverterScreen> {
         ),
         const SizedBox(height: 12),
         const Text(
-          'IMPORTANT: A standard desktop .index file is not the same format as mobile.index. Standard FAISS-to-mobile conversion is not implemented in this offline build. The app will store the source file but will not falsely mark it as ready for inference.',
+          'Supported: standard 768-dimensional RVC v2 FAISS indexes. Conversion streams vectors into the mobile format; incompatible dimensions and unsupported index layouts are reported instead of silently accepted.',
           style: TextStyle(color: Color(0xFFFFA3AE), height: 1.4, fontSize: 12.5),
         ),
       ],
