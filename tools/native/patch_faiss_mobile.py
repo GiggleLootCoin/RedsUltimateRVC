@@ -146,9 +146,7 @@ JNI_METHOD(jlong, nativeExportMobileIndex)(JNIEnv *env, jclass cls, jlong indexP
 }
 
 '''
-replace_once(
-    jni,
-    "
+retrieval_methods = r'''
 JNI_METHOD(void, nativePrepareForRvc)(JNIEnv *env, jclass cls, jlong indexPtr) {
     (void)cls;
     FaissIndex *index = (FaissIndex *)(intptr_t)indexPtr;
@@ -227,7 +225,10 @@ JNI_METHOD(void, nativeSearchAndBlend)(JNIEnv *env, jclass cls, jlong indexPtr,
     (*env)->ReleaseFloatArrayElements(env, featureArray, features, 0);
 }
 
-JNI_METHOD(jint, nativeMetricL2)(JNIEnv *env, jclass cls) {",
-    exporter + "JNI_METHOD(jint, nativeMetricL2)(JNIEnv *env, jclass cls) {",
+'''
+replace_once(
+    jni,
+    "JNI_METHOD(jint, nativeMetricL2)(JNIEnv *env, jclass cls) {",
+    exporter + retrieval_methods + "JNI_METHOD(jint, nativeMetricL2)(JNIEnv *env, jclass cls) {",
 )
 print("Patched FAISS with mobile-index export and native RVC retrieval blending.")
