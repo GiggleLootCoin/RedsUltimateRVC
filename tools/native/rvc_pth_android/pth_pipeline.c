@@ -1,3 +1,4 @@
+#include "pth_pipeline.h"
 #include "rvc.h"
 #include "onnx.h"
 #include "mel.h"
