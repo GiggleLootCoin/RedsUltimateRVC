@@ -233,7 +233,7 @@ class RedHomeScreen extends StatelessWidget {
                   SizedBox(width: 11),
                   Expanded(
                     child: Text(
-                      'RVC conversion is performed locally on the phone. ONNX voice models are directly usable by the Android engine; source .pth/.pt models can be stored in the library but require conversion to a mobile-compatible model before inference.',
+                      'RVC conversion runs locally through the native RVC v2 .pth engine. Choose a supported 768-dimensional / 100-fps .pth checkpoint; no ONNX voice-model export or upload is needed.',
                       style: TextStyle(color: Color(0xFFC7C7D0), height: 1.35, fontSize: 12.5),
                     ),
                   ),
@@ -483,7 +483,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
       setState(() {});
       if (_runtime(imported.path)) {
         widget.onModelSelected(imported.path);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_ext(imported.path) == 'pth' ? 'Native RVC v2 PTH model imported. Supported profile: 768 dimensions / 100 fps.' : 'ONNX model imported and ready.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_ext(imported.path) == 'pth' ? 'Native RVC v2 PTH model imported. Supported profile: 768 dimensions / 100 fps.' : 'PTH model imported and ready for native conversion.')));
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Model imported into the library. PT/ZIP files are storage-only; supported RVC v2 PTH checkpoints run natively.')),
@@ -615,7 +615,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 7),
-              Text(ready ? (_ext(selected!) == 'pth' ? 'READY — Native PTH supports RVC v2, 768 dimensions / 100 fps only.' : 'READY — ONNX model can be used for conversion.') : 'Choose a compatible ONNX or supported RVC v2 PTH model. PT/ZIP files are storage-only.', style: const TextStyle(color: Color(0xFFAAAAB5))),
+              Text(ready ? (_ext(selected!) == 'pth' ? 'READY — Native PTH supports RVC v2, 768 dimensions / 100 fps only.' : 'READY — Native PTH model can be used for conversion.') : 'Choose a supported RVC v2 .pth voice model. PT/ZIP files are storage-only.', style: const TextStyle(color: Color(0xFFAAAAB5))),
               const SizedBox(height: 13),
               Row(children: [
                 Expanded(child: ElevatedButton.icon(onPressed: _busy || !_libraryLoaded ? null : _pickModel, icon: const Icon(Icons.upload_file), label: const Text('IMPORT MODEL'))),
@@ -655,7 +655,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
                 }),
               ],
               const SizedBox(height: 9),
-              const Text('A genuine native RVC v2 PTH converter is integrated: compatible 768-dimensional / 100-fps checkpoints run directly on this phone without exporting to ONNX. When the original matching FAISS .index is imported, native retrieval search and blending are applied during PTH conversion. The .mobile.index copy remains available for the ONNX route.', style: TextStyle(color: Color(0xFFFFA3AE), height: 1.35)),
+              const Text('A genuine native RVC v2 PTH converter is integrated: compatible 768-dimensional / 100-fps checkpoints run directly on this phone without exporting to ONNX. When the original matching FAISS .index is imported, native retrieval search and blending are applied during PTH conversion. The mobile-index copy is an optional compatibility export; native PTH retrieval uses the original matching FAISS .index.', style: TextStyle(color: Color(0xFFFFA3AE), height: 1.35)),
             ]),
           ),
           const SizedBox(height: 12),
@@ -2141,7 +2141,7 @@ zip_handler = """      final ext = _ext(imported.path);
         if (!mounted) return;
         setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('ZIP unpacked: ' + unpacked.length.toString() + ' model/index file(s) imported. ONNX is ready for conversion; PTH/PT source files are stored for future conversion support.')),
+          SnackBar(content: Text('ZIP unpacked: ' + unpacked.length.toString() + ' model/index file(s) imported. Supported .pth models can be used for native conversion; .pt source files remain stored for later processing.')),
         );
         return;
       }
