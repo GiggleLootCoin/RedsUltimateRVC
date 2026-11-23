@@ -28,7 +28,8 @@ These are deliberate capability disclosures, not hidden menu items:
 | Feature | Current status |
 |---|---|
 | ONNX RVC inference | Included; compatible RVC v2 ONNX models only |
-| `.pth` import | Native inference included for RVC v2, 768-dimensional / 100-fps checkpoints in Song Covers |\n| `.pt` import | Storage only; not runnable |
+| `.pth` import | Native inference included for RVC v2, 768-dimensional / 100-fps checkpoints in Song Covers |
+| `.pt` import | Storage only; not runnable |
 | PTH-to-ONNX conversion on phone | Not included; supported PTH checkpoints run through the native PTH engine directly |
 | Standard FAISS `.index` conversion | Included on phone for compatible 768-dimensional RVC v2 indexes; other dimensions/layouts are rejected |
 | `.mobile.index` | Supported if it matches the mobile feature-table format |
@@ -47,7 +48,9 @@ GitHub Actions builds the ARM64 APK, compiles the offline Sherpa-ONNX separation
 3. Upstream Python static regression tests.
 4. APK zip alignment and signature verification.
 5. Checks that required offline HuBERT and RMVPE ONNX assets are packaged.
-6. SHA-256 generation for the APK.\n7. Real-model PTH-to-audio acceptance test and Android ARM64 native PTH compilation.\n8. FAISS mobile-index exporter build and APK packaging checks.
+6. SHA-256 generation for the APK.
+7. Real-model PTH-to-audio acceptance test and Android ARM64 native PTH compilation.
+8. FAISS mobile-index exporter build and APK packaging checks.
 
 Workflow: [Build Red's Ultimate RVC](https://github.com/GiggleLootCoin/RedsUltimateRVC/actions/workflows/build-apk.yml)
 
