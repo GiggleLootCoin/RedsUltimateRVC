@@ -574,6 +574,44 @@ ms = ms.replace(old_conversion, new_conversion, 1)
 # Every model-library continuation must lead to the native PTH workflow,
 # never the legacy ONNX-only GenerateScreen.
 ms = ms.replace("onContinue: _continueToGenerate,", "onContinue: _continueToPthConversion,")
+# Replace the legacy ONNX GenerateScreen in the audio workflow with the real
+# native PTH song-cover screen. Reuse the song already selected in step one.
+old_generate_screen = '''canGenerate
+          ? GenerateScreen(
+              songPath: _selectedSongPath!,
+              songDisplayName: _selectedSongDisplayName ?? File(_selectedSongPath!).uri.pathSegments.last,
+              modelPath: _selectedModelPath!,
+              modelDisplayName: _selectedModelDisplayName ?? File(_selectedModelPath!).uri.pathSegments.last,
+              indexPath: _selectedIndexPath,
+              indexDisplayName: _selectedIndexDisplayName,
+              generationState: _generationState,
+              otherModeRunning: _inferenceProcessRunning && !_generationState.isGenerating,
+              onGenerationComplete: _onGenerationComplete,
+            )
+          : SongPickerScreen(
+              onSongSelected: _onSongSelected,
+              onSongCleared: _onSongCleared,
+              selectedSongPath: _selectedSongPath,
+              selectedSongDisplayName: _selectedSongDisplayName,
+            ),'''
+new_generate_screen = '''canGenerate
+          ? SongCoverScreen(
+              modelPath: _selectedModelPath!,
+              indexPath: _selectedIndexPath,
+              initialSongPath: _selectedSongPath,
+              onCoverComplete: _onGenerationComplete,
+            )
+          : SongPickerScreen(
+              onSongSelected: _onSongSelected,
+              onSongCleared: _onSongCleared,
+              selectedSongPath: _selectedSongPath,
+              selectedSongDisplayName: _selectedSongDisplayName,
+            ),'''
+if old_generate_screen not in ms and 'onCoverComplete: _onGenerationComplete' not in ms:
+    raise RuntimeError('Could not replace the legacy GenerateScreen with native PTH song covers.')
+if old_generate_screen in ms:
+    ms = ms.replace(old_generate_screen, new_generate_screen, 1)
+ms = ms.replace("label: 'Generate'", "label: 'PTH Cover'")
 helper = '''
   void _continueToPthConversion() {
     final selectedModel = _selectedModelPath;
