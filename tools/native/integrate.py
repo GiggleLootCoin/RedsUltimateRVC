@@ -20,7 +20,7 @@ if faiss_dependency not in gradle_text:
     anchor = 'dependencies {'
     if gradle_text.count(anchor) != 1:
         raise RuntimeError('Could not uniquely locate Android app dependencies block for FAISS AAR.')
-    gradle_text = gradle_text.replace(anchor, anchor + '\\n' + faiss_dependency, 1)
+    gradle_text = gradle_text.replace(anchor, anchor + '\n' + faiss_dependency, 1)
     app_gradle.write_text(gradle_text, encoding='utf-8')
 (PKG / 'SourceSeparationBridge.kt').write_text((ROOT / 'tools/native/SourceSeparationBridge.kt').read_text(), encoding='utf-8')
 (PKG / 'RvcPthNative.kt').write_text((ROOT / 'tools/native/RvcPthNative.kt').read_text(), encoding='utf-8')
