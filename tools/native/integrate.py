@@ -209,13 +209,22 @@ methods = '''
                     require(sourceIndex.isFile && sourceIndex.length() > 16L) {
                         "The mobile index is ready for ONNX conversion, but its original FAISS .index file is not beside it. Re-import the original .index to enable native PTH retrieval blending."
                     }
+                    require(sourceIndex.length() <= 512L * 1024L * 1024L) {
+                        "This FAISS index is larger than the 512 MB on-phone retrieval limit."
+                    }
+                    val activityManager = appContext.getSystemService(android.content.Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+                    val memoryInfo = android.app.ActivityManager.MemoryInfo()
+                    activityManager.getMemoryInfo(memoryInfo)
+                    val minimumAvailable = sourceIndex.length() * 3L / 2L + 192L * 1024L * 1024L
+                    require(memoryInfo.availMem >= minimumAvailable) {
+                        "There is not enough free memory to load this FAISS index safely. Close other apps and try again."
+                    }
                     val opened = withContext(Dispatchers.IO) { FAISS.readIndex(sourceIndex.absolutePath) }
+                    retrievalIndex = opened
                     require(opened.dimension() == 768 && opened.isTrained() && opened.ntotal() > 0L) {
-                        opened.close()
                         "The selected FAISS index must be trained, non-empty and 768-dimensional for RVC v2."
                     }
                     withContext(Dispatchers.IO) { opened.prepareForRvc() }
-                    retrievalIndex = opened
                 }
 
                 val modelDir = File(appContext.filesDir, "rvc_pth_models").apply { mkdirs() }
