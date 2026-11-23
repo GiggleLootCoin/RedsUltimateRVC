@@ -123,7 +123,7 @@ s = plugin.read_text(encoding='utf-8')
 dispatch = '            "convertIndex" -> convertIndex(call, result)'
 if '"convertFaissIndex" -> convertFaissIndex(call, result)' not in s:
     if dispatch not in s: raise RuntimeError('RVCPlugin convertIndex dispatch anchor missing for FAISS bridge')
-    s = s.replace(dispatch, dispatch + '\\n            "convertFaissIndex" -> convertFaissIndex(call, result)', 1)
+    s = s.replace(dispatch, dispatch + '\n            "convertFaissIndex" -> convertFaissIndex(call, result)', 1)
 if '"convertPth" -> convertPth(call, result)' not in s:
     if dispatch not in s: raise RuntimeError('RVCPlugin convertIndex dispatch anchor missing for PTH bridge')
     s = s.replace(dispatch, dispatch + '\n            "convertPth" -> convertPth(call, result)', 1)
