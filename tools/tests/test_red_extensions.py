@@ -240,3 +240,23 @@ def test_onnx_voice_models_are_opened_and_checked_for_the_exact_rvc_v2_inputs_be
     assert 'await _bridge.validateVoiceModel(path)' in integration
     assert 'MODEL NOT COMPATIBLE' in integration
     assert 'Future<void> validateVoiceModel(String modelPath)' in integration
+
+
+def test_native_pth_converter_applies_real_faiss_retrieval_blending():
+    patch = (ROOT / "tools/native/patch_faiss_mobile.py").read_text(encoding="utf-8")
+    integration = (ROOT / "tools/native/integrate.py").read_text(encoding="utf-8")
+    jni = (ROOT / "tools/native/rvc_pth_android/pth_jni.cpp").read_text(encoding="utf-8")
+    pipeline = (ROOT / "tools/native/rvc_pth_android/pth_pipeline.c").read_text(encoding="utf-8")
+    bridge = (ROOT / "tools/native/RvcPthNative.kt").read_text(encoding="utf-8")
+    screen = (ROOT / "tools/ui/song_cover_screen.dart").read_text(encoding="utf-8")
+    assert "nativeSearchAndBlend" in patch
+    assert "faiss_Index_search" in patch
+    assert "faiss_Index_reconstruct" in patch
+    assert "nativePrepareForRvc" in patch
+    assert "FAISS.readIndex(sourceIndex.absolutePath)" in integration
+    assert "opened.prepareForRvc()" in integration
+    assert "searchAndBlend" in jni
+    assert "blend_index(index_context, phone, segment_frames, index_rate)" in pipeline
+    assert "retrievalIndex: FAISS.Index?" in bridge
+    assert "indexPath: widget.indexPath" in screen
+    assert "RETRIEVAL STRENGTH" in screen
