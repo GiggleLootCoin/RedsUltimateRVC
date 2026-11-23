@@ -4,15 +4,15 @@ A branded ARM64 Android RVC voice-conversion app based on the open-source Ultima
 
 ## Visual design update
 
-The current premium mobile studio redesign uses a restrained black-and-crimson palette, clearer navigation hierarchy, refined tool cards, and explicit local-capability disclosures. The redesign preserves existing conversion and library callbacks. This release adds an offline song-cover workflow; PTH conversion and neural-network training remain outside the current Android engine.
+The current premium mobile studio redesign uses a restrained black-and-crimson palette, clearer navigation hierarchy, refined tool cards, and explicit local-capability disclosures. The Android engineering branch adds a native RVC v2 PTH inference path, on-phone FAISS index conversion, and an offline song-cover workflow. Full model training and physical Galaxy A12 qualification remain separate milestones.
 
 ## What is included
 
-- On-device RVC inference with compatible ONNX voice models.
+- On-device RVC inference with compatible ONNX voice models and supported native RVC v2 PTH checkpoints (768 dimensions / 100 fps).
 - Audio conversion controls, progress, resumable chunk processing and generated-audio playback/export.
 - Android's unfiltered file picker for supported model and audio imports.
 - Model library storage for ONNX models and source files.
-- Compatible `.mobile.index` import and format validation.
+- On-phone conversion of compatible 768-dimensional RVC v2 FAISS `.index` files to `.mobile.index`, plus mobile-index validation.
 - Offline Spleeter vocal/accompaniment separation, RVC ONNX vocal conversion and local mix-back for PCM WAV song-cover processing.
 - Voice Changer and experimental realtime modules.
 - Voice Dataset Lab for recording, importing, organising and exporting samples.
@@ -28,15 +28,15 @@ These are deliberate capability disclosures, not hidden menu items:
 | Feature | Current status |
 |---|---|
 | ONNX RVC inference | Included; compatible RVC v2 ONNX models only |
-| `.pth` / `.pt` import | Can be stored; not runnable by the Android inference engine |
-| PTH-to-ONNX conversion on phone | Not included; a real Android-compatible export engine is still needed |
-| Standard FAISS `.index` conversion | Not included on Android |
+| `.pth` import | Native inference included for RVC v2, 768-dimensional / 100-fps checkpoints in Song Covers |\n| `.pt` import | Storage only; not runnable |
+| PTH-to-ONNX conversion on phone | Not included; supported PTH checkpoints run through the native PTH engine directly |
+| Standard FAISS `.index` conversion | Included on phone for compatible 768-dimensional RVC v2 indexes; other dimensions/layouts are rejected |
 | `.mobile.index` | Supported if it matches the mobile feature-table format |
 | Voice model training | Not included; Dataset Lab only prepares and exports samples |
 | Vocal separation / song-cover pipeline | Included in this build; local Spleeter separation, ONNX conversion and mix-back. PCM WAV input; Galaxy A12 runtime QA still required |
 | Realtime RVC | Experimental; Android routing and performance may stutter |
 
-Changing a file extension does not convert a model or index. The model-conversion screen and Index Tools screen explain these limits rather than pretending a conversion happened.
+Changing a file extension does not convert a model or index. The model and index screens explain unsupported formats rather than pretending a conversion happened.
 
 ## Build and automated checks
 
@@ -47,7 +47,7 @@ GitHub Actions builds the ARM64 APK, compiles the offline Sherpa-ONNX separation
 3. Upstream Python static regression tests.
 4. APK zip alignment and signature verification.
 5. Checks that required offline HuBERT and RMVPE ONNX assets are packaged.
-6. SHA-256 generation for the APK.
+6. SHA-256 generation for the APK.\n7. Real-model PTH-to-audio acceptance test and Android ARM64 native PTH compilation.\n8. FAISS mobile-index exporter build and APK packaging checks.
 
 Workflow: [Build Red's Ultimate RVC](https://github.com/GiggleLootCoin/RedsUltimateRVC/actions/workflows/build-apk.yml)
 
@@ -86,4 +86,4 @@ The local Android inference implementation is based on [Ultimate RVC Mobile](htt
 - The native PTH route does not currently blend a retrieval index. `.pt` and `.zip` files remain storage-only.
 - Song Covers uses the local native PTH path when a supported `.pth` voice is selected, otherwise the ONNX route.
 - Dataset preparation stays on the phone. Optional genuine RVC v2 CPU training runs on GitHub Actions and requires the user to upload the exported dataset ZIP. Never upload private recordings without understanding that disclosure.
-- The current branch is an engineering build. Physical Galaxy A12 testing for speed, memory, heat, and audio quality remains required before a production release.
+- The current branch is an engineering build. The APK is large because it bundles offline inference models (the latest build measured about 654 MB before final changes). Physical Galaxy A12 testing for installation, speed, memory, heat, and audio quality remains required before a production release.
