@@ -212,7 +212,8 @@ def test_song_cover_uses_android_media_codec_to_prepare_common_audio_formats():
     assert "decodeAudioSegment(source, 0L, durationUs)" not in integration
     assert "writeDecodedAudioWav(File(outputPath), decoded)" not in integration
     assert "Android decodes it locally to PCM WAV" in screen
-    assert "type: FileType.audio" in screen
+    assert "pickAndImportAudioFiles" in screen
+    assert "FilePicker.platform.pickFiles" not in screen
 
 
 def test_sherpa_runtime_diagnostic_matches_the_pinned_onnx_runtime_version():
