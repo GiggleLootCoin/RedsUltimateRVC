@@ -136,7 +136,7 @@ class _IndexConverterScreenState extends State<IndexConverterScreen> {
             ),
             const SizedBox(height: 14),
             const Text(
-              'Compatibility note: this tool creates the .mobile.index copy used by ONNX inference and keeps the imported original .index in your local model library. Native PTH conversion uses that original FAISS index for retrieval blending. If you import only a .mobile.index from elsewhere, also import its original .index to enable native PTH retrieval.',
+              'Compatibility note: native PTH conversion reads the original matching FAISS .index for retrieval blending. The .mobile.index file is an optional compatibility copy for other runtimes; it is not required for PTH conversion. If you import only a .mobile.index from elsewhere, also import its original .index to enable native PTH retrieval.',
               style: TextStyle(color: Color(0xFFAAAAB6), height: 1.4, fontSize: 12),
             ),
           ],
