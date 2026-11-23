@@ -33,6 +33,7 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
   String? _accompanimentPath;
   String _status = 'Choose a song to begin.';
   double _progress = 0;
+  double _indexRate = 0.75;
   bool _busy = false;
 
   @override
@@ -120,6 +121,8 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
         convertedVocals = await _bridge.convertPth(
           inputWavPath: vocalsPath,
           pthModelPath: widget.modelPath,
+          indexPath: widget.indexPath,
+          indexRate: _indexRate,
         );
       } else {
         convertedVocals = await _bridge.infer(
@@ -230,13 +233,32 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
               ],
             ),
           ),
-          if (widget.modelPath.toLowerCase().endsWith('.pth') && widget.indexPath != null) ...[
+          if (widget.modelPath.toLowerCase().endsWith('.pth')) ...[
             const SizedBox(height: 10),
             _panel(
-              child: const Text(
-                'INDEX NOT APPLIED TO THIS PTH ROUTE: the current native PTH engine does not implement retrieval-index blending. Your PTH voice will convert without the selected .index. To use retrieval blending today, select a compatible ONNX voice with its converted mobile.index.',
-                style: TextStyle(color: Color(0xFFFFB45F), height: 1.4, fontWeight: FontWeight.w600),
-              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('NATIVE RVC CONVERTER', style: TextStyle(color: Color(0xFFFF405B), fontWeight: FontWeight.w900)),
+                const SizedBox(height: 7),
+                Text(
+                  widget.indexPath == null
+                      ? 'Direct on-device PTH conversion is active. No ONNX export is required. Add the matching standard FAISS .index in Voice Library to enable retrieval blending.'
+                      : 'Direct on-device PTH conversion with FAISS retrieval search and blending. The original .index is read locally; the voice model and song are not uploaded.',
+                  style: const TextStyle(color: Color(0xFFD0D0D8), height: 1.4),
+                ),
+                if (widget.indexPath != null) ...[
+                  const SizedBox(height: 12),
+                  Text('RETRIEVAL STRENGTH  ${(_indexRate * 100).round()}%', style: const TextStyle(color: Color(0xFFFFA3AE), fontWeight: FontWeight.w800)),
+                  Slider(
+                    value: _indexRate,
+                    min: 0,
+                    max: 1,
+                    divisions: 20,
+                    activeColor: const Color(0xFFFF3654),
+                    onChanged: _busy ? null : (value) => setState(() => _indexRate = value),
+                  ),
+                  const Text('Lower values preserve more of the original vocal features; higher values lean more strongly on the voice index.', style: TextStyle(color: Color(0xFFAAAAB5), fontSize: 11, height: 1.35)),
+                ],
+              ]),
             ),
           ],
           if (_vocalsPath != null && _accompanimentPath != null) ...[
