@@ -95,7 +95,7 @@ def test_index_tools_performs_local_faiss_conversion_for_supported_indexes():
     assert "pickAndImportFile(kind:" in source
     assert "768-dimensional RVC v2 FAISS indexes" in source
     assert "conversion runs locally" in source
-    assert "original FAISS index for retrieval blending" in source
+    assert "original matching FAISS .index for retrieval blending" in source
 
 
 def test_workflow_runs_tests_and_supports_private_persistent_signing():
