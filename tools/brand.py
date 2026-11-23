@@ -518,7 +518,9 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
         _indexLibrary.insert(0, imported.path);
       }
       await _saveIndexLibrary();
-      final installed = ext == 'mobile.index'\n          ? await _bridge.convertIndex(imported.path)\n          : (await _bridge.convertFaissIndex(imported.path)).path;
+      final installed = ext == 'mobile.index'
+          ? await _bridge.convertIndex(imported.path)
+          : (await _bridge.convertFaissIndex(imported.path)).path;
       if (!_indexLibrary.contains(installed)) _indexLibrary.insert(0, installed);
       await _saveIndexLibrary();
       _selectedIndexPath = installed;
@@ -565,7 +567,9 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
 
   Future<void> _useIndex(String path) async {
     try {
-      final installed = _ext(path) == 'mobile.index'\n          ? await _bridge.convertIndex(path)\n          : (await _bridge.convertFaissIndex(path)).path;
+      final installed = _ext(path) == 'mobile.index'
+          ? await _bridge.convertIndex(path)
+          : (await _bridge.convertFaissIndex(path)).path;
       if (!_indexLibrary.contains(installed)) _indexLibrary.insert(0, installed);
       await _saveIndexLibrary();
       _selectedIndexPath = installed;
@@ -1914,12 +1918,14 @@ old_index = """      final result = await FilePicker.platform.pickFiles(
 new_index = """      final imported = await _bridge.pickAndImportFile(kind: 'index');
       if (imported == null) return;
       final ext = _ext(imported.path);"""
-old_select = """      if (ext == 'mobile.index') {
-        await _bridge.convertIndex(imported.path);
-        _selectedIndexPath = imported.path;
-        _selectedIndexDisplayName = File(imported.path).uri.pathSegments.last;
-        widget.onIndexSelected(imported.path);
-      }
+old_select = """      final installed = ext == 'mobile.index'
+          ? await _bridge.convertIndex(imported.path)
+          : (await _bridge.convertFaissIndex(imported.path)).path;
+      if (!_indexLibrary.contains(installed)) _indexLibrary.insert(0, installed);
+      await _saveIndexLibrary();
+      _selectedIndexPath = installed;
+      _selectedIndexDisplayName = File(installed).uri.pathSegments.last;
+      widget.onIndexSelected(installed);
       if (mounted) setState(() {});"""
 new_select = old_select
 for old, new in [(old_model,new_model),(old_index,new_index),(old_select,new_select)]:
@@ -1927,7 +1933,7 @@ for old, new in [(old_model,new_model),(old_index,new_index),(old_select,new_sel
         raise RuntimeError("Model/index picker source changed; cannot apply SAF patch")
     pt = pt.replace(old,new,1)
 pt = pt.replace(
-    "Standard .index imported. Convert it locally for mobile use.",
+    "Standard FAISS .index converted on this phone and ready for compatible RVC v2 inference.",
     "Standard .index stored. Convert it locally with Index Tools before inference.",
     1
 )
