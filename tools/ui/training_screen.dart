@@ -41,6 +41,14 @@ class _TrainingScreenState extends State<TrainingScreen> {
     }
   }
 
+  Future<void> _openOfflineAndroidGuide() async {
+    final uri = Uri.parse('https://docs.aihub.gg/rvc/local/rvc-termux-android/');
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      setState(() => _status = 'Could not open the offline Android guide. Search for RVC Termux Android.');
+    }
+  }
+
   Future<void> _restorePreparedDataset() async {
     final prefs = await SharedPreferences.getInstance();
     final path = prefs.getString('red_rvc_last_dataset_path');
@@ -244,7 +252,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
           SizedBox(height: 8),
           Text('Import or record clean samples and organise them privately on this phone.'),
           SizedBox(height: 10),
-          Text('Your samples are prepared and stored on this phone. Genuine RVC v2 neural training is available through the linked GitHub-hosted CPU workflow: it trains the PyTorch generator and discriminator, then builds a retrieval index. Training runs remotely, can take hours, and requires uploading the exported ZIP through a direct HTTPS link. The link is supplied to GitHub Actions and the audio is processed on its runner. Do not use recordings you consider private or confidential with this hosted route.', style: TextStyle(height: 1.35)),
+          Text('Your samples are prepared and stored on this phone. The GitHub CPU option trains remotely and requires sending the dataset ZIP to a runner; do not use it for private recordings. Fully offline RVC training is possible only experimentally on higher-spec Android phones using Termux/Ubuntu. Published guidance lists 6 GB RAM as a minimum and 8 GB+ as recommended, warns that training can overheat or crash phones, and recommends inference rather than training on mobile. This Galaxy A12 is below that stated minimum, so this app does not claim it can train a full RVC model offline on this handset.', style: TextStyle(height: 1.35)),
         ]),
       )),
       const SizedBox(height: 12),
@@ -275,6 +283,12 @@ class _TrainingScreenState extends State<TrainingScreen> {
         onPressed: _busy || _recording ? null : _openTrainingWorkflow,
         icon: const Icon(Icons.model_training),
         label: const Text('OPEN GENUINE RVC TRAINING WORKFLOW'),
+      )),
+      const SizedBox(height: 8),
+      SizedBox(height: 46, child: OutlinedButton.icon(
+        onPressed: _busy || _recording ? null : _openOfflineAndroidGuide,
+        icon: const Icon(Icons.offline_bolt),
+        label: const Text('OFFLINE ANDROID TRAINING GUIDE (HIGH-SPEC PHONES)'),
       )),
       const Padding(
         padding: EdgeInsets.only(top: 7),
