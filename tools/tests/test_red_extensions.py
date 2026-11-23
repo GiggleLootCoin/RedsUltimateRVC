@@ -15,6 +15,10 @@ def test_integrated_model_picker_imports_source_models_without_android_extension
     assert "PT/ZIP files are storage-only; supported RVC v2 PTH checkpoints run natively." in source
     assert "onPressed: ready && _ext(selected!) == 'pth' ? widget.onContinue : null" in source
     assert "PTH VOICE — USE SONG COVERS" in source
+    assert "RVC conversion runs locally through the native RVC v2 .pth engine." in source
+    assert "Choose a supported RVC v2 .pth voice model." in source
+    assert "ONNX voice models are directly usable by the Android engine" not in source
+    assert "ONNX is ready for conversion" not in source
     assert "READY — Native PTH supports RVC v2, 768 dimensions / 100 fps only." in source
 
 
