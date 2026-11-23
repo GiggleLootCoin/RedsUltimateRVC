@@ -33,6 +33,10 @@ def test_model_picker_preserves_original_faiss_and_mobile_index_sibling_paths():
     assert "if (_indexLibrary.contains(imported.path))" not in brand
     assert "if (!_library.contains(imported.path))" in brand
     assert "if (!_indexLibrary.contains(imported.path))" in brand
+    assert "if (_library.contains(item.path))" not in brand
+    assert "if (_indexLibrary.contains(item.path))" not in brand
+    assert "if (['pth', 'pt'].contains(itemExt))" in brand
+    assert "if (itemExt == 'pth' && readyModelPath == null)" in brand
 
 
 def test_integrated_index_library_converts_standard_faiss_and_validates_mobile_indexes():
