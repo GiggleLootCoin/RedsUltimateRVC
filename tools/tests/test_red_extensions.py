@@ -73,7 +73,7 @@ def test_dashboard_discloses_song_cover_and_realtime_limits():
     assert "bundled offline vocal separation" in full_engine
     assert "Voice Dataset Lab records, imports and prepares samples privately" in full_engine
     source = BRAND.read_text(encoding="utf-8")
-    assert "Separate vocals, convert your voice, and mix the cover" in (ROOT / "tools/ui/red_home_screen.dart").read_text(encoding="utf-8")
+    assert "Separate vocals, convert with your PTH voice, then mix the full song" in (ROOT / "tools/ui/red_home_screen.dart").read_text(encoding="utf-8")
     assert "REALTIME RVC — EXPERIMENTAL" in source
     assert "Limited Android support; may stutter" in source
 
