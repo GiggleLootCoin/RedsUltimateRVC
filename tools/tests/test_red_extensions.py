@@ -13,7 +13,7 @@ def test_integrated_model_picker_imports_source_models_without_android_extension
     assert "_bridge.importPickedFile(kind: 'model', sourcePath: source)" in source
     assert "bool _runtime(String path) => ['onnx', 'pth'].contains(_ext(path));" in source
     assert "PT/ZIP files are storage-only; supported PTH and ONNX models can be used for conversion." in source
-    assert "onPressed: ready && widget.selectedSongPath != null && _ext(selected!) == 'onnx' ? widget.onContinue : null" in source
+    assert "onPressed: ready && _ext(selected!) == 'pth' || (ready && widget.selectedSongPath != null && _ext(selected!) == 'onnx') ? widget.onContinue : null" in source
     assert "PTH VOICE — USE SONG COVERS" in source
     assert "READY — Native PTH supports RVC v2, 768 dimensions / 100 fps only." in source
 
