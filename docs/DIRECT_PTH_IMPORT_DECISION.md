@@ -14,7 +14,7 @@ The song-cover path must decode a song, separate vocals and accompaniment, conve
 2. The native C checkpoint reader parses the PyTorch checkpoint and loads the RVC model tensors.
 3. The native PTH runtime validates the checkpoint profile before inference.
 4. ContentVec/HuBERT and RMVPE feature extraction use the app's bundled ONNX models through ONNX Runtime 1.28.0.
-5. The native C RVC inference engine consumes the extracted 768-dimensional content features and pitch features and produces converted PCM audio.
+5. If the user supplies a matching standard FAISS `.index`, the native FAISS engine searches nearest neighbours for each ContentVec frame, reconstructs the retrieved feature vectors and blends them with the content features using the selected index rate. The native C RVC inference engine then consumes the blended 768-dimensional content features and pitch features and produces converted PCM audio.
 6. The app mixes converted vocals with the separated accompaniment.
 
 This is direct PTH voice-model inference; it does not export the user's voice checkpoint to ONNX. ONNX Runtime remains a dependency for the bundled feature extractors and source-separation pipeline.
@@ -33,7 +33,7 @@ The following are not currently supported by the PTH inference route:
 - Non-standard frame rates such as 187 fps.
 - No-F0 checkpoints.
 - Arbitrary .pt snapshots, training checkpoints or ZIP archives.
-- Standard FAISS .index retrieval or .mobile.index retrieval on the direct PTH route. The app now includes an on-device converter for compatible 768-dimensional RVC v2 indexes used by the ONNX route.
+- `.mobile.index` files alone on the native PTH route; native PTH retrieval requires the original standard FAISS `.index` file retained alongside the converted mobile copy. The app can still use `.mobile.index` with compatible ONNX models.
 - Multi-speaker selection beyond the native engine's default speaker path.
 
 The model library may retain source files, but only a compatible .pth checkpoint can run through the native PTH route. The existing ONNX route remains available for compatible ONNX voice models.
@@ -58,7 +58,7 @@ The model library may retain source files, but only a compatible .pth checkpoint
 ## Still required before calling it complete
 
 1. Run a full-song cover acceptance test using a real user-selected compatible PTH checkpoint and real song audio; verify converted vocals, duration alignment, accompaniment preservation and playable export.
-2. Implement and test standard FAISS retrieval inside the direct PTH route before claiming index blending for PTH. The standalone on-device converter already prepares compatible 768-dimensional indexes for the ONNX route. Index retrieval is optional; PTH conversion must remain usable without an index.
+2. Run a full retrieval-enabled acceptance test with a matching PTH checkpoint and standard FAISS `.index`; verify non-silent output, stable retrieval behaviour and no regression when index rate is zero. The native search-and-blend callback is now integrated, but this acceptance test remains a release gate.
 3. Test on a physical Samsung Galaxy A12: peak memory, elapsed time, heat, cancellation, low-storage behaviour and a full-length song.
 
 Do not call direct PTH support complete until steps 1–4 pass. Do not call the Galaxy A12 supported until step 6 passes.
