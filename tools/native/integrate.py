@@ -120,6 +120,8 @@ engine.write_text(es, encoding='utf-8')
 
 plugin = PKG / 'RVCPlugin.kt'
 s = plugin.read_text(encoding='utf-8')
+if "import com.developermindset.faiss.FAISS" not in s:
+    s = s.replace("package com.ultimatervc.mobile\\n", "package com.ultimatervc.mobile\\n\\nimport com.developermindset.faiss.FAISS\\n", 1)
 dispatch = '            "convertIndex" -> convertIndex(call, result)'
 if '"convertFaissIndex" -> convertFaissIndex(call, result)' not in s:
     if dispatch not in s: raise RuntimeError('RVCPlugin convertIndex dispatch anchor missing for FAISS bridge')
@@ -188,13 +190,34 @@ methods = '''
     private fun convertPth(call: MethodCall, result: Result) {
         val inputPath = call.argument<String>("inputWavPath")
         val modelPath = call.argument<String>("pthModelPath")
+        val selectedIndexPath = call.argument<String>("indexPath")
         val pitchShift = (call.argument<Double>("pitchShift") ?: 0.0).toInt()
+        val indexRate = (call.argument<Double>("indexRate") ?: 0.75).toFloat().coerceIn(0f, 1f)
         if (inputPath.isNullOrBlank() || modelPath.isNullOrBlank()) {
             result.error("INVALID_ARGUMENTS", "A vocal WAV and PTH model path are required.", null)
             return
         }
         scope.launch {
+            var retrievalIndex: FAISS.Index? = null
             try {
+                if (!selectedIndexPath.isNullOrBlank()) {
+                    val selected = File(selectedIndexPath)
+                    require(selected.isFile) { "The selected retrieval index is missing." }
+                    val sourceIndex = if (selected.name.endsWith(".mobile.index", ignoreCase = true)) {
+                        File(selected.parentFile, selected.name.removeSuffix(".mobile.index") + ".index")
+                    } else selected
+                    require(sourceIndex.isFile && sourceIndex.length() > 16L) {
+                        "The mobile index is ready for ONNX conversion, but its original FAISS .index file is not beside it. Re-import the original .index to enable native PTH retrieval blending."
+                    }
+                    val opened = withContext(Dispatchers.IO) { FAISS.readIndex(sourceIndex.absolutePath) }
+                    require(opened.dimension() == 768 && opened.isTrained() && opened.ntotal() > 0L) {
+                        opened.close()
+                        "The selected FAISS index must be trained, non-empty and 768-dimensional for RVC v2."
+                    }
+                    withContext(Dispatchers.IO) { opened.prepareForRvc() }
+                    retrievalIndex = opened
+                }
+
                 val modelDir = File(appContext.filesDir, "rvc_pth_models").apply { mkdirs() }
                 fun copyBundledModel(name: String): File {
                     val target = File(modelDir, name)
@@ -214,10 +237,11 @@ methods = '''
                 val rmvpe = copyBundledModel("rmvpe.onnx")
                 val outputDir = File(appContext.filesDir, "outputs").apply { mkdirs() }
                 val output = File(outputDir, "pth_cover_${System.currentTimeMillis()}.wav")
+                val activeIndex = retrievalIndex
                 val error = withContext(Dispatchers.IO) {
                     RvcPthNative().convertPth(
                         inputPath, modelPath, hubert.absolutePath, rmvpe.absolutePath,
-                        output.absolutePath, pitchShift
+                        output.absolutePath, pitchShift, activeIndex, indexRate
                     )
                 }
                 require(error.isNullOrEmpty()) { error ?: "Native PTH conversion failed." }
@@ -225,31 +249,19 @@ methods = '''
                 withContext(Dispatchers.Main) { result.success(output.absolutePath) }
             } catch (e: UnsatisfiedLinkError) {
                 withContext(Dispatchers.Main) {
-                    result.error("PTH_LIBRARY_MISSING", "The native PTH inference library is not packaged in this APK.", null)
+                    result.error("PTH_LIBRARY_MISSING", "The native PTH inference library or FAISS retrieval runtime is not packaged in this APK.", null)
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     result.error("PTH_CONVERSION_FAILED", e.message ?: "Native PTH conversion failed.", null)
                 }
+            } finally {
+                withContext(Dispatchers.IO) { retrievalIndex?.close() }
             }
         }
     }
 
-'''
-anchor = '    private fun convertIndex(call: MethodCall, result: Result) {'
-if 'private fun separateSongVocals(call: MethodCall, result: Result)' not in s:
-    if anchor not in s: raise RuntimeError('RVCPlugin convertIndex anchor missing')
-    s = s.replace(anchor, methods + anchor, 1)
 
-# Validate the ONNX graph before presenting a model as runnable. Extension-only
-# checks allowed incompatible ONNX exports to appear ready until inference failed.
-if 'import ai.onnxruntime.OrtEnvironment' not in s:
-    s = s.replace('package com.ultimatervc.mobile\n', 'package com.ultimatervc.mobile\n\nimport ai.onnxruntime.OrtEnvironment\nimport ai.onnxruntime.OrtSession\n', 1)
-dispatch_anchor = '            "infer" -> infer(call, result)'
-if '"validateVoiceModel" -> validateVoiceModel(call, result)' not in s:
-    if dispatch_anchor not in s: raise RuntimeError('RVCPlugin inference dispatch anchor missing')
-    s = s.replace(dispatch_anchor, '            "validateVoiceModel" -> validateVoiceModel(call, result)\n' + dispatch_anchor, 1)
-validation = '''
     private fun validateVoiceModel(call: MethodCall, result: Result) {
         val path = call.argument<String>("modelPath")
         if (path.isNullOrBlank()) {
