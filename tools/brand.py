@@ -468,9 +468,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
       }
 
       final imported = await _bridge.importPickedFile(kind: 'model', sourcePath: source);
-      if (_library.contains(imported.path)) {
-        await _bridge.releaseImportedFile(imported.path);
-      } else {
+      if (!_library.contains(imported.path)) {
         _library.insert(0, imported.path);
       }
       if (_runtime(imported.path)) {
@@ -511,9 +509,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
       if (!_index(source)) throw Exception('Select an RVC .index or .mobile.index file');
 
       final imported = await _bridge.importPickedFile(kind: 'index', sourcePath: source);
-      if (_indexLibrary.contains(imported.path)) {
-        await _bridge.releaseImportedFile(imported.path);
-      } else {
+      if (!_indexLibrary.contains(imported.path)) {
         _indexLibrary.insert(0, imported.path);
       }
       await _saveIndexLibrary();
