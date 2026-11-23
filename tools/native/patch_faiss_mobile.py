@@ -100,7 +100,7 @@ JNI_METHOD(jlong, nativeExportMobileIndex)(JNIEnv *env, jclass cls, jlong indexP
         return 0;
     }
 
-    const unsigned char magic[8] = {'U','R','V','C','I','D','X','1'};
+    const unsigned char magic[8] = "URVCIDX1";
     const uint32_t count = (uint32_t)total;
     const unsigned char count_bytes[4] = {
         (unsigned char)(count & 0xff),
