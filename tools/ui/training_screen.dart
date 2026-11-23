@@ -250,7 +250,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
           SizedBox(height: 8),
           Text('Import or record clean samples and organise them privately on this phone.'),
           SizedBox(height: 10),
-          Text('Build and organise your voice dataset entirely inside the app. Imported recordings are copied into private app storage. Full RVC model training is a separate, compute-heavy neural-network job; this handset cannot reliably complete that workload locally. We will not send your voice recordings to a server or pretend that dataset preparation is model training. Existing compatible ONNX and supported RVC v2 PTH voices can still be used for local conversion.', style: TextStyle(height: 1.4)),
+          Text('Your samples are prepared and stored on this phone. Build and organise the voice dataset entirely inside the app; imported recordings are copied into private app storage. Full RVC model training is a separate, compute-heavy neural-network job; this handset cannot reliably complete that workload locally. We will not send your voice recordings to a server or pretend that dataset preparation is model training. Existing compatible ONNX and supported RVC v2 PTH voices can still be used for local conversion.', style: TextStyle(height: 1.4)),
         ]),
       )),
       const SizedBox(height: 12),
