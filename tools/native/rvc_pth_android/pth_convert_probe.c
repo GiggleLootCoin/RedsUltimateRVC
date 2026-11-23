@@ -13,9 +13,9 @@ static int write_test_wav(const char *path) {
     FILE *file = fopen(path, "wb");
     if (!file) return -1;
 
-    const uint32_t data_bytes = (uint32_t)samples * 2u;
+    const uint32_t data_bytes = (uint32_t)samples * 2u * 2u;
     const uint32_t riff_bytes = 36u + data_bytes;
-    const uint16_t format = 1, channels = 1, bits = 16, block_align = 2;
+    const uint16_t format = 1, channels = 2, bits = 16, block_align = 4;
     const uint32_t byte_rate = sample_rate * block_align;
     fwrite("RIFF", 1, 4, file);
     fwrite(&riff_bytes, 4, 1, file);
@@ -34,9 +34,12 @@ static int write_test_wav(const char *path) {
     for (int i = 0; i < samples; ++i) {
         const double t = (double)i / sample_rate;
         const double envelope = 0.35 + 0.25 * sin(2.0 * M_PI * 2.0 * t);
-        const double tone = sin(2.0 * M_PI * 220.0 * t) * envelope;
-        const int16_t pcm = (int16_t)lrint(tone * 16000.0);
-        if (fwrite(&pcm, sizeof(pcm), 1, file) != 1) {
+        const double left_tone = sin(2.0 * M_PI * 220.0 * t) * envelope;
+        const double right_tone = sin(2.0 * M_PI * 330.0 * t) * envelope;
+        const int16_t left_pcm = (int16_t)lrint(left_tone * 16000.0);
+        const int16_t right_pcm = (int16_t)lrint(right_tone * 16000.0);
+        if (fwrite(&left_pcm, sizeof(left_pcm), 1, file) != 1 ||
+            fwrite(&right_pcm, sizeof(right_pcm), 1, file) != 1) {
             fclose(file);
             return -1;
         }
