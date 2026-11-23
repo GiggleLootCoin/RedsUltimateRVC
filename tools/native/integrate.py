@@ -346,6 +346,15 @@ faiss_method = '''
     }
 
 '''
+# The dispatch entries above must have matching implementations inside RVCPlugin.
+# Install the complete native conversion and source-separation handlers before
+# the existing ONNX index converter, exactly once.
+if 'private fun separateSongVocals(call: MethodCall, result: Result)' not in s:
+    anchor = '    private fun convertIndex(call: MethodCall, result: Result) {'
+    if anchor not in s:
+        raise RuntimeError('RVCPlugin conversion-method insertion anchor missing')
+    s = s.replace(anchor, methods + anchor, 1)
+
 if 'private fun convertFaissIndex(call: MethodCall, result: Result)' not in s:
     anchor = '    private fun convertIndex(call: MethodCall, result: Result) {'
     if anchor not in s: raise RuntimeError('RVCPlugin convertIndex method anchor missing')
