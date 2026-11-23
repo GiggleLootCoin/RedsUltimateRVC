@@ -63,7 +63,7 @@ class FullRvcScreen extends StatelessWidget {
               Icon(Icons.verified_user_outlined, color: Color(0xFF72DFA0), size: 18),
               SizedBox(width: 10),
               Expanded(child: Text(
-                'On-device tools: standard conversion uses compatible ONNX models; supported RVC v2 PTH voices use the native converter in Song Covers. PTH support is limited to compatible 768-dimensional, 100-fps checkpoints, with optional FAISS retrieval blending when the matching original .index is supplied. Song Covers is available from the main dashboard and separates vocals, converts them and mixes them back locally. The Voice Dataset Lab records, imports and prepares samples privately. Full neural model training is not claimed on low-memory phones; no voice data is silently uploaded. PT/ZIP files are storage-only.',
+                'On-device tools: standard conversion uses compatible ONNX models; supported RVC v2 PTH voices use the native converter in Song Covers. PTH support is limited to compatible 768-dimensional, 100-fps checkpoints, with optional FAISS retrieval blending when the matching original .index is supplied. Song Covers is available from the main dashboard and uses bundled offline vocal separation, local voice conversion and local mix-back. The Voice Dataset Lab records, imports and prepares samples privately. Full neural model training is not claimed on low-memory phones; no voice data is silently uploaded. PT/ZIP files are storage-only.',
                 style: TextStyle(color: Color(0xFFB9BDC7), fontSize: 11.2, height: 1.45),
               )),
             ]),
