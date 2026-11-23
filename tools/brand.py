@@ -2320,14 +2320,14 @@ old_valid = """        val valid = if (kind == "model") {
 new_valid = """        val valid = when (kind) {
             "model" -> listOf(".onnx", ".pth", ".pt", ".zip").any { lowerName.endsWith(it) }
             "index" -> lowerName.endsWith(".mobile.index") || lowerName.endsWith(".index")
-            "audio" -> listOf(".wav", ".flac", ".mp3", ".m4a", ".ogg", ".aac", ".aiff").any { lowerName.endsWith(it) }
+            "audio" -> listOf(".wav", ".flac", ".mp3", ".m4a", ".ogg", ".aac", ".aiff", ".wma", ".opus").any { lowerName.endsWith(it) }
             else -> false
         }
         require(valid) {
             when (kind) {
                 "model" -> "Choose an RVC model file: .onnx, .pth, .pt or .zip."
                 "index" -> "Choose an RVC index file: .index or .mobile.index."
-                else -> "Choose an audio file: WAV, FLAC, MP3, M4A, OGG, AAC or AIFF."
+                else -> "Choose an audio file: WAV, FLAC, MP3, M4A, OGG, AAC, AIFF, WMA or OPUS."
             }
         }"""
 if old_valid not in kt: raise RuntimeError("Audio extension validation block missing")
