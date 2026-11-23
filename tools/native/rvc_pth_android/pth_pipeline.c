@@ -71,17 +71,28 @@ static int read_wav(const char *path, red_wav *wav) {
     wav->n = frames;
     wav->sr = (int)sample_rate;
     for (int64_t i = 0; i < frames; ++i) {
-        if (bits == 16) {
-            int16_t sample;
-            memcpy(&sample, raw + (size_t)i * frame_bytes, sizeof(sample));
-            wav->data[i] = (float)sample / 32768.0f;
-        } else if (format == 3) {
-            float sample;
-            memcpy(&sample, raw + (size_t)i * frame_bytes, sizeof(sample));
-            wav->data[i] = isfinite(sample) ? fmaxf(-1.0f, fminf(1.0f, sample)) : 0.0f;
-        } else {
-            free(raw); free(wav->data); memset(wav, 0, sizeof(*wav)); return -1;
+        double mixed = 0.0;
+        for (uint16_t channel = 0; channel < channels; ++channel) {
+            const uint8_t *sample_bytes = raw + (size_t)i * frame_bytes +
+                                          (size_t)channel * bytes_per_sample;
+            if (format == 1 && bits == 16) {
+                int16_t sample;
+                memcpy(&sample, sample_bytes, sizeof(sample));
+                mixed += (double)sample / 32768.0;
+            } else if (format == 1 && bits == 32) {
+                int32_t sample;
+                memcpy(&sample, sample_bytes, sizeof(sample));
+                mixed += (double)sample / 2147483648.0;
+            } else if (format == 3 && bits == 32) {
+                float sample;
+                memcpy(&sample, sample_bytes, sizeof(sample));
+                mixed += isfinite(sample) ? fmax(-1.0, fmin(1.0, (double)sample)) : 0.0;
+            } else {
+                free(raw); free(wav->data); memset(wav, 0, sizeof(*wav)); return -1;
+            }
         }
+        /* RVC feature extraction expects mono; downmix all input channels rather than silently dropping the right channel. */
+        wav->data[i] = (float)(mixed / (double)channels);
     }
     free(raw);
     return 0;
