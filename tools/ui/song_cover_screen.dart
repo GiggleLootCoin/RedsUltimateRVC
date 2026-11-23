@@ -142,20 +142,40 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF08080C),
       appBar: AppBar(
-        title: const Text("RED'S SONG COVERS"),
-        backgroundColor: const Color(0xFF09090D),
+        title: const Text("RED'S SONG COVERS", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900, letterSpacing: 1.15)),
+        backgroundColor: const Color(0xFF0B090D),
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
       ),
       body: ListView(
         padding: const EdgeInsets.all(18),
         children: [
-          const Text(
-            'MAKE A LOCAL RVC SONG COVER',
-            style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 9),
-          const Text(
-            'Choose an audio file. Android decodes it locally to PCM WAV, then the app separates vocals and accompaniment, converts the vocals with your selected ONNX voice, and mixes them back with the original music. Processing stays on this phone.',
-            style: TextStyle(color: Color(0xFFBEBEC7), height: 1.45),
+          Container(
+            padding: const EdgeInsets.fromLTRB(18, 19, 18, 18),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF3A101C), Color(0xFF1B1119), Color(0xFF101219)],
+              ),
+              border: Border.all(color: const Color(0x77FF3654)),
+              boxShadow: const [BoxShadow(color: Color(0x22000000), blurRadius: 22, offset: Offset(0, 10))],
+            ),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Icon(Icons.graphic_eq_rounded, color: Color(0xFFFF7185), size: 17),
+                  SizedBox(width: 7),
+                  Text('LOCAL AUDIO PRODUCTION', style: TextStyle(color: Color(0xFFFFA0AD), fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                ]),
+                SizedBox(height: 11),
+                Text('Make the song\nyour own.', style: TextStyle(fontSize: 25, height: 1.08, fontWeight: FontWeight.w900, letterSpacing: -.65)),
+                SizedBox(height: 8),
+                Text('Build a cover with your selected voice. Vocal separation, conversion and mix-back run on this phone.', style: TextStyle(color: Color(0xFFD0C7CE), fontSize: 12, height: 1.45)),
+              ],
+            ),
           ),
           const SizedBox(height: 18),
           _panel(
@@ -195,11 +215,13 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: _busy || _inputPath == null ? null : _createCover,
+              onPressed: _busy ? null : (_inputPath == null ? _pickSong : _createCover),
               icon: _busy
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.auto_awesome),
-              label: Text(_busy ? 'PROCESSING LOCALLY…' : 'CREATE SONG COVER'),
+                  : Icon(_inputPath == null ? Icons.audio_file_rounded : Icons.auto_awesome),
+              label: Text(_busy
+                  ? 'PROCESSING LOCALLY…'
+                  : _inputPath == null ? 'CHOOSE A SONG FIRST' : 'CREATE SONG COVER'),
             ),
           ),
           if (_outputPath != null) ...[
@@ -217,7 +239,7 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
           ],
           const SizedBox(height: 16),
           const Text(
-            'Note: the first release uses the bundled Spleeter 2-stem model and 16-bit PCM WAV decoding. The Galaxy A12 still needs physical-device testing for memory use, speed and heat before this feature can be certified on that handset.',
+            'Note: Android decodes it locally to PCM WAV before the bundled Spleeter 2-stem model separates vocals and accompaniment. The first release uses 16-bit PCM WAV processing. The Galaxy A12 still needs physical-device testing for memory use, speed and heat before this feature can be certified on that handset.',
             style: TextStyle(color: Color(0xFF92929D), fontSize: 12, height: 1.4),
           ),
         ],
@@ -228,9 +250,14 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
   Widget _panel({required Widget child}) => Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFF131319),
-          borderRadius: BorderRadius.circular(17),
-          border: Border.all(color: const Color(0xFF30232A)),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF19151B), Color(0xFF111319)],
+          ),
+          borderRadius: BorderRadius.circular(19),
+          border: Border.all(color: const Color(0xFF3A2931)),
+          boxShadow: const [BoxShadow(color: Color(0x18000000), blurRadius: 16, offset: Offset(0, 7))],
         ),
         child: child,
       );
