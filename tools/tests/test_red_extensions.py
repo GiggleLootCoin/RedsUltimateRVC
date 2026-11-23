@@ -133,7 +133,7 @@ def test_upstream_song_picker_is_translated_to_english_before_build():
 
 def test_dataset_lab_is_phone_local_and_does_not_advertise_cloud_training():
     training = (ROOT / "tools/ui/training_screen.dart").read_text(encoding="utf-8")
-    assert "VOICE DATASET + NEURAL TRAINING" in training
+    assert "VOICE DATASET LAB" in training
     assert "Your samples are prepared and stored on this phone" in training
     assert "This app does not offer remote training that requires uploading the exported ZIP" in training
     assert "pickAndImportAudioFiles()" in training
