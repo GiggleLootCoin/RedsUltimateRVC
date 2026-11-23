@@ -211,7 +211,7 @@ methods = '''
                     val selected = File(selectedIndexPath)
                     require(selected.isFile) { "The selected retrieval index is missing." }
                     val sourceIndex = if (selected.name.endsWith(".mobile.index", ignoreCase = true)) {
-                        File(selected.parentFile, selected.name.removeSuffix(".mobile.index") + ".index")
+                        File(selected.parentFile, selected.name.substring(0, selected.name.length - ".mobile.index".length) + ".index")
                     } else selected
                     require(sourceIndex.isFile && sourceIndex.length() > 16L) {
                         "The mobile index is ready for ONNX conversion, but its original FAISS .index file is not beside it. Re-import the original .index to enable native PTH retrieval blending."
