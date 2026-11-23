@@ -571,6 +571,26 @@ new_conversion = '''  void _openAudioConversion() {
 if old_conversion not in ms:
     raise RuntimeError('Could not locate legacy conversion entry point; refusing to leave ONNX-only navigation active.')
 ms = ms.replace(old_conversion, new_conversion, 1)
+# Every model-library continuation must lead to the native PTH workflow,
+# never the legacy ONNX-only GenerateScreen.
+ms = ms.replace("onContinue: _continueToGenerate,", "onContinue: _continueToPthConversion,")
+helper = '''
+  void _continueToPthConversion() {
+    final selectedModel = _selectedModelPath;
+    if (selectedModel == null || !selectedModel.toLowerCase().endsWith('.pth')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select a supported RVC v2 .pth voice model to continue.')),
+      );
+      return;
+    }
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => SongCoverScreen(
+      modelPath: selectedModel,
+      indexPath: _selectedIndexPath,
+    )));
+  }
+'''
+if 'void _continueToPthConversion()' not in ms:
+    ms = ms.replace(new_conversion, new_conversion + "\\n" + helper, 1)
 main.write_text(ms, encoding='utf-8')
 
 
