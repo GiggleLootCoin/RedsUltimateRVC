@@ -33,7 +33,7 @@ def test_native_faiss_converter_is_wired_through_android_and_flutter():
     assert "FaissIndexConverter.kt" in integration
     assert "convertFaissIndex(call, result)" in integration
     assert "FaissIndexConverter.convert(appContext, File(sourcePath))" in integration
-    assert "Future<String> convertFaissIndex(String sourcePath)" in integration
+    assert "Future<ImportedFileHandle> convertFaissIndex(String sourcePath)" in integration
     assert "implementation files('libs/faiss-android.aar')" in integration
     assert "FAISS.readIndex(source.absolutePath)" in converter
     assert "exportMobileIndex" in converter
