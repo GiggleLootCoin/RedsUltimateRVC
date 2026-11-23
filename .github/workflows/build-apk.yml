@@ -15,8 +15,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Build and package the native GGUF runtime for an installable engineering APK.
-  # Raw .pth export and physical-device qualification remain separate milestones.
+  # Build and package the native RVC runtimes for an installable engineering APK.
+  # Full model training uses its separate CPU workflow; physical-device qualification remains outstanding.
   quality-guard:
     if: github.ref == 'refs/heads/red-rvc-native-pth-maven-fix' || (github.event_name == 'pull_request' && github.head_ref == 'red-rvc-native-pth-maven-fix')
     runs-on: ubuntu-latest
