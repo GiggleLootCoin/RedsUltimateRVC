@@ -312,7 +312,7 @@ faiss_method = '''
         scope.launch {
             try {
                 val imported = FaissIndexConverter.convert(appContext, File(sourcePath))
-                withContext(Dispatchers.Main) { result.success(imported.path) }
+                withContext(Dispatchers.Main) { result.success(mapOf("path" to imported.path, "referenceCount" to imported.referenceCount, "lastUpdatedAtMs" to imported.lastUpdatedAtMs)) }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     result.error("FAISS_CONVERSION_FAILED", e.message ?: "On-device FAISS conversion failed.", null)
@@ -333,10 +333,10 @@ bridge = BUILD / 'lib/services/rvc_bridge.dart'
 bs = bridge.read_text(encoding='utf-8')
 if 'Future<String> convertFaissIndex(String sourcePath)' not in bs:
     anchor = '  Future<String> convertIndex(String sourcePath) async {'
-    method = '''  Future<String> convertFaissIndex(String sourcePath) async {
+    method = '''  Future<ImportedFileHandle> convertFaissIndex(String sourcePath) async {
     try {
       final result = await _channel.invokeMethod('convertFaissIndex', {'sourcePath': sourcePath});
-      return result as String;
+      return ImportedFileHandle.fromMap(Map<String, dynamic>.from(result as Map));
     } on PlatformException catch (e) {
       throw Exception('FAISS conversion failed: ${e.message}');
     }
