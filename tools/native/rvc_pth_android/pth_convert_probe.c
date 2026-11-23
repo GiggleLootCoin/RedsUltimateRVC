@@ -63,7 +63,7 @@ int main(int argc, char **argv) {
 
     char error[512] = {0};
     const int result = red_rvc_pth_convert(
-        input, argv[1], argv[2], argv[3], output, 0, error, sizeof(error));
+        input, argv[1], argv[2], argv[3], output, 0, 0.0f, NULL, NULL, error, sizeof(error));
     if (result != 0) {
         fprintf(stderr, "End-to-end native PTH conversion failed: %s\n", error);
         return 1;
