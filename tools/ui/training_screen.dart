@@ -284,7 +284,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
       )),
       const Padding(
         padding: EdgeInsets.only(top: 7),
-        child: Text('No browser hand-off, external runner, or automatic upload is used. Dataset preparation, recording, import, review and storage stay in this app. Full neural training is not falsely marked as complete when the phone cannot safely run it.', style: TextStyle(color: Color(0xFFB8B8C2), fontSize: 11.5, height: 1.4)),
+        child: Text('No browser hand-off, external runner, or automatic upload is used. This app does not offer remote training that requires uploading the exported ZIP. Dataset preparation, recording, import, review and storage stay in this app. Full neural training is not falsely marked as complete when the phone cannot safely run it.', style: TextStyle(color: Color(0xFFB8B8C2), fontSize: 11.5, height: 1.4)),
       ),
       if (_datasetPath != null) ...[
         Padding(
