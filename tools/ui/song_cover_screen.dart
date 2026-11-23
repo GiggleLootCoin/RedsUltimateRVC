@@ -8,7 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/rvc_bridge.dart';
 
 /// Fully local song-cover workflow: separate the original, convert the vocal
-/// stem with the selected RVC ONNX model, then mix it with the backing stem.
+/// stem with a compatible ONNX or native RVC v2 PTH model, then mix it back.
 class SongCoverScreen extends StatefulWidget {
   final String modelPath;
   final String? indexPath;
