@@ -590,7 +590,7 @@ helper = '''
   }
 '''
 if 'void _continueToPthConversion()' not in ms:
-    ms = ms.replace(new_conversion, new_conversion + "\\n" + helper, 1)
+    ms = ms.replace(new_conversion, new_conversion + chr(10) + helper, 1)
 main.write_text(ms, encoding='utf-8')
 
 
