@@ -547,6 +547,18 @@ new_conversion = '''  void _openAudioConversion() {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Choose your compatible .pth voice model in Voice Library first.')),
       );
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(
+        onModelSelected: _onModelSelected,
+        onModelCleared: _onModelCleared,
+        onIndexSelected: _onIndexSelected,
+        onContinue: _continueToGenerate,
+        selectedModelPath: _selectedModelPath,
+        selectedModelDisplayName: _selectedModelDisplayName,
+        selectedIndexPath: _selectedIndexPath,
+        selectedIndexDisplayName: _selectedIndexDisplayName,
+        selectedSongPath: _selectedSongPath,
+        selectedSongDisplayName: _selectedSongDisplayName,
+      )));
       _scaffoldKey.currentState?.closeDrawer();
       return;
     }
