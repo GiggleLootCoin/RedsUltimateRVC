@@ -2588,6 +2588,7 @@ checks = {
     "Dashboard first": "final moduleScreens = [" in final_main and "RedHomeScreen(" in final_main.split("final moduleScreens = [",1)[1].split("GestureDetector(",1)[0],
     "Native Android SAF picker": "pickAndImportFile" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8") and "ACTION_OPEN_DOCUMENT" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8"),
     "Song cover imports audio through native SAF": "pickAndImportAudioFiles" in final_song_cover and "FilePicker.platform.pickFiles" not in final_song_cover,
+    "Song cover caches separated stems": "_getOrCreateStems" in final_song_cover and "rvc_song_stems_" in final_song_cover,
     "Native audio SAF importer is present": "pickAndImportAudioFiles" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8") and "ImportedFileKind.AUDIO" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8"),
     "PTH index limitation is clearly disclosed": "INDEX NOT APPLIED TO THIS PTH ROUTE" in final_song_cover,
     "Adaptive RVC launcher icon generated": (root / "android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml").exists() and (root / "android/app/src/main/res/mipmap-mdpi/ic_launcher.png").exists(),
