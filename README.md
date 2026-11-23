@@ -10,12 +10,12 @@ The current premium mobile studio redesign uses a restrained black-and-crimson p
 
 - On-device RVC inference with compatible ONNX voice models and supported native RVC v2 PTH checkpoints (768 dimensions / 100 fps).
 - Audio conversion controls, progress, resumable chunk processing and generated-audio playback/export.
-- Android's unfiltered file picker for supported model and audio imports.
+- Android Storage Access Framework imports for model, index and audio files; extensions are checked after selection so Samsung My Files does not pre-grey `.pth` / `.index` files.
 - Model library storage for ONNX models and source files.
 - On-phone conversion of compatible 768-dimensional RVC v2 FAISS `.index` files to `.mobile.index`, plus mobile-index validation.
-- Offline Spleeter vocal/accompaniment separation, RVC ONNX vocal conversion and local mix-back for PCM WAV song-cover processing.
+- Offline Spleeter vocal/accompaniment separation, RVC ONNX or supported native PTH vocal conversion and local mix-back for PCM WAV song-cover processing; intermediate vocal/backing previews are available.
 - Voice Changer and experimental realtime modules.
-- Voice Dataset Lab for recording, importing, organising and exporting samples.
+- Voice Dataset Lab for recording, importing, organising and exporting samples, with a visible genuine CPU-training workflow entry point.
 - English interface, Red's original logo artwork and creator-channel link.
 - No mandatory cloud inference, subscription or paid service.
 
@@ -33,7 +33,7 @@ These are deliberate capability disclosures, not hidden menu items:
 | PTH-to-ONNX conversion on phone | Not included; supported PTH checkpoints run through the native PTH engine directly |
 | Standard FAISS `.index` conversion | Included on phone for compatible 768-dimensional RVC v2 indexes; other dimensions/layouts are rejected |
 | `.mobile.index` | Supported if it matches the mobile feature-table format |
-| Voice model training | Not included; Dataset Lab only prepares and exports samples |
+| Voice model training | Dataset Lab prepares and exports samples; a separate genuine RVC v2 CPU training workflow on GitHub Actions trains the model and index (not on the phone) |
 | Vocal separation / song-cover pipeline | Included in this build; local Spleeter separation, ONNX conversion and mix-back. PCM WAV input; Galaxy A12 runtime QA still required |
 | Realtime RVC | Experimental; Android routing and performance may stutter |
 
