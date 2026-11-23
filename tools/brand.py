@@ -900,6 +900,7 @@ dashboard = '''    final moduleScreens = [
           Navigator.of(context).push(MaterialPageRoute(builder: (_) => SongCoverScreen(
             modelPath: modelPath,
             indexPath: _selectedIndexPath,
+            initialSongPath: _selectedSongPath,
           )));
         },
         onRealtime: _openRealtimeInference,
