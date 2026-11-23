@@ -1987,8 +1987,8 @@ old_model = """      final result = await FilePicker.platform.pickFiles(
       final source = result?.files.single.path;
       if (source == null || source.isEmpty) return;
       final ext = _ext(source);
-      if (!['onnx', 'pth', 'pt', 'zip'].contains(ext)) {
-        throw Exception('Select an RVC model: .onnx, .pth, .pt or .zip');
+      if (!['pth', 'pt', 'zip'].contains(ext)) {
+        throw Exception('Select an RVC model: .pth, .pt or .zip. Only supported .pth files run natively.');
       }
 
       final imported = await _bridge.importPickedFile(kind: 'model', sourcePath: source);"""
