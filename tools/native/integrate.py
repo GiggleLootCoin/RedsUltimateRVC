@@ -565,6 +565,7 @@ new_conversion = '''  void _openAudioConversion() {
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => SongCoverScreen(
       modelPath: selectedModel,
       indexPath: _selectedIndexPath,
+      initialSongPath: _selectedSongPath,
     )));
     _scaffoldKey.currentState?.closeDrawer();
   }'''
@@ -624,6 +625,7 @@ helper = '''
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => SongCoverScreen(
       modelPath: selectedModel,
       indexPath: _selectedIndexPath,
+      initialSongPath: _selectedSongPath,
     )));
   }
 '''
