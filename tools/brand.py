@@ -1994,7 +1994,11 @@ old_model = """      final result = await FilePicker.platform.pickFiles(
       final imported = await _bridge.importPickedFile(kind: 'model', sourcePath: source);"""
 new_model = """      final imported = await _bridge.pickAndImportFile(kind: 'model');
       if (imported == null) return;
-      final ext = _ext(imported.path);"""
+      final ext = _ext(imported.path);
+      if (!['pth', 'pt', 'zip'].contains(ext)) {
+        await _bridge.releaseImportedFile(imported.path);
+        throw Exception('Select an RVC model: .pth, .pt or .zip. Only supported .pth files run natively.');
+      }"""
 old_index = """      final result = await FilePicker.platform.pickFiles(
         type: FileType.any,
         allowMultiple: false,
@@ -2008,7 +2012,11 @@ old_index = """      final result = await FilePicker.platform.pickFiles(
       final imported = await _bridge.importPickedFile(kind: 'index', sourcePath: source);"""
 new_index = """      final imported = await _bridge.pickAndImportFile(kind: 'index');
       if (imported == null) return;
-      final ext = _ext(imported.path);"""
+      final ext = _ext(imported.path);
+      if (!_index(imported.path)) {
+        await _bridge.releaseImportedFile(imported.path);
+        throw Exception('Select an RVC .index or .mobile.index file');
+      }"""
 old_select = """      final installed = ext == 'mobile.index'
           ? await _bridge.convertIndex(imported.path)
           : (await _bridge.convertFaissIndex(imported.path)).path;
