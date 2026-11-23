@@ -102,3 +102,16 @@ def test_faiss_android_build_keeps_lapack_enabled_for_native_linking():
     assert "-DC_LAPACK=ON" in workflow
     assert "source = source.replace(\"-DBUILD_WITHOUT_LAPACK=OFF\", \"-DBUILD_WITHOUT_LAPACK=ON\"" not in workflow
     assert "source = source.replace(\"-DC_LAPACK=ON\", \"-DC_LAPACK=OFF\"" not in workflow
+
+
+def test_native_pth_pipeline_supports_optional_faiss_retrieval_callback():
+    header = (ROOT / "tools/native/rvc_pth_android/pth_pipeline.h").read_text(encoding="utf-8")
+    pipeline = (ROOT / "tools/native/rvc_pth_android/pth_pipeline.c").read_text(encoding="utf-8")
+    jni = (ROOT / "tools/native/rvc_pth_android/pth_jni.cpp").read_text(encoding="utf-8")
+    probe = (ROOT / "tools/native/rvc_pth_android/pth_convert_probe.c").read_text(encoding="utf-8")
+    assert "red_rvc_index_blend_fn" in header
+    assert "float index_rate" in header
+    assert "blend_index(index_context, phone, segment_frames, index_rate)" in pipeline
+    assert "searchAndBlend" in jni
+    assert "blend_with_faiss" in jni
+    assert "0.0f, NULL, NULL, error" in probe
