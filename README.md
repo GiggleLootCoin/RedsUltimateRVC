@@ -12,7 +12,7 @@ The current premium mobile studio redesign uses a restrained black-and-crimson p
 - Audio conversion controls, progress, resumable chunk processing and generated-audio playback/export.
 - Android Storage Access Framework imports for model, index and audio files; extensions are checked after selection so Samsung My Files does not pre-grey `.pth` / `.index` files.
 - Model library storage for ONNX models and source files.
-- On-phone conversion of compatible 768-dimensional RVC v2 FAISS `.index` files to `.mobile.index`, plus mobile-index validation.
+- On-phone conversion of compatible 768-dimensional RVC v2 FAISS `.index` files to `.mobile.index` for ONNX inference, while retaining the original FAISS file for native PTH retrieval.
 - Offline Spleeter vocal/accompaniment separation, RVC ONNX or supported native PTH vocal conversion and local mix-back for PCM WAV song-cover processing; intermediate vocal/backing previews are available.
 - Voice Changer and experimental realtime modules.
 - Voice Dataset Lab for recording, importing, organising and exporting samples, with a visible genuine CPU-training workflow entry point.
@@ -30,7 +30,7 @@ These are deliberate capability disclosures, not hidden menu items:
 | ONNX RVC inference | Included; compatible RVC v2 ONNX models only |
 | `.pth` import | Native inference included for RVC v2, 768-dimensional / 100-fps checkpoints in Song Covers |
 | `.pt` import | Storage only; not runnable |
-| PTH-to-ONNX conversion on phone | Not included; supported PTH checkpoints run through the native PTH engine directly |
+| `.pth` conversion | Genuine native RVC v2 PTH-to-audio conversion is included; optional matching FAISS `.index` retrieval search and blending are applied directly without exporting the checkpoint to ONNX |
 | Standard FAISS `.index` conversion | Included on phone for compatible 768-dimensional RVC v2 indexes; other dimensions/layouts are rejected |
 | `.mobile.index` | Supported if it matches the mobile feature-table format |
 | Voice model training | Dataset Lab prepares and exports samples; a separate genuine RVC v2 CPU training workflow on GitHub Actions trains the model and index (not on the phone) |
@@ -85,8 +85,8 @@ The local Android inference implementation is based on [Ultimate RVC Mobile](htt
 ## Native RVC v2 PTH and FAISS support (engineering branch)
 
 - Supported native PTH inference: standard RVC v2 checkpoints with 768-dimensional features and 100-fps timing. Other checkpoint profiles are rejected rather than guessed.
-- Compatible standard FAISS `.index` files can be converted locally to `.mobile.index` for the existing ONNX inference route.
-- The native PTH route does not currently blend a retrieval index. `.pt` and `.zip` files remain storage-only.
+- Compatible standard FAISS `.index` files can be converted locally to `.mobile.index` for ONNX inference; the original `.index` is retained locally and can be loaded by the native PTH converter for retrieval blending.
+- The native PTH route applies optional FAISS retrieval blending from the original matching 768-dimensional `.index`; `.mobile.index` remains available for ONNX inference. `.pt` and `.zip` files remain storage-only.
 - Song Covers uses the local native PTH path when a supported `.pth` voice is selected, otherwise the ONNX route.
 - Dataset preparation stays on the phone. Optional genuine RVC v2 CPU training runs on GitHub Actions and requires the user to upload the exported dataset ZIP. Never upload private recordings without understanding that disclosure.
 - The current branch is an engineering build. The APK is large because it bundles offline inference models (the latest build measured about 654 MB before final changes). Physical Galaxy A12 testing for installation, speed, memory, heat, and audio quality remains required before a production release.
