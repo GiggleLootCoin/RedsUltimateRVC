@@ -212,6 +212,8 @@ def test_song_cover_uses_android_media_codec_to_prepare_common_audio_formats():
     assert "decodeAudioSegment(source, 0L, durationUs)" not in integration
     assert "writeDecodedAudioWav(File(outputPath), decoded)" not in integration
     assert "Android decodes it locally to PCM WAV" in screen
+    assert "_getOrCreateStems" in screen
+    assert "rvc_song_stems_" in screen
     assert "pickAndImportAudioFiles" in screen
     assert "FilePicker.platform.pickFiles" not in screen
 
