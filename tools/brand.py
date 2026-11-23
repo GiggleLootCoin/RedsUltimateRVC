@@ -2570,6 +2570,7 @@ index_screen.write_text((repo_root / "tools/ui/index_converter_screen.dart").rea
 # ---------------------------------------------------------------------------
 final_main = main.read_text(encoding="utf-8")
 final_picker = picker.read_text(encoding="utf-8")
+final_song_cover = (root / "lib" / "screens" / "song_cover_screen.dart").read_text(encoding="utf-8")
 checks = {
     "Upgrade-safe Android version": "versionCode Math.max" in (root / "android/app/build.gradle").read_text(encoding="utf-8") and "0.2.0-final-" in (root / "android/app/build.gradle").read_text(encoding="utf-8"),
     "Mutually exclusive native modes": "activeMode != null || isInferenceProcessAlive()" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/NativeModeGuard.kt").read_text(encoding="utf-8"),
@@ -2586,6 +2587,10 @@ checks = {
     "PTH conversion limitation disclosed": "PTH → ONNX conversion is not included" in final_picker,
     "Dashboard first": "final moduleScreens = [" in final_main and "RedHomeScreen(" in final_main.split("final moduleScreens = [",1)[1].split("GestureDetector(",1)[0],
     "Native Android SAF picker": "pickAndImportFile" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8") and "ACTION_OPEN_DOCUMENT" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8"),
+    "Song cover imports audio through native SAF": "pickAndImportAudioFiles" in final_song_cover and "FilePicker.platform.pickFiles" not in final_song_cover,
+    "Native audio SAF importer is present": "pickAndImportAudioFiles" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8") and "ImportedFileKind.AUDIO" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8"),
+    "PTH index limitation is clearly disclosed": "INDEX NOT APPLIED TO THIS PTH ROUTE" in final_song_cover,
+    "Adaptive RVC launcher icon generated": (root / "android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml").exists() and (root / "android/app/src/main/res/mipmap-mdpi/ic_launcher.png").exists(),
     "SAF picker does not grey out unknown model extensions": ('type = "*/*"' in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8")) or ('type = if (kind == "audio") "audio/*" else "*/*"' in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8")),
     "SAF import validates PTH and index extensions after selection": all(x in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8") for x in ['".pth"', '".index"', '".mobile.index"']),
     "Dart native SAF bridge": "pickAndImportFile" in (root / "lib/services/rvc_bridge.dart").read_text(encoding="utf-8"),
