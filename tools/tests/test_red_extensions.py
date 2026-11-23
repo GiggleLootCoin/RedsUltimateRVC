@@ -201,6 +201,9 @@ def test_offline_song_cover_native_pipeline_is_wired_into_android_build():
     assert "await _bridge.separateSongVocals" in screen
     assert "await _bridge.infer" in screen
     assert "await _bridge.convertPth" in screen
+    assert "final String? initialSongPath;" in screen
+    assert "final void Function(String outputPath, Duration duration)? onCoverComplete;" in screen
+    assert "widget.onCoverComplete?.call(mixed, stopwatch.elapsed);" in screen
     assert "final isPth = widget.modelPath.toLowerCase().endsWith('.pth')" in screen
     assert "await _bridge.mixSongCover" in screen
     assert ".clamp(0.0, 1.0).toDouble()" in screen
