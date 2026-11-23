@@ -1,6 +1,8 @@
 package com.ultimatervc.mobile
 
-/** Native offline RVC v2 .pth inference bridge. */
+import com.developermindset.faiss.FAISS
+
+/** Native offline RVC v2 PTH conversion with optional real FAISS retrieval blending. */
 class RvcPthNative {
     external fun convertPth(
         inputWavPath: String,
@@ -9,6 +11,8 @@ class RvcPthNative {
         rmvpeModelPath: String,
         outputWavPath: String,
         pitchShift: Int,
+        retrievalIndex: FAISS.Index?,
+        indexRate: Float,
     ): String?
 
     companion object {
