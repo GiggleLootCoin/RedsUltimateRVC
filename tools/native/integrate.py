@@ -4,6 +4,24 @@ ROOT = Path(__file__).resolve().parents[2]
 BUILD = Path('buildsrc')
 PKG = BUILD / 'android/app/src/main/kotlin/com/ultimatervc/mobile'
 PKG.mkdir(parents=True, exist_ok=True)
+
+# Package the locally built ARM64 FAISS AAR so the on-device .index exporter
+# is actually available to the Android plugin, not merely compiled in CI.
+faiss_aar = ROOT / 'tools/native/faiss/faiss-android.aar'
+if not faiss_aar.is_file() or faiss_aar.stat().st_size == 0:
+    raise RuntimeError('Native FAISS Android AAR is missing; cannot enable on-phone index conversion.')
+app_libs = BUILD / 'android/app/libs'
+app_libs.mkdir(parents=True, exist_ok=True)
+(app_libs / 'faiss-android.aar').write_bytes(faiss_aar.read_bytes())
+app_gradle = BUILD / 'android/app/build.gradle'
+gradle_text = app_gradle.read_text(encoding='utf-8')
+faiss_dependency = "    implementation files('libs/faiss-android.aar')"
+if faiss_dependency not in gradle_text:
+    anchor = 'dependencies {'
+    if gradle_text.count(anchor) != 1:
+        raise RuntimeError('Could not uniquely locate Android app dependencies block for FAISS AAR.')
+    gradle_text = gradle_text.replace(anchor, anchor + '\\n' + faiss_dependency, 1)
+    app_gradle.write_text(gradle_text, encoding='utf-8')
 (PKG / 'SourceSeparationBridge.kt').write_text((ROOT / 'tools/native/SourceSeparationBridge.kt').read_text(), encoding='utf-8')
 (PKG / 'RvcPthNative.kt').write_text((ROOT / 'tools/native/RvcPthNative.kt').read_text(), encoding='utf-8')
 
