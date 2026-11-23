@@ -136,7 +136,7 @@ class _IndexConverterScreenState extends State<IndexConverterScreen> {
             ),
             const SizedBox(height: 14),
             const Text(
-              'Compatibility note: the current converter accepts 768-dimensional RVC v2 indexes. The direct native PTH conversion route does not yet apply index blending; use a compatible ONNX voice model when you need retrieval-index blending.',
+              'Compatibility note: this tool creates the .mobile.index copy used by ONNX inference and keeps the imported original .index in your local model library. Native PTH conversion uses that original FAISS index for retrieval blending. If you import only a .mobile.index from elsewhere, also import its original .index to enable native PTH retrieval.',
               style: TextStyle(color: Color(0xFFAAAAB6), height: 1.4, fontSize: 12),
             ),
           ],
