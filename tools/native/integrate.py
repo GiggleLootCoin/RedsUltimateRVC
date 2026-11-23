@@ -326,10 +326,6 @@ methods = '''
     }
 
 '''
-if 'private fun validateVoiceModel(call: MethodCall, result: Result)' not in s:
-    anchor = '    private fun convertIndex(call: MethodCall, result: Result) {'
-    if anchor not in s: raise RuntimeError('RVCPlugin convertIndex anchor missing')
-    s = s.replace(anchor, validation + anchor, 1)
 faiss_method = '''
     private fun convertFaissIndex(call: MethodCall, result: Result) {
         val sourcePath = call.argument<String>("sourcePath")
