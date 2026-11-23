@@ -8,8 +8,8 @@ import 'package:archive/archive_io.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/rvc_bridge.dart';
 
-/// Prepares voice datasets locally and opens the optional genuine RVC CPU
-/// training workflow. Neural training itself runs on the hosted runner.
+/// Records, imports and organises voice samples privately on this device.
+/// Full RVC neural-network training is not advertised as an on-device feature.
 class TrainingScreen extends StatefulWidget {
   const TrainingScreen({super.key});
   @override
@@ -19,6 +19,7 @@ class TrainingScreen extends StatefulWidget {
 class _TrainingScreenState extends State<TrainingScreen> {
   final RVCBridge _bridge = RVCBridge();
   final List<String> _samples = [];
+  final Set<String> _importedSamples = {};
   final TextEditingController _name = TextEditingController(text: 'Red Voice');
   bool _busy = false;
   bool _recording = false;
