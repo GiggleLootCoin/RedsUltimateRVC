@@ -321,10 +321,13 @@ if "if (path.toLowerCase().endsWith('.onnx')) await _bridge.validateVoiceModel(p
 # The upstream picker originally rejects every voice checkpoint except ONNX.
 # Add the native PTH route to the picker itself; otherwise Android users can
 # never select a .pth file even though the native runtime is packaged.
-if "return lowerPath.endsWith('.onnx') || lowerPath.endsWith('.pth');" not in ps:
+# The branded picker already validates .onnx/.pth via _runtime() and
+# uses Android SAF without restrictive extension filters. Older upstream
+# picker variants use the lowerPath predicate below; support both safely.
+if "bool _runtime(String path) => ['onnx', 'pth'].contains(_ext(path));" not in ps and "return lowerPath.endsWith('.onnx') || lowerPath.endsWith('.pth');" not in ps:
     old_model_filter = "return lowerPath.endsWith('.onnx');"
     if old_model_filter not in ps:
-        raise RuntimeError('Model picker supported-file filter changed; refusing unsafe PTH patch')
+        raise RuntimeError('Model picker has neither the branded ONNX/PTH runtime predicate nor the expected upstream ONNX filter')
     ps = ps.replace(old_model_filter,
         "return lowerPath.endsWith('.onnx') || lowerPath.endsWith('.pth');", 1)
 ps = ps.replace("请选择 .onnx 模型文件", "Choose a compatible ONNX or supported RVC v2 PTH voice model")
