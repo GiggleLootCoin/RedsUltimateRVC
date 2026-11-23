@@ -2187,20 +2187,12 @@ zip_handler = """      final ext = _ext(imported.path);
         String? readyIndexPath;
         for (final item in unpacked) {
           final itemExt = _ext(item.path);
-          if (['onnx', 'pth', 'pt'].contains(itemExt)) {
-            if (_library.contains(item.path)) {
-              await _bridge.releaseImportedFile(item.path);
-            } else {
-              _library.insert(0, item.path);
-            }
+          if (['pth', 'pt'].contains(itemExt)) {
+            if (!_library.contains(item.path)) _library.insert(0, item.path);
           } else if (['index', 'mobile.index'].contains(itemExt)) {
-            if (_indexLibrary.contains(item.path)) {
-              await _bridge.releaseImportedFile(item.path);
-            } else {
-              _indexLibrary.insert(0, item.path);
-            }
+            if (!_indexLibrary.contains(item.path)) _indexLibrary.insert(0, item.path);
           }
-          if (itemExt == 'onnx' && readyModelPath == null) readyModelPath = item.path;
+          if (itemExt == 'pth' && readyModelPath == null) readyModelPath = item.path;
           if (itemExt == 'mobile.index' && readyIndexPath == null) {
             try {
               await _bridge.convertIndex(item.path);
