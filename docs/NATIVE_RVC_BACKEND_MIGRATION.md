@@ -34,7 +34,7 @@ The PTH voice checkpoint is executed by the native C RVC engine. The app still u
 - 100-fps frame rate.
 - 32 kHz, 40 kHz or 48 kHz output sample rate.
 
-Other checkpoint dimensions/frame rates are rejected. Standard FAISS `.index` files can now be converted locally to `.mobile.index` for compatible ONNX voice models, but index retrieval is not yet wired to the native PTH route. `.pt` and ZIP archives remain storage-only.
+Other checkpoint dimensions/frame rates are rejected. Compatible standard FAISS `.index` files can be converted locally to `.mobile.index` for ONNX inference. The native PTH route also loads the retained original `.index` through the FAISS runtime, searches nearest neighbours for each ContentVec frame, reconstructs vectors and blends them at the selected retrieval strength. A `.mobile.index` file alone does not contain the original FAISS search structure, so native PTH retrieval needs the original `.index` alongside it. `.pt` and ZIP archives remain storage-only.
 
 ## Dependencies and licensing
 
@@ -51,7 +51,7 @@ Before a public release:
 - Package the PTH library in the APK and pass Flutter/native regression tests.
 - Run a real compatible PTH voice checkpoint through the full song-cover path.
 - Confirm non-silent converted vocals, correct duration, accompaniment preservation and valid WAV output.
-- Implement and test retrieval-index blending inside the native PTH route before claiming `.index` support for PTH. The separate on-device converter prepares supported 768-dimensional indexes for the ONNX route.
+- Run retrieval-enabled full-song acceptance with a matching PTH checkpoint and original FAISS `.index`; verify feature blending, output audio and zero-index-rate fallback.
 - Test a full-length song on a physical Samsung Galaxy A12 and record memory, elapsed time, thermal behaviour, cancellation and low-storage handling.
 - Keep the public release gate manual and restricted to main after acceptance.
 
