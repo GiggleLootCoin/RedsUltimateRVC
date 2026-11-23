@@ -18,11 +18,26 @@ def test_integrated_model_picker_imports_source_models_without_android_extension
     assert "READY — Native PTH supports RVC v2, 768 dimensions / 100 fps only." in source
 
 
-def test_integrated_index_library_accepts_faiss_and_mobile_indexes_without_fake_conversion():
+def test_integrated_index_library_converts_standard_faiss_and_validates_mobile_indexes():
     source = BRAND.read_text(encoding="utf-8")
     assert "Select an RVC .index or .mobile.index file" in source
-    assert "Standard .index stored in your Index Library" in source
-    assert "Open Index Tools to convert a compatible 768-dimensional RVC v2 index locally" in source
+    assert "_bridge.convertFaissIndex(imported.path)" in source
+    assert "_bridge.convertFaissIndex(path)" in source
+    assert "Standard FAISS index converted on this phone" in source
+
+
+def test_native_faiss_converter_is_wired_through_android_and_flutter():
+    integration = (ROOT / "tools/native/integrate.py").read_text(encoding="utf-8")
+    converter = (ROOT / "tools/native/FaissIndexConverter.kt").read_text(encoding="utf-8")
+    screen = (ROOT / "tools/ui/index_converter_screen.dart").read_text(encoding="utf-8")
+    assert "FaissIndexConverter.kt" in integration
+    assert "convertFaissIndex(call, result)" in integration
+    assert "FaissIndexConverter.convert(appContext, File(sourcePath))" in integration
+    assert "Future<String> convertFaissIndex(String sourcePath)" in integration
+    assert "implementation files('libs/faiss-android.aar')" in integration
+    assert "FAISS.readIndex(source.absolutePath)" in converter
+    assert "exportMobileIndex" in converter
+    assert "convertFaissIndex(imported.path)" in screen
 
 
 def test_dashboard_and_full_engine_open_the_integrated_model_picker():
