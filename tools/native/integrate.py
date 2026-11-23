@@ -24,6 +24,7 @@ if faiss_dependency not in gradle_text:
     app_gradle.write_text(gradle_text, encoding='utf-8')
 (PKG / 'SourceSeparationBridge.kt').write_text((ROOT / 'tools/native/SourceSeparationBridge.kt').read_text(), encoding='utf-8')
 (PKG / 'RvcPthNative.kt').write_text((ROOT / 'tools/native/RvcPthNative.kt').read_text(), encoding='utf-8')
+(PKG / 'FaissIndexConverter.kt').write_text((ROOT / 'tools/native/FaissIndexConverter.kt').read_text(encoding='utf-8'), encoding='utf-8')
 
 cpp = BUILD / 'android/app/src/main/cpp'
 cpp.mkdir(parents=True, exist_ok=True)
@@ -120,6 +121,9 @@ engine.write_text(es, encoding='utf-8')
 plugin = PKG / 'RVCPlugin.kt'
 s = plugin.read_text(encoding='utf-8')
 dispatch = '            "convertIndex" -> convertIndex(call, result)'
+if '"convertFaissIndex" -> convertFaissIndex(call, result)' not in s:
+    if dispatch not in s: raise RuntimeError('RVCPlugin convertIndex dispatch anchor missing for FAISS bridge')
+    s = s.replace(dispatch, dispatch + '\\n            "convertFaissIndex" -> convertFaissIndex(call, result)', 1)
 if '"convertPth" -> convertPth(call, result)' not in s:
     if dispatch not in s: raise RuntimeError('RVCPlugin convertIndex dispatch anchor missing for PTH bridge')
     s = s.replace(dispatch, dispatch + '\n            "convertPth" -> convertPth(call, result)', 1)
@@ -298,11 +302,51 @@ if 'private fun validateVoiceModel(call: MethodCall, result: Result)' not in s:
     anchor = '    private fun convertIndex(call: MethodCall, result: Result) {'
     if anchor not in s: raise RuntimeError('RVCPlugin convertIndex anchor missing')
     s = s.replace(anchor, validation + anchor, 1)
+faiss_method = '''
+    private fun convertFaissIndex(call: MethodCall, result: Result) {
+        val sourcePath = call.argument<String>("sourcePath")
+        if (sourcePath.isNullOrBlank()) {
+            result.error("INVALID_ARGUMENTS", "Missing source index path.", null)
+            return
+        }
+        scope.launch {
+            try {
+                val imported = FaissIndexConverter.convert(appContext, File(sourcePath))
+                withContext(Dispatchers.Main) { result.success(imported.path) }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    result.error("FAISS_CONVERSION_FAILED", e.message ?: "On-device FAISS conversion failed.", null)
+                }
+            }
+        }
+    }
+
+'''
+if 'private fun convertFaissIndex(call: MethodCall, result: Result)' not in s:
+    anchor = '    private fun convertIndex(call: MethodCall, result: Result) {'
+    if anchor not in s: raise RuntimeError('RVCPlugin convertIndex method anchor missing')
+    s = s.replace(anchor, faiss_method + anchor, 1)
 plugin.write_text(s, encoding='utf-8')
 
 # Expose the native model preflight to Flutter.
 bridge = BUILD / 'lib/services/rvc_bridge.dart'
 bs = bridge.read_text(encoding='utf-8')
+if 'Future<String> convertFaissIndex(String sourcePath)' not in bs:
+    anchor = '  Future<String> convertIndex(String sourcePath) async {'
+    method = '''  Future<String> convertFaissIndex(String sourcePath) async {
+    try {
+      final result = await _channel.invokeMethod('convertFaissIndex', {'sourcePath': sourcePath});
+      return result as String;
+    } on PlatformException catch (e) {
+      throw Exception('FAISS conversion failed: ${e.message}');
+    }
+  }
+
+'''
+    if anchor not in bs: raise RuntimeError('RVCBridge convertIndex anchor missing')
+    bs = bs.replace(anchor, method + anchor, 1)
+    bridge.write_text(bs, encoding='utf-8')
+
 if 'Future<void> validateVoiceModel(String modelPath)' not in bs:
     anchor = '  Future<void> startRecording() async {'
     method = '''  Future<void> validateVoiceModel(String modelPath) async {
