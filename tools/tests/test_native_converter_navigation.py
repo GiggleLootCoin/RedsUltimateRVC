@@ -19,3 +19,18 @@ def test_generated_kotlin_dispatch_uses_real_newline_escape():
     assert double_escaped not in integration
     assert single_escaped in integration
     assert "validateVoiceModel" in integration
+
+
+def test_workspace_conversion_no_longer_routes_pth_to_onnx_generate_screen():
+    source = (ROOT / "tools/native/integrate.py").read_text(encoding="utf-8")
+    assert "Choose your compatible .pth voice model in Voice Library first." in source
+    assert "indexPath: _selectedIndexPath" in source
+    assert "indexPath: selectedIndex" in source
+    assert "final mobileIndex = selectedIndex" not in source
+    assert "No user-supplied ONNX voice model is required." in source or "No ONNX voice-model export or upload is required." in (ROOT / "tools/ui/song_cover_screen.dart").read_text(encoding="utf-8")
+
+
+def test_direct_pth_native_route_resolves_mobile_index_to_original_sidecar_case_safely():
+    source = (ROOT / "tools/native/integrate.py").read_text(encoding="utf-8")
+    assert 'selected.name.endsWith(".mobile.index", ignoreCase = true)' in source
+    assert 'selected.name.substring(0, selected.name.length - ".mobile.index".length) + ".index"' in source
