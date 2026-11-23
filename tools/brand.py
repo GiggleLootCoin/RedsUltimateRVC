@@ -518,7 +518,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
         _indexLibrary.insert(0, imported.path);
       }
       await _saveIndexLibrary();
-      final installed = ext == 'mobile.index'\n          ? await _bridge.convertIndex(imported.path)\n          : await _bridge.convertFaissIndex(imported.path);
+      final installed = ext == 'mobile.index'\n          ? await _bridge.convertIndex(imported.path)\n          : (await _bridge.convertFaissIndex(imported.path)).path;
       if (!_indexLibrary.contains(installed)) _indexLibrary.insert(0, installed);
       await _saveIndexLibrary();
       _selectedIndexPath = installed;
@@ -565,7 +565,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
 
   Future<void> _useIndex(String path) async {
     try {
-      final installed = _ext(path) == 'mobile.index'\n          ? await _bridge.convertIndex(path)\n          : await _bridge.convertFaissIndex(path);
+      final installed = _ext(path) == 'mobile.index'\n          ? await _bridge.convertIndex(path)\n          : (await _bridge.convertFaissIndex(path)).path;
       if (!_indexLibrary.contains(installed)) _indexLibrary.insert(0, installed);
       await _saveIndexLibrary();
       _selectedIndexPath = installed;
