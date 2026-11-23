@@ -36,7 +36,7 @@ class FullRvcScreen extends StatelessWidget {
               SizedBox(height: 8),
               Text('The RVC workspace', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: -.5)),
               SizedBox(height: 7),
-              Text('Choose a tool to convert audio, manage compatible voices or prepare your own dataset.',
+              Text('Convert audio, build song covers, manage voice models and prepare training samples — all in one workspace.',
                 style: TextStyle(color: Color(0xFFC2C1CA), height: 1.4, fontSize: 12.5)),
             ]),
           ),
@@ -50,7 +50,7 @@ class FullRvcScreen extends StatelessWidget {
           const Text('VOICE LIBRARY', style: TextStyle(color: _red, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.6)),
           const SizedBox(height: 9),
           _Tool(Icons.library_music_rounded, 'Manage voice models', 'Import ONNX or supported RVC v2 PTH voices; keep PT/ZIP files in storage.', onModels),
-          _Tool(Icons.folder_open_rounded, 'Train a voice model', 'Prepare samples, export your dataset and launch genuine RVC v2 training (5–40 epochs).', onTraining),
+          _Tool(Icons.folder_open_rounded, 'Voice Dataset Lab', 'Record and import samples, organise a private dataset and check what this phone can safely process.', onTraining),
           _Tool(Icons.tune_rounded, 'Mobile index tools', 'Convert compatible 768-dimensional RVC v2 FAISS .index files locally for ONNX models.', onIndexTools),
           const SizedBox(height: 16),
           Container(
@@ -63,7 +63,7 @@ class FullRvcScreen extends StatelessWidget {
               Icon(Icons.verified_user_outlined, color: Color(0xFF72DFA0), size: 18),
               SizedBox(width: 10),
               Expanded(child: Text(
-                'Local-first: standard audio conversion uses compatible ONNX models; supported RVC v2 PTH voices use the native on-device converter in Song Covers. PTH supports 768-dimensional, 100-fps checkpoints and optional native FAISS retrieval blending with a matching original .index. The mobile.index copy remains available for the ONNX route. Song Covers is available from the main dashboard and uses bundled offline vocal separation with local mix-back. Dataset Lab prepares samples; optional CPU training is separate and requires uploading the dataset. PT/ZIP files are storage-only.',
+                'On-device tools: standard conversion uses compatible ONNX models; supported RVC v2 PTH voices use the native converter in Song Covers. PTH support is limited to compatible 768-dimensional, 100-fps checkpoints, with optional FAISS retrieval blending when the matching original .index is supplied. Song Covers separates vocals, converts them and mixes them back locally. The Voice Dataset Lab records, imports and prepares samples privately. Full neural model training is not claimed on low-memory phones; no voice data is silently uploaded. PT/ZIP files are storage-only.',
                 style: TextStyle(color: Color(0xFFB9BDC7), fontSize: 11.2, height: 1.45),
               )),
             ]),
