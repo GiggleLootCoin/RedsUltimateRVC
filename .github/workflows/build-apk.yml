@@ -403,7 +403,7 @@ jobs:
               anchor = "    - assets/models/"
               if source.count(anchor) != 1:
                   raise SystemExit("Could not uniquely locate Flutter assets declaration")
-              source = source.replace(anchor, anchor + "\\n" + entry, 1)
+              source = source.replace(anchor, anchor + "\n" + entry, 1)
               path.write_text(source, encoding="utf-8")
           if not Path("assets/FAISS THIRD-PARTY NOTICES.txt").is_file():
               raise SystemExit("FAISS third-party notice was not created")
