@@ -2178,9 +2178,7 @@ bridge.write_text(bt, encoding="utf-8")
 
 pt = picker.read_text(encoding="utf-8")
 zip_anchor = """      final ext = _ext(imported.path);
-      if (_library.contains(imported.path)) {
-        await _bridge.releaseImportedFile(imported.path);
-      } else {
+      if (!_library.contains(imported.path)) {
         _library.insert(0, imported.path);
       }"""
 zip_handler = """      final ext = _ext(imported.path);
