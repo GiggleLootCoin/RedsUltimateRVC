@@ -15,7 +15,7 @@ The current premium mobile studio redesign uses a restrained black-and-crimson p
 - On-phone conversion of compatible 768-dimensional RVC v2 FAISS `.index` files to `.mobile.index` for ONNX inference, while retaining the original FAISS file for native PTH retrieval.
 - Offline Spleeter vocal/accompaniment separation, RVC ONNX or supported native PTH vocal conversion and local mix-back for PCM WAV song-cover processing; intermediate vocal/backing previews are available.
 - Voice Changer and experimental realtime modules.
-- Voice Dataset Lab for recording, importing, organising and exporting samples, with a visible genuine CPU-training workflow entry point.
+- In-app Voice Dataset Lab for recording, importing, organising, reviewing and exporting samples. This is dataset preparation, not neural model training; the app does not currently claim to train a new RVC checkpoint on the Galaxy A12.
 - English interface, Red's original logo artwork and creator-channel link.
 - No mandatory cloud inference, subscription or paid service.
 
