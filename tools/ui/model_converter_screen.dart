@@ -7,19 +7,19 @@ class ModelConverterScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: const Color(0xFF07070A),
-    appBar: AppBar(title: const Text("RED'S ULTIMATE RVC — MODEL CONVERSION"), centerTitle: true),
+    appBar: AppBar(title: const Text("RED'S ULTIMATE RVC — PTH COMPATIBILITY"), centerTitle: true),
     body: ListView(padding: const EdgeInsets.all(18), children: [
       const Icon(Icons.transform, size: 54, color: Color(0xFFFF334F)),
       const SizedBox(height: 16),
-      const Text('PTH → ONNX CONVERSION', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+      const Text('NATIVE PTH VOICE SUPPORT', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
       const SizedBox(height: 10),
       const Text(
-        'This Android build does not yet contain a local PTH-to-ONNX conversion engine. A .pth file can be stored in Model Library, but it cannot be run by the bundled ONNX inference engine until converted.',
+        'Supported RVC v2 .pth voice checkpoints run directly through the native Android converter. No ONNX voice-model export, upload or intermediate conversion is required. The supported profile is 768-dimensional ContentVec features at 100 fps.',
         style: TextStyle(height: 1.45),
       ),
       const SizedBox(height: 14),
       const Text(
-        'No third-party website is opened and no model is uploaded. This screen will only offer conversion once a real on-device converter has been integrated and tested.',
+        'The native converter validates the checkpoint before processing. If a checkpoint is incompatible, the app reports the reason instead of asking you to export it as ONNX.',
         style: TextStyle(color: Color(0xFFB7B7C1), height: 1.4),
       ),
     ]),

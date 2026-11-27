@@ -1,21 +1,26 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:audioplayers/audioplayers.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/rvc_bridge.dart';
 
 /// Fully local song-cover workflow: separate the original, convert the vocal
-/// stem with the selected RVC ONNX model, then mix it with the backing stem.
+/// stem with your supported RVC v2 PTH model, then mix it back.
 class SongCoverScreen extends StatefulWidget {
   final String modelPath;
   final String? indexPath;
+  final String? initialSongPath;
+  final void Function(String outputPath, Duration duration)? onCoverComplete;
 
   const SongCoverScreen({
     super.key,
     required this.modelPath,
     this.indexPath,
+    this.initialSongPath,
+    this.onCoverComplete,
   });
 
   @override
@@ -28,9 +33,24 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
   String? _inputPath;
   String? _inputName;
   String? _outputPath;
+  String? _vocalsPath;
+  String? _accompanimentPath;
   String _status = 'Choose a song to begin.';
   double _progress = 0;
+  double _indexRate = 0.75;
   bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final initial = widget.initialSongPath;
+    if (initial != null && File(initial).existsSync()) {
+      final selected = File(initial).absolute.path;
+      _inputPath = selected;
+      _inputName = File(selected).uri.pathSegments.last;
+      _status = 'Your selected song is ready. Start native PTH conversion when ready.';
+    }
+  }
 
   @override
   void dispose() {
@@ -40,33 +60,61 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
 
   Future<void> _pickSong() async {
     if (_busy) return;
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.audio,
-      allowMultiple: false,
-      withData: false,
-    );
-    final path = result?.files.single.path;
-    if (path == null || path.isEmpty) return;
     try {
-      final imported = await _bridge.importPickedFile(
-        kind: 'audio',
-        sourcePath: path,
-      );
+      // Use Android's native Storage Access Framework. The Flutter file picker
+      // can return null filesystem paths for Samsung My Files content:// URIs.
+      final importedFiles = await _bridge.pickAndImportAudioFiles();
+      if (importedFiles.isEmpty) return;
+      final imported = importedFiles.first;
+      // This screen uses one source song. Release any additional selections so
+      // their temporary import references do not remain pinned in storage.
+      for (final extra in importedFiles.skip(1)) {
+        await _bridge.releaseImportedFile(extra.path);
+      }
       if (!mounted) return;
       setState(() {
         _inputPath = imported.path;
         _inputName = File(imported.path).uri.pathSegments.last;
         _outputPath = null;
+        _vocalsPath = null;
+        _accompanimentPath = null;
         _progress = 0;
-        _status = 'Ready to separate vocals.';
+        _status = 'Audio imported into the app. Ready to separate vocals.';
       });
     } catch (e) {
       if (mounted) _message('Could not import that audio file: $e');
     }
   }
 
+  Future<Map<String, String>> _getOrCreateStems(String inputPath) async {
+    final source = File(inputPath);
+    final stat = await source.stat();
+    final encodedPath = base64Url.encode(utf8.encode(source.absolute.path)).replaceAll('=', '');
+    final cacheKey = 'rvc_song_stems_${encodedPath}_${stat.size}_${stat.modified.millisecondsSinceEpoch}';
+    final prefs = await SharedPreferences.getInstance();
+    final cachedVocals = prefs.getString('${cacheKey}_vocals');
+    final cachedBacking = prefs.getString('${cacheKey}_backing');
+    if (cachedVocals != null && cachedBacking != null &&
+        await File(cachedVocals).exists() && await File(cachedBacking).exists()) {
+      if (mounted) setState(() => _status = 'Reusing cached vocal and backing stems…');
+      return {'vocalsPath': cachedVocals, 'accompanimentPath': cachedBacking};
+    }
+
+    final stems = await _bridge.separateSongVocals(inputPath);
+    final vocals = stems['vocalsPath'];
+    final backing = stems['accompanimentPath'];
+    if (vocals == null || backing == null ||
+        !await File(vocals).exists() || !await File(backing).exists()) {
+      throw StateError('Vocal separation did not produce both usable audio stems.');
+    }
+    await prefs.setString('${cacheKey}_vocals', vocals);
+    await prefs.setString('${cacheKey}_backing', backing);
+    return {'vocalsPath': vocals, 'accompanimentPath': backing};
+  }
+
   Future<void> _createCover() async {
     if (_busy || _inputPath == null) return;
+    final stopwatch = Stopwatch()..start();
     setState(() {
       _busy = true;
       _progress = 0;
@@ -74,26 +122,41 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
       _status = 'Separating vocals and accompaniment on this phone…';
     });
     try {
-      final stems = await _bridge.separateSongVocals(_inputPath!);
+      final stems = await _getOrCreateStems(_inputPath!);
       final vocalsPath = stems['vocalsPath']!;
       final accompanimentPath = stems['accompanimentPath']!;
       if (!mounted) return;
-      setState(() => _status = 'Converting the isolated vocals with your RVC model…');
+      setState(() {
+        _vocalsPath = vocalsPath;
+        _accompanimentPath = accompanimentPath;
+        _status = 'Vocal and accompaniment stems are ready. Converting the isolated vocals…';
+      });
 
-      final convertedVocals = await _bridge.infer(
-        songPath: vocalsPath,
-        modelPath: widget.modelPath,
-        indexPath: widget.indexPath,
-        parallelChunkCount: 1,
-        allowResume: false,
-        onProgress: (value, status) {
-          if (!mounted) return;
-          setState(() {
-            _progress = (value / 100).clamp(0.0, 1.0).toDouble();
-            _status = status;
-          });
-        },
-      );
+      final isPth = widget.modelPath.toLowerCase().endsWith('.pth');
+      final String convertedVocals;
+      if (isPth) {
+        convertedVocals = await _bridge.convertPth(
+          inputWavPath: vocalsPath,
+          pthModelPath: widget.modelPath,
+          indexPath: widget.indexPath,
+          indexRate: _indexRate,
+        );
+      } else {
+        convertedVocals = await _bridge.infer(
+          songPath: vocalsPath,
+          modelPath: widget.modelPath,
+          indexPath: widget.indexPath,
+          parallelChunkCount: 1,
+          allowResume: false,
+          onProgress: (value, status) {
+            if (!mounted) return;
+            setState(() {
+              _progress = (value / 100).clamp(0.0, 1.0).toDouble();
+              _status = status;
+            });
+          },
+        );
+      }
 
       if (!mounted) return;
       setState(() => _status = 'Mixing the converted vocals with the original accompaniment…');
@@ -110,9 +173,11 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
         _status = 'Your song cover is ready.';
       });
       await _player.play(DeviceFileSource(mixed));
+      stopwatch.stop();
+      widget.onCoverComplete?.call(mixed, stopwatch.elapsed);
     } catch (e) {
       if (mounted) {
-        setState(() => _status = 'Song-cover creation failed.');
+        setState(() => _status = 'Song-cover creation failed: $e');
         _message('Song-cover creation failed: $e');
       }
     } finally {
@@ -154,7 +219,7 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
           ),
           const SizedBox(height: 9),
           const Text(
-            'Choose an audio file. Android decodes it locally to PCM WAV, then the app separates vocals and accompaniment, converts the vocals with your selected ONNX voice, and mixes them back with the original music. Processing stays on this phone.',
+            'Choose an audio file. Android decodes it locally to PCM WAV, then the app separates vocals and accompaniment, converts the vocals directly with your selected RVC v2 PTH voice, and mixes them back with the original music. Processing stays on this phone.',
             style: TextStyle(color: Color(0xFFBEBEC7), height: 1.45),
           ),
           const SizedBox(height: 18),
@@ -183,10 +248,60 @@ class _SongCoverScreenState extends State<SongCoverScreen> {
                 const SizedBox(height: 8),
                 Text(File(widget.modelPath).uri.pathSegments.last),
                 const SizedBox(height: 4),
-                const Text('Compatible RVC v2 ONNX model', style: TextStyle(color: Color(0xFF9999A4), fontSize: 12)),
+                Text('Native RVC v2 PTH • 768 dimensions / 100 fps only', style: const TextStyle(color: Color(0xFF9999A4), fontSize: 12)),
               ],
             ),
           ),
+          if (widget.modelPath.toLowerCase().endsWith('.pth')) ...[
+            const SizedBox(height: 10),
+            _panel(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('NATIVE RVC CONVERTER', style: TextStyle(color: Color(0xFFFF405B), fontWeight: FontWeight.w900)),
+                const SizedBox(height: 7),
+                Text(
+                  widget.indexPath == null
+                      ? 'Direct on-device PTH conversion is active. No ONNX voice-model export or upload is required. Add the matching standard .index to enable retrieval blending.'
+                      : 'Direct on-device PTH conversion with FAISS retrieval search and blending. The original .index is read locally; the voice model and song are not uploaded.',
+                  style: const TextStyle(color: Color(0xFFD0D0D8), height: 1.4),
+                ),
+                if (widget.indexPath != null) ...[
+                  const SizedBox(height: 12),
+                  Text('RETRIEVAL STRENGTH  ${(_indexRate * 100).round()}%', style: const TextStyle(color: Color(0xFFFFA3AE), fontWeight: FontWeight.w800)),
+                  Slider(
+                    value: _indexRate,
+                    min: 0,
+                    max: 1,
+                    divisions: 20,
+                    activeColor: const Color(0xFFFF3654),
+                    onChanged: _busy ? null : (value) => setState(() => _indexRate = value),
+                  ),
+                  const Text('Lower values preserve more of the original vocal features; higher values lean more strongly on the voice index.', style: TextStyle(color: Color(0xFFAAAAB5), fontSize: 11, height: 1.35)),
+                ],
+              ]),
+            ),
+          ],
+          if (_vocalsPath != null && _accompanimentPath != null) ...[
+            _panel(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('INTERMEDIATE STEMS', style: TextStyle(color: Color(0xFFFF405B), fontWeight: FontWeight.w900)),
+                const SizedBox(height: 8),
+                const Text('Listen to the separated parts before or after conversion.'),
+                const SizedBox(height: 10),
+                Row(children: [
+                  Expanded(child: OutlinedButton.icon(
+                    onPressed: _busy ? null : () => _player.play(DeviceFileSource(_vocalsPath!)),
+                    icon: const Icon(Icons.mic), label: const Text('PLAY VOCALS'),
+                  )),
+                  const SizedBox(width: 8),
+                  Expanded(child: OutlinedButton.icon(
+                    onPressed: _busy ? null : () => _player.play(DeviceFileSource(_accompanimentPath!)),
+                    icon: const Icon(Icons.music_note), label: const Text('PLAY BACKING'),
+                  )),
+                ]),
+              ]),
+            ),
+            const SizedBox(height: 12),
+          ],
           const SizedBox(height: 18),
           Text(_status, style: const TextStyle(color: Color(0xFFD0D0D8))),
           const SizedBox(height: 10),

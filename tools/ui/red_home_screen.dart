@@ -69,8 +69,8 @@ class RedHomeScreen extends StatelessWidget {
             _section('CREATE', 'Transform audio with your voice models'),
             const SizedBox(height: 11),
             _grid([
-              _Action(Icons.graphic_eq_rounded, 'Audio conversion', 'Convert audio with a compatible ONNX voice', onGenerate, featured: true),
-              _Action(Icons.music_video_rounded, 'Song covers', 'Separate vocals, convert your voice, and mix the cover', onSongCovers),
+              _Action(Icons.graphic_eq_rounded, 'PTH voice conversion', 'Convert audio with your .pth voice model — no ONNX upload', onGenerate, featured: true),
+              _Action(Icons.music_video_rounded, 'Song covers', 'Separate vocals, convert with your PTH voice, then mix the full song', onSongCovers),
               _Action(Icons.record_voice_over_rounded, 'Voice changer', 'Record and process through a selected voice', onVoiceChanger),
               _Action(Icons.bolt_rounded, 'Realtime mode', 'Experimental; performance and routing may vary', onRealtime, warning: true),
             ]),
@@ -78,9 +78,9 @@ class RedHomeScreen extends StatelessWidget {
             _section('YOUR WORKSPACE', 'Manage models, samples and sound'),
             const SizedBox(height: 11),
             _grid([
-              _Action(Icons.library_music_rounded, 'Voice library', 'Import and organise compatible models', onModels),
-              _Action(Icons.mic_none_rounded, 'Dataset lab', 'Record, prepare and export voice samples', onTrain),
-              _Action(Icons.tune_rounded, 'Audio tools', 'Inspect mobile index files and conversion settings', onAudioTools),
+              _Action(Icons.library_music_rounded, 'Voice library', 'Import .pth voices and matching .index files', onModels),
+              _Action(Icons.mic_none_rounded, 'Training & dataset lab', 'Record, organise and prepare voice samples', onTrain),
+              _Action(Icons.tune_rounded, 'Audio tools', 'Inspect and prepare matching RVC index files', onAudioTools),
               _Action(Icons.dashboard_customize_rounded, 'Full RVC engine', 'Open the complete conversion workspace', onFullRvc),
             ]),
             const SizedBox(height: 18),
@@ -89,7 +89,7 @@ class RedHomeScreen extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: onYouTube,
               icon: const Icon(Icons.play_circle_outline_rounded),
-              label: const Text('VISIT LITTLE RED BIG SMILE'),
+              label: const Text('VISIT LittleRedBigSmile'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.white,
                 side: const BorderSide(color: Color(0xFF49303A)),
@@ -99,7 +99,7 @@ class RedHomeScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             const Center(
-              child: Text('CREATED WITH CARE BY LITTLE RED BIG SMILE',
+              child: Text('CREATED WITH CARE BY LittleRedBigSmile',
                 style: TextStyle(color: Color(0xFF737782), fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1.15)),
             ),
           ],
@@ -184,7 +184,7 @@ class RedHomeScreen extends StatelessWidget {
       Icon(Icons.info_outline_rounded, color: _red, size: 19),
       SizedBox(width: 10),
       Expanded(child: Text(
-        'This Android engine runs compatible ONNX voice models. PTH/PT files can be stored, but this build does not perform PTH-to-ONNX conversion or neural-network training. Dataset Lab prepares samples; it does not train a model.',
+        'Native RVC v2 conversion runs supported .pth checkpoints directly on this phone. No user-supplied ONNX voice model is required. Supported checkpoints must be 768-dimensional and 100-fps; a matching original .index enables retrieval blending. Dataset Lab records and prepares training samples; full neural-network training is not available on this low-memory handset.',
         style: TextStyle(color: Color(0xFFB7BBC5), fontSize: 11, height: 1.45),
       )),
     ]),

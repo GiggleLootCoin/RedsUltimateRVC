@@ -1,78 +1,146 @@
 import 'package:flutter/material.dart';
+import '../services/rvc_bridge.dart';
 
-/// Honest index compatibility guide. This screen does not pretend to convert
-/// FAISS files: the bundled Android inference engine reads mobile feature tables.
-class IndexConverterScreen extends StatelessWidget {
+class IndexConverterScreen extends StatefulWidget {
   const IndexConverterScreen({super.key});
 
-  static const _red = Color(0xFFFF334F);
-  static const _panel = Color(0xFF121218);
+  @override
+  State<IndexConverterScreen> createState() => _IndexConverterScreenState();
+}
+
+class _IndexConverterScreenState extends State<IndexConverterScreen> {
+  final RVCBridge _bridge = RVCBridge();
+  bool _busy = false;
+  String _status = 'Choose a standard RVC .index file or an existing .mobile.index file.';
+
+  Future<void> _convert() async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _status = 'Open your phone files and choose an index…';
+    });
+    try {
+      final imported = await _bridge.pickAndImportFile(kind: 'index');
+      if (imported == null) return;
+      final lower = imported.path.toLowerCase();
+      if (lower.endsWith('.mobile.index')) {
+        await _bridge.convertIndex(imported.path);
+        if (mounted) {
+          setState(() => _status =
+              'This mobile index passed validation and is already in your index library. Select it under Models → Index.');
+        }
+      } else if (lower.endsWith('.index')) {
+        setState(() => _status =
+            'Converting locally with FAISS. Large indexes can take a while; keep Red’s Ultimate RVC open.');
+        final converted = await _bridge.convertFaissIndex(imported.path);
+        if (mounted) {
+          final name = converted.path.split('/').last;
+          setState(() => _status =
+              'Conversion complete. $name has been added to your index library. Select it under Models → Index.');
+        }
+      } else {
+        throw Exception('Choose a standard .index or .mobile.index file.');
+      }
+    } catch (error) {
+      if (mounted) setState(() => _status = 'Conversion failed: $error');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    const red = Color(0xFFE00022);
     return Scaffold(
-      backgroundColor: const Color(0xFF07070A),
+      backgroundColor: const Color(0xFF08080C),
       appBar: AppBar(
-        title: const Text('INDEX TOOLS'),
-        centerTitle: true,
-        backgroundColor: const Color(0xFF09090D),
+        title: const Text('INDEX CONVERTER'),
+        backgroundColor: const Color(0xFF101016),
+        foregroundColor: Colors.white,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(18),
-        children: [
-          const Icon(Icons.storage_rounded, color: _red, size: 54),
-          const SizedBox(height: 14),
-          const Text(
-            'MOBILE INDEX COMPATIBILITY',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 10),
-          _info(
-            'SUPPORTED ON THIS PHONE',
-            'A compatible .mobile.index feature table. Choose it in the optional Index field on the audio conversion screen.',
-          ),
-          _info(
-            'STANDARD .index FILES',
-            'Standard RVC/FAISS .index files are not converted by this Android app yet. Importing or renaming one does not make it compatible.',
-          ),
-          _info(
-            'WHAT IS STILL NEEDED',
-            'A tested Android-compatible FAISS reader and converter is required before standard .index conversion can be offered directly on this phone.',
-          ),
-          _info(
-            'FORMAT CHECK',
-            'The inference engine checks the mobile index header, feature count and data length before using it. Invalid or incomplete files should be rejected.',
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'No model or audio file is uploaded from this screen.',
-            style: TextStyle(color: Color(0xFFB7B7C1), height: 1.4),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static Widget _info(String title, String body) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _panel,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF382027)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: const TextStyle(
-            color: _red, fontWeight: FontWeight.w900, letterSpacing: .5,
-          )),
-          const SizedBox(height: 7),
-          Text(body, style: const TextStyle(
-            color: Color(0xFFD0D0D8), height: 1.4,
-          )),
-        ],
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(18),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(22),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF290008), Color(0xFF121218)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                border: Border.all(color: red.withOpacity(.55)),
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.hub_outlined, color: Color(0xFFFF405B), size: 34),
+                  SizedBox(height: 12),
+                  Text('Convert FAISS indexes on your phone',
+                    style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
+                  SizedBox(height: 8),
+                  Text(
+                    'A standard desktop .index file is not the same as the mobile format. This tool converts compatible 768-dimensional RVC v2 FAISS indexes into .mobile.index and adds the result to your model library.',
+                    style: TextStyle(color: Color(0xFFD0D0D8), height: 1.4),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF14141B),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFF30303A)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.privacy_tip_outlined, color: Color(0xFF73D69A)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Private and offline: conversion runs locally. Your index file is not uploaded. Keep enough free storage for the converted copy.',
+                      style: TextStyle(color: Colors.white.withOpacity(.86), height: 1.35),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: _busy ? null : _convert,
+              icon: _busy
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.transform),
+              label: Text(_busy ? 'WORKING…' : 'SELECT & CONVERT INDEX'),
+              style: FilledButton.styleFrom(
+                backgroundColor: red,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF101016),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFF292932)),
+              ),
+              child: Text(_status,
+                style: const TextStyle(color: Colors.white, height: 1.4)),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'Compatibility note: native PTH conversion reads the original matching FAISS .index for retrieval blending. The .mobile.index file is an optional compatibility copy for other runtimes; it is not required for PTH conversion. If you import only a .mobile.index from elsewhere, also import its original .index to enable native PTH retrieval.',
+              style: TextStyle(color: Color(0xFFAAAAB6), height: 1.4, fontSize: 12),
+            ),
+          ],
+        ),
       ),
     );
   }

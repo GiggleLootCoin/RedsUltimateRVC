@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -9,8 +8,8 @@ import 'package:archive/archive_io.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/rvc_bridge.dart';
 
-/// Local dataset preparation only. The bundled Android RVC engine has no
-/// neural-network training implementation; never present this as training.
+/// Records, imports and organises voice samples privately on this device.
+/// Full RVC neural-network training is not advertised as an on-device feature.
 class TrainingScreen extends StatefulWidget {
   const TrainingScreen({super.key});
   @override
@@ -20,6 +19,7 @@ class TrainingScreen extends StatefulWidget {
 class _TrainingScreenState extends State<TrainingScreen> {
   final RVCBridge _bridge = RVCBridge();
   final List<String> _samples = [];
+  final Set<String> _importedSamples = {};
   final TextEditingController _name = TextEditingController(text: 'Red Voice');
   bool _busy = false;
   bool _recording = false;
@@ -30,6 +30,11 @@ class _TrainingScreenState extends State<TrainingScreen> {
   void initState() {
     super.initState();
     _restorePreparedDataset();
+  }
+
+  void _showTrainingLimits() {
+    setState(() => _status =
+        'This phone can record and prepare voice samples, but it cannot reliably train a full RVC neural voice model locally. No model has been trained. Your samples remain private in app storage; conversion of an existing compatible voice model is available in the conversion tools.');
   }
 
   Future<void> _restorePreparedDataset() async {
@@ -85,18 +90,29 @@ class _TrainingScreenState extends State<TrainingScreen> {
   Future<void> _addAudio() async {
     if (_busy || _recording) return;
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.any, allowMultiple: true, withData: false,
-      );
-      if (result == null) return;
-      final paths = result.files.map((f) => f.path).whereType<String>()
-        .where((p) => File(p).existsSync())
-        .where((p) => ['.wav','.flac','.mp3','.m4a','.ogg','.aac']
-          .any((e) => p.toLowerCase().endsWith(e))).toList();
+      // Use the same Android Storage Access Framework import route as Song Covers.
+      // Samsung My Files often returns content:// URIs rather than filesystem paths;
+      // FilePicker's path-only filter silently discarded those valid selections.
+      final importedFiles = await _bridge.pickAndImportAudioFiles();
+      if (importedFiles.isEmpty) return;
+      final paths = <String>[];
+      for (final imported in importedFiles) {
+        final path = imported.path;
+        final lower = path.toLowerCase();
+        final supported = ['.wav','.flac','.mp3','.m4a','.ogg','.aac']
+            .any((extension) => lower.endsWith(extension));
+        if (supported && await File(path).exists()) {
+          if (!paths.contains(path)) paths.add(path);
+        } else {
+          await _bridge.releaseImportedFile(path);
+        }
+      }
       if (!mounted) return;
       setState(() {
-        for (final p in paths) { if (!_samples.contains(p)) _samples.add(p); }
-        _status = '${_samples.length} sample(s) selected';
+        for (final p in paths) { if (!_samples.contains(p)) _samples.add(p); _importedSamples.add(p); }
+        _status = paths.isEmpty
+            ? 'No supported audio files were imported. Choose WAV, FLAC, MP3, M4A, OGG or AAC.'
+            : '${_samples.length} sample(s) selected';
       });
     } catch (e) {
       if (mounted) setState(() => _status = 'Could not import audio: $e');
@@ -159,7 +175,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
       }
       final totalSamples = await data.list().where((entity) => entity is File).length;
       await File('${root.path}/README.txt').writeAsString(
-        "RED'S ULTIMATE RVC — DATASET\nVoice: ${_name.text.trim()}\nAudio files: $totalSamples\n\nThis is prepared training data only. It has NOT trained a voice model. The bundled Android engine currently supports ONNX inference and does not contain an RVC training engine.\n",
+        "RED'S ULTIMATE RVC — DATASET\nVoice: ${_name.text.trim()}\nAudio files: $totalSamples\n\nThis is a prepared dataset only; no neural voice model or retrieval index has been trained.\n",
       );
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('red_rvc_last_dataset_path', root.path);
@@ -231,11 +247,11 @@ class _TrainingScreenState extends State<TrainingScreen> {
       Card(color: const Color(0xFF171117), child: const Padding(
         padding: EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('ON-PHONE DATASET WORKSPACE', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFFFF334F))),
+          Text('VOICE DATASET LAB', style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFFFF334F))),
           SizedBox(height: 8),
           Text('Import or record clean samples and organise them privately on this phone.'),
           SizedBox(height: 10),
-          Text('This phone prepares and exports your voice dataset locally. It does not train an RVC neural network. Full RVC training needs a supported PyTorch runtime and substantially more memory and compute than this phone provides. No cloud training service is built into this app.', style: TextStyle(height: 1.35)),
+          Text('Your samples are prepared and stored on this phone. Build and organise the voice dataset entirely inside the app; imported recordings are copied into private app storage. Full RVC model training is a separate, compute-heavy neural-network job; this handset cannot reliably complete that workload locally. We will not send your voice recordings to a server or pretend that dataset preparation is model training. Supported RVC v2 PTH voices run locally without an ONNX voice-model file. ONNX is only an internal component of bundled audio processing, not a voice model you need to provide.', style: TextStyle(height: 1.4)),
         ]),
       )),
       const SizedBox(height: 12),
@@ -261,6 +277,16 @@ class _TrainingScreenState extends State<TrainingScreen> {
         onPressed: _busy || _recording || _samples.isEmpty ? null : _prepareDataset,
         icon: const Icon(Icons.folder_copy), label: Text(_busy ? 'PREPARING…' : 'PREPARE LOCAL DATASET'),
       )),
+      const SizedBox(height: 12),
+      SizedBox(height: 50, child: OutlinedButton.icon(
+        onPressed: _busy || _recording ? null : _showTrainingLimits,
+        icon: const Icon(Icons.memory_rounded),
+        label: const Text('CHECK ON-DEVICE TRAINING CAPABILITY'),
+      )),
+      const Padding(
+        padding: EdgeInsets.only(top: 7),
+        child: Text('No browser hand-off, external runner, or automatic upload is used. This app does not offer remote training that requires uploading the exported ZIP. Dataset preparation, recording, import, review and storage stay in this app. Full neural training is not falsely marked as complete when the phone cannot safely run it.', style: TextStyle(color: Color(0xFFB8B8C2), fontSize: 11.5, height: 1.4)),
+      ),
       if (_datasetPath != null) ...[
         Padding(
           padding: const EdgeInsets.only(top: 10),

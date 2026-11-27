@@ -4,7 +4,27 @@ ROOT = Path(__file__).resolve().parents[2]
 BUILD = Path('buildsrc')
 PKG = BUILD / 'android/app/src/main/kotlin/com/ultimatervc/mobile'
 PKG.mkdir(parents=True, exist_ok=True)
+
+# Package the locally built ARM64 FAISS AAR so the on-device .index exporter
+# is actually available to the Android plugin, not merely compiled in CI.
+faiss_aar = ROOT / 'tools/native/faiss/faiss-android.aar'
+if not faiss_aar.is_file() or faiss_aar.stat().st_size == 0:
+    raise RuntimeError('Native FAISS Android AAR is missing; cannot enable on-phone index conversion.')
+app_libs = BUILD / 'android/app/libs'
+app_libs.mkdir(parents=True, exist_ok=True)
+(app_libs / 'faiss-android.aar').write_bytes(faiss_aar.read_bytes())
+app_gradle = BUILD / 'android/app/build.gradle'
+gradle_text = app_gradle.read_text(encoding='utf-8')
+faiss_dependency = "    implementation files('libs/faiss-android.aar')"
+if faiss_dependency not in gradle_text:
+    anchor = 'dependencies {'
+    if gradle_text.count(anchor) != 1:
+        raise RuntimeError('Could not uniquely locate Android app dependencies block for FAISS AAR.')
+    gradle_text = gradle_text.replace(anchor, anchor + '\n' + faiss_dependency, 1)
+    app_gradle.write_text(gradle_text, encoding='utf-8')
 (PKG / 'SourceSeparationBridge.kt').write_text((ROOT / 'tools/native/SourceSeparationBridge.kt').read_text(), encoding='utf-8')
+(PKG / 'RvcPthNative.kt').write_text((ROOT / 'tools/native/RvcPthNative.kt').read_text(), encoding='utf-8')
+(PKG / 'FaissIndexConverter.kt').write_text((ROOT / 'tools/native/FaissIndexConverter.kt').read_text(encoding='utf-8'), encoding='utf-8')
 
 cpp = BUILD / 'android/app/src/main/cpp'
 cpp.mkdir(parents=True, exist_ok=True)
@@ -100,11 +120,26 @@ engine.write_text(es, encoding='utf-8')
 
 plugin = PKG / 'RVCPlugin.kt'
 s = plugin.read_text(encoding='utf-8')
+if "import com.developermindset.faiss.FAISS" not in s:
+    s = s.replace("package com.ultimatervc.mobile", "package com.ultimatervc.mobile" + chr(10) + chr(10) + "import com.developermindset.faiss.FAISS", 1)
+if "import ai.onnxruntime.OrtEnvironment" not in s:
+    s = s.replace("package com.ultimatervc.mobile", "package com.ultimatervc.mobile" + chr(10) + chr(10) + "import ai.onnxruntime.OrtEnvironment" + chr(10) + "import ai.onnxruntime.OrtSession", 1)
 dispatch = '            "convertIndex" -> convertIndex(call, result)'
+if '"convertFaissIndex" -> convertFaissIndex(call, result)' not in s:
+    if dispatch not in s: raise RuntimeError('RVCPlugin convertIndex dispatch anchor missing for FAISS bridge')
+    s = s.replace(dispatch, dispatch + '\n            "convertFaissIndex" -> convertFaissIndex(call, result)', 1)
+if '"convertPth" -> convertPth(call, result)' not in s:
+    if dispatch not in s: raise RuntimeError('RVCPlugin convertIndex dispatch anchor missing for PTH bridge')
+    s = s.replace(dispatch, dispatch + '\n            "convertPth" -> convertPth(call, result)', 1)
 if '"separateSongVocals" -> separateSongVocals(call, result)' not in s:
     if dispatch not in s:
         raise RuntimeError('RVCPlugin dispatch anchor missing')
     s = s.replace(dispatch, dispatch + '\n            "separateSongVocals" -> separateSongVocals(call, result)\n            "mixSongCover" -> mixSongCover(call, result)', 1)
+if '"validateVoiceModel" -> validateVoiceModel(call, result)' not in s:
+    if dispatch not in s:
+        raise RuntimeError('RVCPlugin dispatch anchor missing for ONNX validation')
+    s = s.replace(dispatch, dispatch + '\n            "validateVoiceModel" -> validateVoiceModel(call, result)', 1)
+
 methods = '''
     private fun separateSongVocals(call: MethodCall, result: Result) {
         val inputPath = call.argument<String>("inputPath")
@@ -159,21 +194,90 @@ methods = '''
         }
     }
 
-'''
-anchor = '    private fun convertIndex(call: MethodCall, result: Result) {'
-if 'private fun separateSongVocals(call: MethodCall, result: Result)' not in s:
-    if anchor not in s: raise RuntimeError('RVCPlugin convertIndex anchor missing')
-    s = s.replace(anchor, methods + anchor, 1)
+    private fun convertPth(call: MethodCall, result: Result) {
+        val inputPath = call.argument<String>("inputWavPath")
+        val modelPath = call.argument<String>("pthModelPath")
+        val selectedIndexPath = call.argument<String>("indexPath")
+        val pitchShift = (call.argument<Double>("pitchShift") ?: 0.0).toInt()
+        val indexRate = (call.argument<Double>("indexRate") ?: 0.75).toFloat().coerceIn(0f, 1f)
+        if (inputPath.isNullOrBlank() || modelPath.isNullOrBlank()) {
+            result.error("INVALID_ARGUMENTS", "A vocal WAV and PTH model path are required.", null)
+            return
+        }
+        scope.launch {
+            var retrievalIndex: FAISS.Index? = null
+            try {
+                if (!selectedIndexPath.isNullOrBlank()) {
+                    val selected = File(selectedIndexPath)
+                    require(selected.isFile) { "The selected retrieval index is missing." }
+                    val sourceIndex = if (selected.name.endsWith(".mobile.index", ignoreCase = true)) {
+                        File(selected.parentFile, selected.name.substring(0, selected.name.length - ".mobile.index".length) + ".index")
+                    } else selected
+                    require(sourceIndex.isFile && sourceIndex.length() > 16L) {
+                        "The mobile index is ready for ONNX conversion, but its original FAISS .index file is not beside it. Re-import the original .index to enable native PTH retrieval blending."
+                    }
+                    require(sourceIndex.length() <= 512L * 1024L * 1024L) {
+                        "This FAISS index is larger than the 512 MB on-phone retrieval limit."
+                    }
+                    val activityManager = appContext.getSystemService(android.content.Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+                    val memoryInfo = android.app.ActivityManager.MemoryInfo()
+                    activityManager.getMemoryInfo(memoryInfo)
+                    val minimumAvailable = sourceIndex.length() * 3L / 2L + 192L * 1024L * 1024L
+                    require(memoryInfo.availMem >= minimumAvailable) {
+                        "There is not enough free memory to load this FAISS index safely. Close other apps and try again."
+                    }
+                    val opened = withContext(Dispatchers.IO) { FAISS.readIndex(sourceIndex.absolutePath) }
+                    retrievalIndex = opened
+                    require(opened.dimension() == 768 && opened.isTrained() && opened.ntotal() > 0L) {
+                        "The selected FAISS index must be trained, non-empty and 768-dimensional for RVC v2."
+                    }
+                    withContext(Dispatchers.IO) { opened.prepareForRvc() }
+                }
 
-# Validate the ONNX graph before presenting a model as runnable. Extension-only
-# checks allowed incompatible ONNX exports to appear ready until inference failed.
-if 'import ai.onnxruntime.OrtEnvironment' not in s:
-    s = s.replace('package com.ultimatervc.mobile\n', 'package com.ultimatervc.mobile\n\nimport ai.onnxruntime.OrtEnvironment\nimport ai.onnxruntime.OrtSession\n', 1)
-dispatch_anchor = '            "infer" -> infer(call, result)'
-if '"validateVoiceModel" -> validateVoiceModel(call, result)' not in s:
-    if dispatch_anchor not in s: raise RuntimeError('RVCPlugin inference dispatch anchor missing')
-    s = s.replace(dispatch_anchor, '            "validateVoiceModel" -> validateVoiceModel(call, result)\n' + dispatch_anchor, 1)
-validation = '''
+                val modelDir = File(appContext.filesDir, "rvc_pth_models").apply { mkdirs() }
+                fun copyBundledModel(name: String): File {
+                    val target = File(modelDir, name)
+                    if (!target.isFile || target.length() == 0L) {
+                        val temporary = File(modelDir, "$name.copying")
+                        appContext.assets.open("flutter_assets/assets/models/$name").use { input ->
+                            temporary.outputStream().use { output -> input.copyTo(output) }
+                        }
+                        require(temporary.isFile && temporary.length() > 1_000_000L) { "Bundled $name model is missing or incomplete." }
+                        if (target.exists()) target.delete()
+                        check(temporary.renameTo(target)) { "Could not install bundled $name model." }
+                    }
+                    require(target.isFile && target.length() > 1_000_000L) { "Bundled $name model is missing or empty." }
+                    return target
+                }
+                val hubert = copyBundledModel("hubert.onnx")
+                val rmvpe = copyBundledModel("rmvpe.onnx")
+                val outputDir = File(appContext.filesDir, "outputs").apply { mkdirs() }
+                val output = File(outputDir, "pth_cover_${System.currentTimeMillis()}.wav")
+                val activeIndex = retrievalIndex
+                val error = withContext(Dispatchers.IO) {
+                    RvcPthNative().convertPth(
+                        inputPath, modelPath, hubert.absolutePath, rmvpe.absolutePath,
+                        output.absolutePath, pitchShift, activeIndex, indexRate
+                    )
+                }
+                require(error.isNullOrEmpty()) { error ?: "Native PTH conversion failed." }
+                require(output.isFile && output.length() > 44L) { "Native PTH conversion returned no usable WAV output." }
+                withContext(Dispatchers.Main) { result.success(output.absolutePath) }
+            } catch (e: UnsatisfiedLinkError) {
+                withContext(Dispatchers.Main) {
+                    result.error("PTH_LIBRARY_MISSING", "The native PTH inference library or FAISS retrieval runtime is not packaged in this APK.", null)
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    result.error("PTH_CONVERSION_FAILED", e.message ?: "Native PTH conversion failed.", null)
+                }
+            } finally {
+                withContext(Dispatchers.IO) { retrievalIndex?.close() }
+            }
+        }
+    }
+
+
     private fun validateVoiceModel(call: MethodCall, result: Result) {
         val path = call.argument<String>("modelPath")
         if (path.isNullOrBlank()) {
@@ -222,15 +326,60 @@ validation = '''
     }
 
 '''
-if 'private fun validateVoiceModel(call: MethodCall, result: Result)' not in s:
+faiss_method = '''
+    private fun convertFaissIndex(call: MethodCall, result: Result) {
+        val sourcePath = call.argument<String>("sourcePath")
+        if (sourcePath.isNullOrBlank()) {
+            result.error("INVALID_ARGUMENTS", "Missing source index path.", null)
+            return
+        }
+        scope.launch {
+            try {
+                val imported = FaissIndexConverter.convert(appContext, File(sourcePath))
+                withContext(Dispatchers.Main) { result.success(mapOf("path" to imported.path, "referenceCount" to imported.referenceCount, "lastUpdatedAtMs" to imported.lastUpdatedAtMs)) }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    result.error("FAISS_CONVERSION_FAILED", e.message ?: "On-device FAISS conversion failed.", null)
+                }
+            }
+        }
+    }
+
+'''
+# The dispatch entries above must have matching implementations inside RVCPlugin.
+# Install the complete native conversion and source-separation handlers before
+# the existing ONNX index converter, exactly once.
+if 'private fun separateSongVocals(call: MethodCall, result: Result)' not in s:
     anchor = '    private fun convertIndex(call: MethodCall, result: Result) {'
-    if anchor not in s: raise RuntimeError('RVCPlugin convertIndex anchor missing')
-    s = s.replace(anchor, validation + anchor, 1)
+    if anchor not in s:
+        raise RuntimeError('RVCPlugin conversion-method insertion anchor missing')
+    s = s.replace(anchor, methods + anchor, 1)
+
+if 'private fun convertFaissIndex(call: MethodCall, result: Result)' not in s:
+    anchor = '    private fun convertIndex(call: MethodCall, result: Result) {'
+    if anchor not in s: raise RuntimeError('RVCPlugin convertIndex method anchor missing')
+    s = s.replace(anchor, faiss_method + anchor, 1)
 plugin.write_text(s, encoding='utf-8')
 
 # Expose the native model preflight to Flutter.
 bridge = BUILD / 'lib/services/rvc_bridge.dart'
 bs = bridge.read_text(encoding='utf-8')
+if 'Future<String> convertFaissIndex(String sourcePath)' not in bs:
+    anchor = '  Future<String> convertIndex(String sourcePath) async {'
+    method = '''  Future<ImportedFileHandle> convertFaissIndex(String sourcePath) async {
+    try {
+      final result = await _channel.invokeMethod('convertFaissIndex', {'sourcePath': sourcePath});
+      return ImportedFileHandle.fromMap(Map<String, dynamic>.from(result as Map));
+    } on PlatformException catch (e) {
+      throw Exception('FAISS conversion failed: ${e.message}');
+    }
+  }
+
+'''
+    if anchor not in bs: raise RuntimeError('RVCBridge convertIndex anchor missing')
+    bs = bs.replace(anchor, method + anchor, 1)
+    bridge.write_text(bs, encoding='utf-8')
+
 if 'Future<void> validateVoiceModel(String modelPath)' not in bs:
     anchor = '  Future<void> startRecording() async {'
     method = '''  Future<void> validateVoiceModel(String modelPath) async {
@@ -248,21 +397,40 @@ if 'Future<void> validateVoiceModel(String modelPath)' not in bs:
 # Validate both newly imported and previously stored ONNX files before selection.
 picker = BUILD / 'lib/screens/model_picker_screen.dart'
 ps = picker.read_text(encoding='utf-8')
-if 'await _bridge.validateVoiceModel(imported.path);' not in ps:
+if "if (imported.path.toLowerCase().endsWith('.onnx')) await _bridge.validateVoiceModel(imported.path);" not in ps:
     import_selection = '        _selectedModelPath = imported.path;'
     if import_selection not in ps: raise RuntimeError('Model import selection anchor missing')
-    ps = ps.replace(import_selection, '        await _bridge.validateVoiceModel(imported.path);\n' + import_selection, 1)
-if 'await _bridge.validateVoiceModel(path);' not in ps:
+    ps = ps.replace(import_selection, "        if (imported.path.toLowerCase().endsWith('.onnx')) await _bridge.validateVoiceModel(imported.path);\n" + import_selection, 1)
+if "if (path.toLowerCase().endsWith('.onnx')) await _bridge.validateVoiceModel(path);" not in ps:
     use_selection = '    _selectedModelPath = path;'
     if use_selection not in ps: raise RuntimeError('Model library use anchor missing')
     guard = '''    try {
-      await _bridge.validateVoiceModel(path);
+      if (path.toLowerCase().endsWith('.onnx')) await _bridge.validateVoiceModel(path);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('MODEL NOT COMPATIBLE: $e')));
       return;
     }
 '''
     ps = ps.replace(use_selection, guard + use_selection, 1)
+
+# The upstream picker originally rejects every voice checkpoint except ONNX.
+# Add the native PTH route to the picker itself; otherwise Android users can
+# never select a .pth file even though the native runtime is packaged.
+# The branded picker already validates .onnx/.pth via _runtime() and
+# uses Android SAF without restrictive extension filters. Older upstream
+# picker variants use the lowerPath predicate below; support both safely.
+if "bool _runtime(String path) => _ext(path) == 'pth';" not in ps and "bool _runtime(String path) => ['onnx', 'pth'].contains(_ext(path));" not in ps and "return lowerPath.endsWith('.onnx') || lowerPath.endsWith('.pth');" not in ps:
+    old_model_filter = "return lowerPath.endsWith('.onnx');"
+    if old_model_filter not in ps:
+        raise RuntimeError('Model picker has neither the branded ONNX/PTH runtime predicate nor the expected upstream ONNX filter')
+    ps = ps.replace(old_model_filter,
+        "return lowerPath.endsWith('.onnx') || lowerPath.endsWith('.pth');", 1)
+ps = ps.replace("请选择 .onnx 模型文件", "Choose a compatible ONNX or supported RVC v2 PTH voice model")
+ps = ps.replace("'支持：.onnx 模型'", "'Supported: RVC v2 PTH (768d / 100fps) or compatible ONNX'")
+ps = ps.replace("Text('选择音色模型')", "Text('Select Voice Model')")
+ps = ps.replace("Text('更换模型')", "Text('Change Model')")
+ps = ps.replace("Text('选择模型')", "Text('Choose Model')")
+
 picker.write_text(ps, encoding='utf-8')
 
 plugin.write_text(s, encoding='utf-8')
@@ -279,6 +447,8 @@ gradle.write_text(g, encoding='utf-8')
 # Include the separately bundled Spleeter ONNX models in Flutter's asset manifest.
 pubspec = BUILD / 'pubspec.yaml'
 pubspec_text = pubspec.read_text(encoding='utf-8')
+if 'url_launcher:' not in pubspec_text:
+    pubspec_text = pubspec_text.replace('dependencies:\n', 'dependencies:\n  url_launcher: ^6.3.1\n', 1)
 separation_asset = '    - assets/models/separation/\n'
 if separation_asset not in pubspec_text:
     model_asset = '    - assets/models/\n'
@@ -330,6 +500,10 @@ if 'Future<Map<String, String>> separateSongVocals' not in bs:
 '''
     if anchor not in bs: raise RuntimeError('RVCBridge insertion anchor missing')
     bs = bs.replace(anchor, methods + anchor, 1)
+if 'Future<String> convertPth({' not in bs:
+    anchor = '  Future<void> startRecording() async {'
+    if anchor not in bs: raise RuntimeError('RVCBridge insertion anchor missing for PTH method')
+    bs = bs.replace(anchor, "  Future<String> convertPth({\n    required String inputWavPath,\n    required String pthModelPath,\n    String? indexPath,\n    double indexRate = 0.75,\n    int pitchShift = 0,\n  }) async {\n    final result = await _channel.invokeMethod<String>('convertPth', {\n      'inputWavPath': inputWavPath,\n      'pthModelPath': pthModelPath,\n      'indexPath': indexPath,\n      'indexRate': indexRate,\n      'pitchShift': pitchShift.toDouble(),\n    });\n    if (result == null || result.isEmpty) {\n      throw StateError('The native PTH converter did not return a converted WAV.');\n    }\n    return result;\n  }\n\n" + anchor, 1)
 bridge.write_text(bs, encoding='utf-8')
 
 main = BUILD / 'lib/main.dart'
@@ -341,24 +515,131 @@ if "import 'screens/song_cover_screen.dart';" not in ms:
 old = 'onSongCovers: _openAudioConversion,'
 new = """onSongCovers: () {
           final selectedModel = _selectedModelPath;
-          if (selectedModel == null || !selectedModel.toLowerCase().endsWith('.onnx')) {
+          if (selectedModel == null || !selectedModel.toLowerCase().endsWith('.pth')) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Select a compatible ONNX voice in Model Library first. PTH/PT files must be converted before use.')),
+              const SnackBar(content: Text('Choose your supported RVC v2 .pth voice model in Voice Library first. The converter does not require a user-supplied ONNX file.')),
             );
             return;
           }
           final selectedIndex = _selectedIndexPath;
-          final mobileIndex = selectedIndex != null && selectedIndex.toLowerCase().endsWith('.mobile.index')
-              ? selectedIndex
-              : null;
           Navigator.of(context).push(MaterialPageRoute(builder: (_) => SongCoverScreen(
             modelPath: selectedModel,
-            indexPath: mobileIndex,
+            // Pass the selected original .index or .mobile.index. The native
+            // PTH bridge resolves the original FAISS sidecar when necessary.
+            indexPath: selectedIndex,
           )));
         },"""
 if old in ms: ms = ms.replace(old, new, 1)
 elif 'onSongCovers: () {' not in ms: raise RuntimeError('Song Covers dashboard callback missing')
 main.write_text(ms, encoding='utf-8')
+
+# Route the workspace's primary conversion entry directly into the native PTH
+# song-cover pipeline. The legacy Generate screen only executes ONNX voice
+# models and was the reason PTH users were still being asked for ONNX.
+old_conversion = '''  void _openAudioConversion() {
+    setState(() => _moduleIndex = 1);
+    _saveState();
+    _scaffoldKey.currentState?.closeDrawer();
+  }'''
+new_conversion = '''  void _openAudioConversion() {
+    final selectedModel = _selectedModelPath;
+    if (selectedModel == null || !selectedModel.toLowerCase().endsWith('.pth')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Choose your compatible .pth voice model in Voice Library first.')),
+      );
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(
+        onModelSelected: _onModelSelected,
+        onModelCleared: _onModelCleared,
+        onIndexSelected: _onIndexSelected,
+        onContinue: _continueToGenerate,
+        selectedModelPath: _selectedModelPath,
+        selectedModelDisplayName: _selectedModelDisplayName,
+        selectedIndexPath: _selectedIndexPath,
+        selectedIndexDisplayName: _selectedIndexDisplayName,
+        selectedSongPath: _selectedSongPath,
+        selectedSongDisplayName: _selectedSongDisplayName,
+      )));
+      _scaffoldKey.currentState?.closeDrawer();
+      return;
+    }
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => SongCoverScreen(
+      modelPath: selectedModel,
+      indexPath: _selectedIndexPath,
+      initialSongPath: _selectedSongPath,
+    )));
+    _scaffoldKey.currentState?.closeDrawer();
+  }'''
+if old_conversion not in ms:
+    raise RuntimeError('Could not locate legacy conversion entry point; refusing to leave ONNX-only navigation active.')
+ms = ms.replace(old_conversion, new_conversion, 1)
+# Every model-library continuation must lead to the native PTH workflow,
+# never the legacy ONNX-only GenerateScreen.
+ms = ms.replace("onContinue: _continueToGenerate,", "onContinue: _continueToPthConversion,")
+# Replace the legacy ONNX GenerateScreen in the audio workflow with the real
+# native PTH song-cover screen. Reuse the song already selected in step one.
+old_generate_screen = '''canGenerate
+          ? GenerateScreen(
+              songPath: _selectedSongPath!,
+              songDisplayName: _selectedSongDisplayName ?? File(_selectedSongPath!).uri.pathSegments.last,
+              modelPath: _selectedModelPath!,
+              modelDisplayName: _selectedModelDisplayName ?? File(_selectedModelPath!).uri.pathSegments.last,
+              indexPath: _selectedIndexPath,
+              indexDisplayName: _selectedIndexDisplayName,
+              generationState: _generationState,
+              otherModeRunning: _inferenceProcessRunning && !_generationState.isGenerating,
+              onGenerationComplete: _onGenerationComplete,
+            )
+          : SongPickerScreen(
+              onSongSelected: _onSongSelected,
+              onSongCleared: _onSongCleared,
+              selectedSongPath: _selectedSongPath,
+              selectedSongDisplayName: _selectedSongDisplayName,
+            ),'''
+new_generate_screen = '''canGenerate
+          ? SongCoverScreen(
+              modelPath: _selectedModelPath!,
+              indexPath: _selectedIndexPath,
+              initialSongPath: _selectedSongPath,
+              onCoverComplete: _onGenerationComplete,
+            )
+          : SongPickerScreen(
+              onSongSelected: _onSongSelected,
+              onSongCleared: _onSongCleared,
+              selectedSongPath: _selectedSongPath,
+              selectedSongDisplayName: _selectedSongDisplayName,
+            ),'''
+if old_generate_screen not in ms and 'onCoverComplete: _onGenerationComplete' not in ms:
+    raise RuntimeError('Could not replace the legacy GenerateScreen with native PTH song covers.')
+if old_generate_screen in ms:
+    ms = ms.replace(old_generate_screen, new_generate_screen, 1)
+ms = ms.replace("label: 'Generate'", "label: 'PTH Cover'")
+helper = '''
+  void _continueToPthConversion() {
+    final selectedModel = _selectedModelPath;
+    if (selectedModel == null || !selectedModel.toLowerCase().endsWith('.pth')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select a supported RVC v2 .pth voice model to continue.')),
+      );
+      return;
+    }
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => SongCoverScreen(
+      modelPath: selectedModel,
+      indexPath: _selectedIndexPath,
+      initialSongPath: _selectedSongPath,
+    )));
+  }
+'''
+if 'void _continueToPthConversion()' not in ms:
+    # Insert against a stable method declaration, not the whole replacement
+    # block: upstream formatting changes must never silently drop this method.
+    anchor = '  void _openAudioConversion() {'
+    if ms.count(anchor) != 1:
+        raise RuntimeError('Could not uniquely locate _openAudioConversion for PTH navigation helper')
+    ms = ms.replace(anchor, helper + chr(10) + anchor, 1)
+if 'void _continueToPthConversion()' not in ms:
+    raise RuntimeError('PTH conversion navigation helper was not inserted')
+main.write_text(ms, encoding='utf-8')
+
 
 
 # Keep the app's Java API and Sherpa-ONNX native library on the same ONNX Runtime release.
@@ -386,3 +667,5 @@ if root_gradle.exists():
         'org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.22',
     )
     root_gradle.write_text(root_text, encoding='utf-8')
+
+

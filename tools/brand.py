@@ -1,6 +1,6 @@
 import re
 from pathlib import Path
-import urllib.request
+import shutil
 
 root = Path("buildsrc")
 repo_root = Path(__file__).resolve().parent.parent
@@ -12,10 +12,9 @@ repo_root = Path(__file__).resolve().parent.parent
 # ---------------------------------------------------------------------------
 # Assets / custom UI
 # ---------------------------------------------------------------------------
-logo_url = "https://cdn.websitepublisher.ai/custom/wid25042/images/reds-ultimate-rvc-logo.svg"
 logo = root / "assets" / "images" / "reds-ultimate-rvc-logo.svg"
 logo.parent.mkdir(parents=True, exist_ok=True)
-urllib.request.urlretrieve(logo_url, logo)
+logo.write_text("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"512\" height=\"512\" viewBox=\"0 0 512 512\"><defs><linearGradient id=\"r\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\"><stop stop-color=\"#FF8798\"/><stop offset=\".48\" stop-color=\"#FF2348\"/><stop offset=\"1\" stop-color=\"#A90027\"/></linearGradient><linearGradient id=\"s\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop stop-color=\"#FFFFFF\"/><stop offset=\"1\" stop-color=\"#9CA6B8\"/></linearGradient><filter id=\"g\" x=\"-50%\" y=\"-50%\" width=\"200%\" height=\"200%\"><feGaussianBlur stdDeviation=\"11\" result=\"b\"/><feMerge><feMergeNode in=\"b\"/><feMergeNode in=\"SourceGraphic\"/></feMerge></filter></defs><g fill=\"none\" stroke=\"url(#r)\" stroke-linecap=\"round\"><path d=\"M96 194a166 166 0 0 1 320 0\" stroke-width=\"15\" opacity=\".88\"/><path d=\"M75 236a188 188 0 0 0 362 0\" stroke-width=\"8\" opacity=\".48\"/><path d=\"M125 278a138 138 0 0 0 262 0\" stroke-width=\"8\" opacity=\".42\"/><path d=\"M157 170v54M184 132v104M212 104v141M300 104v141M328 132v104M355 170v54\" stroke-width=\"12\" opacity=\".7\"/></g><g filter=\"url(#g)\"><rect x=\"218\" y=\"83\" width=\"76\" height=\"190\" rx=\"38\" fill=\"#11141C\" stroke=\"url(#r)\" stroke-width=\"11\"/><path d=\"M234 130h44M234 158h44M234 186h44M234 214h44\" stroke=\"url(#s)\" stroke-width=\"9\" stroke-linecap=\"round\"/><path d=\"M183 226a73 73 0 0 0 146 0\" fill=\"none\" stroke=\"url(#r)\" stroke-width=\"15\" stroke-linecap=\"round\"/><path d=\"M256 300v55M213 355h86\" stroke=\"url(#s)\" stroke-width=\"14\" stroke-linecap=\"round\"/><path d=\"M170 392h172\" stroke=\"url(#r)\" stroke-width=\"12\" stroke-linecap=\"round\"/></g><circle cx=\"256\" cy=\"256\" r=\"225\" fill=\"none\" stroke=\"#FF3155\" stroke-opacity=\".18\" stroke-width=\"3\"/></svg>", encoding="utf-8")
 
 for name in ("red_home_screen.dart", "training_screen.dart", "full_rvc_screen.dart", "model_converter_screen.dart", "index_converter_screen.dart", "song_cover_screen.dart"):
     src = repo_root / "tools" / "ui" / name
@@ -234,7 +233,7 @@ class RedHomeScreen extends StatelessWidget {
                   SizedBox(width: 11),
                   Expanded(
                     child: Text(
-                      'RVC conversion is performed locally on the phone. ONNX voice models are directly usable by the Android engine; source .pth/.pt models can be stored in the library but require conversion to a mobile-compatible model before inference.',
+                      'RVC conversion runs locally through the native RVC v2 .pth engine. Choose a supported 768-dimensional / 100-fps .pth checkpoint; no ONNX voice-model export or upload is needed.',
                       style: TextStyle(color: Color(0xFFC7C7D0), height: 1.35, fontSize: 12.5),
                     ),
                   ),
@@ -444,9 +443,11 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
     return i >= 0 ? p.substring(i + 1) : '';
   }
 
-  bool _runtime(String path) => _ext(path) == 'onnx';
+  bool _runtime(String path) => _ext(path) == 'pth';
 
-  bool _sourceModel(String path) => ['pth', 'pt', 'zip'].contains(_ext(path));
+  bool _index(String path) => ['index', 'mobile.index'].contains(_ext(path));
+
+  bool _sourceModel(String path) => ['pt', 'zip'].contains(_ext(path));
 
 
   Future<void> _pickModel() async {
@@ -464,14 +465,12 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
       final source = result?.files.single.path;
       if (source == null || source.isEmpty) return;
       final ext = _ext(source);
-      if (!['onnx', 'pth', 'pt', 'zip'].contains(ext)) {
-        throw Exception('Select an RVC model: .onnx, .pth, .pt or .zip');
+      if (!['pth', 'pt', 'zip'].contains(ext)) {
+        throw Exception('Select an RVC model: .pth, .pt or .zip. Only supported .pth files run natively.');
       }
 
       final imported = await _bridge.importPickedFile(kind: 'model', sourcePath: source);
-      if (_library.contains(imported.path)) {
-        await _bridge.releaseImportedFile(imported.path);
-      } else {
+      if (!_library.contains(imported.path)) {
         _library.insert(0, imported.path);
       }
       if (_runtime(imported.path)) {
@@ -484,10 +483,10 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
       setState(() {});
       if (_runtime(imported.path)) {
         widget.onModelSelected(imported.path);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('ONNX model imported and ready.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_ext(imported.path) == 'pth' ? 'Native RVC v2 PTH model imported. Supported profile: 768 dimensions / 100 fps.' : 'PTH model imported and ready for native conversion.')));
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Model imported into the library. PTH/PT/ZIP is stored safely but is not directly runnable by the Android ONNX engine.')),
+          const SnackBar(content: Text('Model imported into the library. PT/ZIP files are storage-only; supported RVC v2 PTH checkpoints run natively.')),
         );
       }
     } catch (e) {
@@ -512,23 +511,23 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
       if (!_index(source)) throw Exception('Select an RVC .index or .mobile.index file');
 
       final imported = await _bridge.importPickedFile(kind: 'index', sourcePath: source);
-      if (_indexLibrary.contains(imported.path)) {
-        await _bridge.releaseImportedFile(imported.path);
-      } else {
+      if (!_indexLibrary.contains(imported.path)) {
         _indexLibrary.insert(0, imported.path);
       }
       await _saveIndexLibrary();
-      if (ext == 'mobile.index') {
-        await _bridge.convertIndex(imported.path);
-        _selectedIndexPath = imported.path;
-        _selectedIndexDisplayName = File(imported.path).uri.pathSegments.last;
-        widget.onIndexSelected(imported.path);
-      }
+      final installed = ext == 'mobile.index'
+          ? await _bridge.convertIndex(imported.path)
+          : (await _bridge.convertFaissIndex(imported.path)).path;
+      if (!_indexLibrary.contains(installed)) _indexLibrary.insert(0, installed);
+      await _saveIndexLibrary();
+      _selectedIndexPath = installed;
+      _selectedIndexDisplayName = File(installed).uri.pathSegments.last;
+      widget.onIndexSelected(installed);
       if (mounted) setState(() {});
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(ext == 'mobile.index' ? 'mobile.index imported and ready.' : 'Standard .index stored in your Index Library. This offline Android build does not include FAISS-to-mobile conversion.')),
+          SnackBar(content: Text(ext == 'mobile.index' ? 'mobile.index validated and ready.' : 'Standard FAISS index converted on this phone and ready for compatible RVC v2 inference.')),
         );
       }
     } catch (e) {
@@ -540,7 +539,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
 
   Future<void> _use(String path) async {
     if (!_runtime(path)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This source model is stored, but Android inference requires an ONNX model.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This source file is storage-only. Choose a supported RVC v2 .pth voice model.')));
       return;
     }
     _selectedModelPath = path;
@@ -564,22 +563,20 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
   }
 
   Future<void> _useIndex(String path) async {
-    if (_ext(path) != 'mobile.index') {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Standard .index files require FAISS conversion before mobile inference.'),
-      ));
-      return;
-    }
     try {
-      await _bridge.convertIndex(path);
-      _selectedIndexPath = path;
-      _selectedIndexDisplayName = File(path).uri.pathSegments.last;
-      widget.onIndexSelected(path);
+      final installed = _ext(path) == 'mobile.index'
+          ? await _bridge.convertIndex(path)
+          : (await _bridge.convertFaissIndex(path)).path;
+      if (!_indexLibrary.contains(installed)) _indexLibrary.insert(0, installed);
+      await _saveIndexLibrary();
+      _selectedIndexPath = installed;
+      _selectedIndexDisplayName = File(installed).uri.pathSegments.last;
+      widget.onIndexSelected(installed);
       if (mounted) setState(() {});
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('INDEX VALIDATION FAILED: $e')),
+          SnackBar(content: Text('INDEX CONVERSION FAILED: $e')),
         );
       }
     }
@@ -616,7 +613,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 7),
-              Text(ready ? 'READY — ONNX model can be used for conversion.' : 'Choose an ONNX model for conversion. Source RVC models can also be stored below.', style: const TextStyle(color: Color(0xFFAAAAB5))),
+              Text(ready ? (_ext(selected!) == 'pth' ? 'READY — Native PTH supports RVC v2, 768 dimensions / 100 fps only.' : 'READY — Native PTH model can be used for conversion.') : 'Choose a supported RVC v2 .pth voice model. PT/ZIP files are storage-only.', style: const TextStyle(color: Color(0xFFAAAAB5))),
               const SizedBox(height: 13),
               Row(children: [
                 Expanded(child: ElevatedButton.icon(onPressed: _busy || !_libraryLoaded ? null : _pickModel, icon: const Icon(Icons.upload_file), label: const Text('IMPORT MODEL'))),
@@ -634,7 +631,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
               Text(_selectedIndexDisplayName ?? (_selectedIndexPath == null ? 'No index selected' : File(_selectedIndexPath!).uri.pathSegments.last),
                 style: const TextStyle(fontWeight: FontWeight.w800)),
               const SizedBox(height: 8),
-              const Text('mobile.index files can be used directly. Standard FAISS .index files require conversion, which is not included in this offline Android build.', style: TextStyle(color: Color(0xFF9E9EA8), height: 1.3)),
+              const Text('mobile.index files can be used directly. Standard 768-dimensional RVC v2 FAISS .index files can be converted locally to mobile.index on this phone.', style: TextStyle(color: Color(0xFF9E9EA8), height: 1.3)),
               const SizedBox(height: 12),
               OutlinedButton.icon(onPressed: _busy || !_libraryLoaded ? null : _pickIndex, icon: const Icon(Icons.upload_file), label: const Text('IMPORT INDEX')),
               if (_indexLibrary.isNotEmpty) ...[
@@ -647,7 +644,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
                     leading: Icon(mobile ? Icons.check_circle : Icons.inventory_2,
                       color: mobile ? const Color(0xFF5DE58A) : const Color(0xFFFFA3AE)),
                     title: Text(File(p).uri.pathSegments.last, maxLines: 1, overflow: TextOverflow.ellipsis),
-                    subtitle: Text(mobile ? 'MOBILE INDEX — VALIDATED WHEN SELECTED' : 'STANDARD FAISS INDEX — CONVERSION REQUIRED'),
+                    subtitle: Text(mobile ? 'MOBILE INDEX — VALIDATED WHEN SELECTED' : 'STANDARD FAISS INDEX — READY FOR ON-PHONE CONVERSION'),
                     trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                       if (mobile) IconButton(onPressed: () => _useIndex(p), icon: const Icon(Icons.check), tooltip: 'Use index'),
                       IconButton(onPressed: () => _deleteIndex(p), icon: const Icon(Icons.delete_outline), tooltip: 'Delete index'),
@@ -656,7 +653,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
                 }),
               ],
               const SizedBox(height: 9),
-              const Text('PTH → ONNX conversion is not included in this offline mobile engine. Imported PTH files remain stored safely, but cannot be selected for inference until a genuine converter is integrated.', style: TextStyle(color: Color(0xFFFFA3AE), height: 1.35)),
+              const Text('A genuine native RVC v2 PTH converter is integrated: compatible 768-dimensional / 100-fps checkpoints run directly on this phone without exporting to ONNX. When the original matching FAISS .index is imported, native retrieval search and blending are applied during PTH conversion. The mobile-index copy is an optional compatibility export; native PTH retrieval uses the original matching FAISS .index.', style: TextStyle(color: Color(0xFFFFA3AE), height: 1.35)),
             ]),
           ),
           const SizedBox(height: 12),
@@ -671,7 +668,7 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
                     contentPadding: EdgeInsets.zero,
                     leading: Icon(runtime ? Icons.check_circle : Icons.inventory_2, color: runtime ? const Color(0xFF5DE58A) : const Color(0xFFFF334F)),
                     title: Text(File(p).uri.pathSegments.last, maxLines: 1, overflow: TextOverflow.ellipsis),
-                    subtitle: Text(runtime ? 'READY FOR MOBILE INFERENCE' : source ? 'SOURCE MODEL — CONVERSION REQUIRED' : 'IMPORTED FILE'),
+                    subtitle: Text(runtime ? (_ext(p) == 'pth' ? 'READY — NATIVE PTH (768D / 100FPS)' : 'READY FOR MOBILE INFERENCE') : source ? 'SOURCE MODEL — STORAGE ONLY' : 'IMPORTED FILE'),
                     trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                       if (runtime) IconButton(onPressed: () => _use(p), icon: const Icon(Icons.play_arrow), tooltip: 'Use model'),
                       IconButton(onPressed: () => _delete(p), icon: const Icon(Icons.delete_outline), tooltip: 'Delete'),
@@ -681,9 +678,9 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
           ),
           const SizedBox(height: 14),
           SizedBox(height: 52, child: ElevatedButton.icon(
-            onPressed: ready && widget.selectedSongPath != null ? widget.onContinue : null,
+            onPressed: ready && _ext(selected!) == 'pth' ? widget.onContinue : null,
             icon: const Icon(Icons.arrow_forward),
-            label: const Text('CONTINUE TO CONVERSION'),
+            label: Text(selected != null && _ext(selected) == 'pth' ? 'PTH VOICE — USE SONG COVERS' : 'SELECT A PTH VOICE TO CONTINUE'),
           )),
         ],
       ),
@@ -710,6 +707,93 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
 # ---------------------------------------------------------------------------
 main = root / "lib" / "main.dart"
 mt = main.read_text(encoding="utf-8")
+
+# The branded model picker already imports model/index files into managed
+# private storage. Re-importing those paths in MainScreen created duplicate
+# sidecars, separating .mobile.index from its original .index and breaking
+# native FAISS retrieval. Keep the exact managed paths selected by the picker.
+old_model_selection = '''  Future<void> _onModelSelected(String path) async {
+    final previousModelPath = _selectedModelPath;
+    final previousOutputPath = _generatedOutputPath;
+    final importedPath = await _importPickedFile(kind: 'model', sourcePath: path);
+    setState(() {
+      _selectedModelPath = importedPath;
+      _selectedModelDisplayName = File(path).uri.pathSegments.last;
+      _generatedOutputPath = null;
+      _generationDuration = null;
+    });
+    _queueOutputForDeletionAfterNextSuccess(previousOutputPath);
+    _saveState();
+    await _clearAudioInferenceTempWorkspace();
+    if (previousModelPath != path) {
+      await _deleteOwnedPathIfNeeded(previousModelPath);
+    }
+  }'''
+new_model_selection = '''  Future<void> _onModelSelected(String path) async {
+    final previousModelPath = _selectedModelPath;
+    final previousOutputPath = _generatedOutputPath;
+    final importedPath = File(path).absolute.path;
+    if (!await File(importedPath).exists()) {
+      throw StateError('The selected PTH voice model is no longer available in private storage.');
+    }
+    setState(() {
+      _selectedModelPath = importedPath;
+      _selectedModelDisplayName = File(importedPath).uri.pathSegments.last;
+      _generatedOutputPath = null;
+      _generationDuration = null;
+    });
+    _queueOutputForDeletionAfterNextSuccess(previousOutputPath);
+    _saveState();
+    await _clearAudioInferenceTempWorkspace();
+    if (previousModelPath != importedPath) {
+      await _deleteOwnedPathIfNeeded(previousModelPath);
+    }
+  }'''
+if old_model_selection not in mt:
+    raise RuntimeError('Model selection handler anchor missing')
+mt = mt.replace(old_model_selection, new_model_selection, 1)
+
+old_index_selection = '''  Future<void> _onIndexSelected(String? path) async {
+    final previousIndexPath = _selectedIndexPath;
+    final previousOutputPath = _generatedOutputPath;
+    final importedPath = path == null ? null : await _importPickedFile(kind: 'index', sourcePath: path);
+    setState(() {
+      _selectedIndexPath = importedPath;
+      _selectedIndexDisplayName = path == null ? null : File(path).uri.pathSegments.last;
+      _generatedOutputPath = null;
+      _generationDuration = null;
+    });
+    _queueOutputForDeletionAfterNextSuccess(previousOutputPath);
+    _saveState();
+    await _clearAudioInferenceTempWorkspace();
+    if (previousIndexPath != path) {
+      await _deleteOwnedPathIfNeeded(previousIndexPath);
+    }
+  }'''
+new_index_selection = '''  Future<void> _onIndexSelected(String? path) async {
+    final previousIndexPath = _selectedIndexPath;
+    final previousOutputPath = _generatedOutputPath;
+    final importedPath = path == null ? null : File(path).absolute.path;
+    if (importedPath != null && !await File(importedPath).exists()) {
+      throw StateError('The selected FAISS index is no longer available in private storage.');
+    }
+    setState(() {
+      _selectedIndexPath = importedPath;
+      _selectedIndexDisplayName = importedPath == null ? null : File(importedPath).uri.pathSegments.last;
+      _generatedOutputPath = null;
+      _generationDuration = null;
+    });
+    _queueOutputForDeletionAfterNextSuccess(previousOutputPath);
+    _saveState();
+    await _clearAudioInferenceTempWorkspace();
+    if (previousIndexPath != importedPath) {
+      await _deleteOwnedPathIfNeeded(previousIndexPath);
+    }
+  }'''
+if old_index_selection not in mt:
+    raise RuntimeError('Index selection handler anchor missing')
+mt = mt.replace(old_index_selection, new_index_selection, 1)
+
 
 # Add custom imports.
 if "import 'screens/red_home_screen.dart';" not in mt:
@@ -793,9 +877,9 @@ dashboard = '''    final moduleScreens = [
         onGenerate: _openAudioConversion,
         onSongCovers: () {
           final modelPath = _selectedModelPath;
-          if (modelPath == null || modelPath.isEmpty || !modelPath.toLowerCase().endsWith('.onnx')) {
+          if (modelPath == null || modelPath.isEmpty || !modelPath.toLowerCase().endsWith('.pth')) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Song Covers needs a compatible RVC v2 ONNX voice model. Choose one in Voice Library first.')),
+              const SnackBar(content: Text('Choose your supported RVC v2 .pth voice model in Voice Library first. No ONNX voice model is required.')),
             );
             Navigator.of(context).push(MaterialPageRoute(builder: (_) => ModelPickerScreen(
               onModelSelected: _onModelSelected,
@@ -814,6 +898,7 @@ dashboard = '''    final moduleScreens = [
           Navigator.of(context).push(MaterialPageRoute(builder: (_) => SongCoverScreen(
             modelPath: modelPath,
             indexPath: _selectedIndexPath,
+            initialSongPath: _selectedSongPath,
           )));
         },
         onRealtime: _openRealtimeInference,
@@ -1654,13 +1739,13 @@ if manifest.exists():
     if 'android.permission.INTERNET' not in m:
         m = m.replace('<manifest xmlns:android="http://schemas.android.com/apk/res/android">', '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <uses-permission android:name="android.permission.INTERNET" />', 1)
     if 'android:icon="' in m:
-        m = re.sub(r'android:icon="[^"]+"', 'android:icon="@drawable/reds_ultimate_rvc_logo"', m, count=1)
+        m = re.sub(r'android:icon="[^"]+"', 'android:icon="@mipmap/ic_launcher"', m, count=1)
     else:
-        m = m.replace('<application', '<application android:icon="@drawable/reds_ultimate_rvc_logo"', 1)
+        m = m.replace('<application', '<application android:icon="@mipmap/ic_launcher"', 1)
     if 'android:roundIcon="' in m:
-        m = re.sub(r'android:roundIcon="[^"]+"', 'android:roundIcon="@drawable/reds_ultimate_rvc_logo"', m, count=1)
+        m = re.sub(r'android:roundIcon="[^"]+"', 'android:roundIcon="@mipmap/ic_launcher"', m, count=1)
     else:
-        m = m.replace('android:icon="@drawable/reds_ultimate_rvc_logo"', 'android:icon="@drawable/reds_ultimate_rvc_logo" android:roundIcon="@drawable/reds_ultimate_rvc_logo"', 1)
+        m = m.replace('android:icon="@mipmap/ic_launcher"', 'android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher"', 1)
     write(manifest,m)
 
 # Render SVG icon into a drawable for Android.
@@ -1669,6 +1754,14 @@ try:
     out = root / "android/app/src/main/res/drawable/reds_ultimate_rvc_logo.png"
     out.parent.mkdir(parents=True, exist_ok=True)
     cairosvg.svg2png(url=str(logo), write_to=str(out), output_width=512, output_height=512)
+    mipmap = root / "android/app/src/main/res/mipmap-mdpi/ic_launcher.png"
+    mipmap.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(out, mipmap)
+    write(root / "android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml", """<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+  <background android:drawable="@color/reds_rvc_launcher_background"/>
+  <foreground android:drawable="@drawable/reds_ultimate_rvc_logo"/>
+</adaptive-icon>""")
+    write(root / "android/app/src/main/res/values/reds_rvc_launcher_colors.xml", """<resources><color name="reds_rvc_launcher_background">#080A10</color></resources>""")
 except Exception as exc:
     raise RuntimeError(f"Could not render approved logo: {exc}")
 
@@ -1896,14 +1989,18 @@ old_model = """      final result = await FilePicker.platform.pickFiles(
       final source = result?.files.single.path;
       if (source == null || source.isEmpty) return;
       final ext = _ext(source);
-      if (!['onnx', 'pth', 'pt', 'zip'].contains(ext)) {
-        throw Exception('Select an RVC model: .onnx, .pth, .pt or .zip');
+      if (!['pth', 'pt', 'zip'].contains(ext)) {
+        throw Exception('Select an RVC model: .pth, .pt or .zip. Only supported .pth files run natively.');
       }
 
       final imported = await _bridge.importPickedFile(kind: 'model', sourcePath: source);"""
 new_model = """      final imported = await _bridge.pickAndImportFile(kind: 'model');
       if (imported == null) return;
-      final ext = _ext(imported.path);"""
+      final ext = _ext(imported.path);
+      if (!['pth', 'pt', 'zip'].contains(ext)) {
+        await _bridge.releaseImportedFile(imported.path);
+        throw Exception('Select an RVC model: .pth, .pt or .zip. Only supported .pth files run natively.');
+      }"""
 old_index = """      final result = await FilePicker.platform.pickFiles(
         type: FileType.any,
         allowMultiple: false,
@@ -1917,13 +2014,19 @@ old_index = """      final result = await FilePicker.platform.pickFiles(
       final imported = await _bridge.importPickedFile(kind: 'index', sourcePath: source);"""
 new_index = """      final imported = await _bridge.pickAndImportFile(kind: 'index');
       if (imported == null) return;
-      final ext = _ext(imported.path);"""
-old_select = """      if (ext == 'mobile.index') {
-        await _bridge.convertIndex(imported.path);
-        _selectedIndexPath = imported.path;
-        _selectedIndexDisplayName = File(imported.path).uri.pathSegments.last;
-        widget.onIndexSelected(imported.path);
-      }
+      final ext = _ext(imported.path);
+      if (!_index(imported.path)) {
+        await _bridge.releaseImportedFile(imported.path);
+        throw Exception('Select an RVC .index or .mobile.index file');
+      }"""
+old_select = """      final installed = ext == 'mobile.index'
+          ? await _bridge.convertIndex(imported.path)
+          : (await _bridge.convertFaissIndex(imported.path)).path;
+      if (!_indexLibrary.contains(installed)) _indexLibrary.insert(0, installed);
+      await _saveIndexLibrary();
+      _selectedIndexPath = installed;
+      _selectedIndexDisplayName = File(installed).uri.pathSegments.last;
+      widget.onIndexSelected(installed);
       if (mounted) setState(() {});"""
 new_select = old_select
 for old, new in [(old_model,new_model),(old_index,new_index),(old_select,new_select)]:
@@ -1931,8 +2034,8 @@ for old, new in [(old_model,new_model),(old_index,new_index),(old_select,new_sel
         raise RuntimeError("Model/index picker source changed; cannot apply SAF patch")
     pt = pt.replace(old,new,1)
 pt = pt.replace(
-    "Standard .index imported. Use Index Tools to convert it for mobile use.",
-    "Standard .index stored. It is not runtime-ready; an on-phone FAISS converter is not included yet.",
+    "Standard .index imported. Convert it locally for mobile use.",
+    "Standard FAISS .index converted on this phone and ready for compatible RVC v2 inference.",
     1
 )
 picker.write_text(pt, encoding="utf-8")
@@ -2076,12 +2179,7 @@ if "Future<List<ImportedFileHandle>> extractModelArchive" not in bt:
 bridge.write_text(bt, encoding="utf-8")
 
 pt = picker.read_text(encoding="utf-8")
-zip_anchor = """      final ext = _ext(imported.path);
-      if (_library.contains(imported.path)) {
-        await _bridge.releaseImportedFile(imported.path);
-      } else {
-        _library.insert(0, imported.path);
-      }"""
+zip_anchor = """      final ext = _ext(imported.path);"""
 zip_handler = """      final ext = _ext(imported.path);
       if (ext == 'zip') {
         List<ImportedFileHandle> unpacked;
@@ -2094,20 +2192,12 @@ zip_handler = """      final ext = _ext(imported.path);
         String? readyIndexPath;
         for (final item in unpacked) {
           final itemExt = _ext(item.path);
-          if (['onnx', 'pth', 'pt'].contains(itemExt)) {
-            if (_library.contains(item.path)) {
-              await _bridge.releaseImportedFile(item.path);
-            } else {
-              _library.insert(0, item.path);
-            }
+          if (['pth', 'pt'].contains(itemExt)) {
+            if (!_library.contains(item.path)) _library.insert(0, item.path);
           } else if (['index', 'mobile.index'].contains(itemExt)) {
-            if (_indexLibrary.contains(item.path)) {
-              await _bridge.releaseImportedFile(item.path);
-            } else {
-              _indexLibrary.insert(0, item.path);
-            }
+            if (!_indexLibrary.contains(item.path)) _indexLibrary.insert(0, item.path);
           }
-          if (itemExt == 'onnx' && readyModelPath == null) readyModelPath = item.path;
+          if (itemExt == 'pth' && readyModelPath == null) readyModelPath = item.path;
           if (itemExt == 'mobile.index' && readyIndexPath == null) {
             try {
               await _bridge.convertIndex(item.path);
@@ -2132,15 +2222,15 @@ zip_handler = """      final ext = _ext(imported.path);
         if (!mounted) return;
         setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('ZIP unpacked: ' + unpacked.length.toString() + ' model/index file(s) imported. ONNX is ready for conversion; PTH/PT source files are stored for future conversion support.')),
+          SnackBar(content: Text('ZIP unpacked: ' + unpacked.length.toString() + ' model/index file(s) imported. Supported .pth models can be used for native conversion; .pt source files remain stored for later processing.')),
         );
         return;
-      }
-      if (!_library.contains(imported.path)) _library.insert(0, imported.path);"""
-if zip_anchor not in pt:
-    raise RuntimeError("ZIP model callback insertion point missing")
-if "extractModelArchive(imported.path)" not in pt:
-    pt = pt.replace(zip_anchor, zip_handler, 1)
+      }"""
+if zip_anchor in pt:
+    if "extractModelArchive(imported.path)" not in pt:
+        pt = pt.replace(zip_anchor, zip_handler, 1)
+elif "extractModelArchive(imported.path)" not in pt:
+    raise RuntimeError("ZIP model callback is neither present nor safely patchable")
 picker.write_text(pt,encoding="utf-8");
 
 if "private fun extractModelArchive" not in kt or "extractModelArchive" not in bt or "extractModelArchive(imported.path)" not in pt:
@@ -2151,7 +2241,32 @@ plugin.write_text(kt, encoding="utf-8")
 # Validate mobile.index using a bounded header read; never load/copy a large index into RAM.
 plugin_text = plugin.read_text(encoding="utf-8")
 old_mobile_index = "private fun convertMobileIndex(source: File): File {\n        require(source.exists()) { \"索引文件不存在\" }\n        val bytes = source.readBytes()\n        val magic = FEATURE_INDEX_MAGIC.toByteArray(Charsets.US_ASCII)\n        require(bytes.size >= magic.size + Int.SIZE_BYTES) { \"请先在 mobile.index 转换页处理标准 RVC index\" }\n        require(bytes.copyOfRange(0, magic.size).contentEquals(magic)) { \"请先在 mobile.index 转换页处理标准 RVC index\" }\n        val buffer = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)\n        buffer.position(magic.size)\n        val frameCount = buffer.int\n        require(frameCount > 0) { \"mobile.index 数据无效\" }\n        val outputDir = File(appContext.filesDir, \"indexes\")\n        outputDir.mkdirs()\n        val output = File(outputDir, source.name)\n        source.copyTo(output, overwrite = true)\n        return output\n    }"
-new_mobile_index = "private fun convertMobileIndex(source: File): File {\n        require(source.isFile) { \"Index file does not exist.\" }\n        val magic = FEATURE_INDEX_MAGIC.toByteArray(Charsets.US_ASCII)\n        val header = ByteArray(magic.size + Int.SIZE_BYTES)\n        FileInputStream(source).use { input ->\n            var offset = 0\n            while (offset < header.size) {\n                val count = input.read(header, offset, header.size - offset)\n                require(count > 0) { \"The mobile index header is incomplete.\" }\n                offset += count\n            }\n        }\n        require(header.copyOfRange(0, magic.size).contentEquals(magic)) {\n            \"This is not a mobile.index file. Standard FAISS indexes need conversion first.\"\n        }\n        val frameCount = ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN).getInt(magic.size)\n        require(frameCount > 0) { \"The mobile index contains no feature vectors.\" }\n        val expectedLength = magic.size.toLong() + Int.SIZE_BYTES + frameCount.toLong() * 768L * Float.SIZE_BYTES\n        require(source.length() == expectedLength) { \"The mobile index is truncated or has an invalid feature-vector length.\" }\n        return source\n    }"
+new_mobile_index = """private fun convertMobileIndex(source: File): File {
+        require(source.isFile) { "Index file does not exist." }
+        val magic = FEATURE_INDEX_MAGIC.toByteArray(Charsets.US_ASCII)
+        val header = ByteArray(magic.size + Int.SIZE_BYTES)
+        FileInputStream(source).use { input ->
+            var offset = 0
+            while (offset < header.size) {
+                val count = input.read(header, offset, header.size - offset)
+                require(count > 0) { "The mobile index header is incomplete." }
+                offset += count
+            }
+        }
+        require(header.copyOfRange(0, magic.size).contentEquals(magic)) {
+            "This is not a mobile.index file."
+        }
+        val frameCount = ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN).getInt(magic.size)
+        require(frameCount > 0) { "The mobile index contains no feature vectors." }
+        val expectedLength = magic.size.toLong() + Int.SIZE_BYTES + frameCount.toLong() * 768L * Float.SIZE_BYTES
+        require(source.length() == expectedLength) { "The mobile index is truncated or has an invalid feature-vector length." }
+        val outputDir = File(appContext.filesDir, "indexes")
+        outputDir.mkdirs()
+        val output = File(outputDir, source.name)
+        if (source.absolutePath != output.absolutePath) source.copyTo(output, overwrite = true)
+        return output
+    }"""
+
 if old_mobile_index not in plugin_text:
     raise RuntimeError("Mobile index validator source changed; review before patching")
 plugin_text = plugin_text.replace(old_mobile_index, new_mobile_index, 1)
@@ -2201,7 +2316,7 @@ audio_picker_methods = r'''
         try {
             val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE)
-                type = "audio/*"
+                type = "*/*"
                 putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
@@ -2286,14 +2401,14 @@ old_valid = """        val valid = if (kind == "model") {
 new_valid = """        val valid = when (kind) {
             "model" -> listOf(".onnx", ".pth", ".pt", ".zip").any { lowerName.endsWith(it) }
             "index" -> lowerName.endsWith(".mobile.index") || lowerName.endsWith(".index")
-            "audio" -> listOf(".wav", ".flac", ".mp3", ".m4a", ".ogg", ".aac", ".aiff").any { lowerName.endsWith(it) }
+            "audio" -> listOf(".wav", ".flac", ".mp3", ".m4a", ".ogg", ".aac", ".aiff", ".wma", ".opus").any { lowerName.endsWith(it) }
             else -> false
         }
         require(valid) {
             when (kind) {
                 "model" -> "Choose an RVC model file: .onnx, .pth, .pt or .zip."
                 "index" -> "Choose an RVC index file: .index or .mobile.index."
-                else -> "Choose an audio file: WAV, FLAC, MP3, M4A, OGG, AAC or AIFF."
+                else -> "Choose an audio file: WAV, FLAC, MP3, M4A, OGG, AAC, AIFF, WMA or OPUS."
             }
         }"""
 if old_valid not in kt: raise RuntimeError("Audio extension validation block missing")
@@ -2365,7 +2480,8 @@ main.write_text(mt,encoding="utf-8")
 training = root / "lib/screens/training_screen.dart"
 tr = training.read_text(encoding="utf-8")
 tr = tr.replace("import 'package:file_picker/file_picker.dart';\n","")
-tr = tr.replace("  final List<String> _samples = [];", "  final List<String> _samples = [];\n  final Set<String> _importedSamples = {};")
+if "final Set<String> _importedSamples" not in tr:
+    tr = tr.replace("  final List<String> _samples = [];", "  final List<String> _samples = [];\n  final Set<String> _importedSamples = {};")
 old_add = """      final result = await FilePicker.platform.pickFiles(
         type: FileType.any, allowMultiple: true, withData: false,
       );
@@ -2378,8 +2494,12 @@ new_add = """      final handles = await _bridge.pickAndImportAudioFiles();
       if (handles.isEmpty) return;
       final paths = handles.map((handle) => handle.path)
         .where((p) => File(p).existsSync()).toList();"""
-if old_add not in tr: raise RuntimeError("Dataset audio import callback missing")
-tr = tr.replace(old_add,new_add,1)
+if old_add in tr:
+    tr = tr.replace(old_add,new_add,1)
+elif "pickAndImportAudioFiles()" not in tr:
+    raise RuntimeError("Dataset audio import callback missing")
+# The custom Red Dataset Lab already uses the native SAF multi-select bridge.
+# Do not overwrite its file-type validation and content-URI handling.
 tr = tr.replace(
     "for (final p in paths) { if (!_samples.contains(p)) _samples.add(p); }",
     "for (final p in paths) { if (!_samples.contains(p)) _samples.add(p); _importedSamples.add(p); }",
@@ -2433,7 +2553,7 @@ class IndexConverterScreen extends StatefulWidget {
 class _IndexConverterScreenState extends State<IndexConverterScreen> {
   final RVCBridge _bridge = RVCBridge();
   bool _busy = false;
-  String _status = 'Select a mobile.index file to validate and install.';
+  String _status = 'Select a standard FAISS .index to convert or a mobile.index to validate.';
 
   Future<void> _selectAndValidate() async {
     if (_busy) return;
@@ -2453,14 +2573,11 @@ class _IndexConverterScreenState extends State<IndexConverterScreen> {
         savedIndexes.insert(0, imported.path);
         await prefs.setStringList('red_rvc_index_library', savedIndexes);
       }
-      if (!name.toLowerCase().endsWith('.mobile.index')) {
-        if (mounted) {
-          setState(() => _status =
-            '$name was stored in your Index Library, but it is a standard FAISS index. This offline Android build does not include the FAISS-to-mobile converter, so it cannot be used for inference yet.');
-        }
-        return;
-      }
       final installed = await _bridge.convertIndex(imported.path);
+      if (!savedIndexes.contains(installed)) {
+        savedIndexes.insert(0, installed);
+        await prefs.setStringList('red_rvc_index_library', savedIndexes);
+      }
       if (mounted) {
         setState(() => _status =
           'VALIDATION COMPLETE\n\n$name passed the mobile-index format check and was installed at:\n$installed');
@@ -2495,9 +2612,9 @@ class _IndexConverterScreenState extends State<IndexConverterScreen> {
             children: [
               Icon(Icons.data_object, color: Color(0xFFFF334F), size: 38),
               SizedBox(height: 12),
-              Text('MOBILE INDEX CHECKER', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900)),
+              Text('FAISS INDEX CONVERTER', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900)),
               SizedBox(height: 8),
-              Text('The on-phone inference engine accepts a mobile.index file with the URVCIDX1 signature. This tool checks and installs that mobile format locally.', style: TextStyle(height: 1.4, color: Color(0xFFD0D0D8))),
+              Text('Convert compatible 768-dimensional RVC v2 FAISS .index files to mobile.index entirely on this phone. Existing mobile.index files are validated and installed locally.', style: TextStyle(height: 1.4, color: Color(0xFFD0D0D8))),
             ],
           ),
         ),
@@ -2507,7 +2624,7 @@ class _IndexConverterScreenState extends State<IndexConverterScreen> {
           child: ElevatedButton.icon(
             onPressed: _busy ? null : _selectAndValidate,
             icon: const Icon(Icons.folder_open),
-            label: Text(_busy ? 'CHECKING…' : 'SELECT & CHECK INDEX'),
+            label: Text(_busy ? 'CONVERTING…' : 'SELECT & CONVERT INDEX'),
           ),
         ),
         const SizedBox(height: 12),
@@ -2522,7 +2639,7 @@ class _IndexConverterScreenState extends State<IndexConverterScreen> {
         ),
         const SizedBox(height: 12),
         const Text(
-          'IMPORTANT: A standard desktop .index file is not the same format as mobile.index. Standard FAISS-to-mobile conversion is not implemented in this offline build. The app will store the source file but will not falsely mark it as ready for inference.',
+          'Supported: standard 768-dimensional RVC v2 FAISS indexes. Conversion streams vectors into the mobile format; incompatible dimensions and unsupported index layouts are reported instead of silently accepted.',
           style: TextStyle(color: Color(0xFFFFA3AE), height: 1.4, fontSize: 12.5),
         ),
       ],
@@ -2530,6 +2647,7 @@ class _IndexConverterScreenState extends State<IndexConverterScreen> {
   );
 }
 ''', encoding="utf-8")
+index_screen.write_text((repo_root / "tools/ui/index_converter_screen.dart").read_text(encoding="utf-8"), encoding="utf-8")
 
 # Final static sanity checks.
 
@@ -2538,6 +2656,7 @@ class _IndexConverterScreenState extends State<IndexConverterScreen> {
 # ---------------------------------------------------------------------------
 final_main = main.read_text(encoding="utf-8")
 final_picker = picker.read_text(encoding="utf-8")
+final_song_cover = (root / "lib" / "screens" / "song_cover_screen.dart").read_text(encoding="utf-8")
 checks = {
     "Upgrade-safe Android version": "versionCode Math.max" in (root / "android/app/build.gradle").read_text(encoding="utf-8") and "0.2.0-final-" in (root / "android/app/build.gradle").read_text(encoding="utf-8"),
     "Mutually exclusive native modes": "activeMode != null || isInferenceProcessAlive()" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/NativeModeGuard.kt").read_text(encoding="utf-8"),
@@ -2551,14 +2670,22 @@ checks = {
     "Index library is persistent and removable": "red_rvc_index_library" in final_picker and "_deleteIndex" in final_picker,
     "Index validator avoids full-file RAM copies": "val expectedLength = magic.size.toLong()" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8"),
     "Full RVC screen": (root / "lib" / "screens" / "full_rvc_screen.dart").exists() and "FullRvcScreen(" in final_main,
-    "PTH conversion limitation disclosed": "PTH → ONNX conversion is not included" in final_picker,
+    "Native PTH converter and FAISS retrieval blending are wired": "genuine native RVC v2 PTH converter is integrated" in final_picker and "searchAndBlend" in (repo_root / "tools/native/patch_faiss_mobile.py").read_text(encoding="utf-8"),
     "Dashboard first": "final moduleScreens = [" in final_main and "RedHomeScreen(" in final_main.split("final moduleScreens = [",1)[1].split("GestureDetector(",1)[0],
     "Native Android SAF picker": "pickAndImportFile" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8") and "ACTION_OPEN_DOCUMENT" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8"),
+    "Song cover imports audio through native SAF": "pickAndImportAudioFiles" in final_song_cover and "FilePicker.platform.pickFiles" not in final_song_cover,
+    "Song cover caches separated stems": "_getOrCreateStems" in final_song_cover and "rvc_song_stems_" in final_song_cover,
+    "Song cover exposes native conversion errors": "Song-cover creation failed: $e" in final_song_cover,
+    "Native audio SAF importer is present": "pickAndImportAudioFiles" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8") and "ImportedFileKind.AUDIO" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8"),
+    "Native PTH route applies optional FAISS retrieval": "searchAndBlend" in (repo_root / "tools/native/patch_faiss_mobile.py").read_text(encoding="utf-8") and "indexRate" in final_song_cover and "indexPath: widget.indexPath" in final_song_cover,
+    "Adaptive RVC launcher icon generated": (root / "android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml").exists() and (root / "android/app/src/main/res/mipmap-mdpi/ic_launcher.png").exists(),
+    "SAF picker does not grey out unknown model extensions": ('type = "*/*"' in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8")) or ('type = if (kind == "audio") "audio/*" else "*/*"' in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8")),
+    "SAF import validates PTH and index extensions after selection": all(x in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8") for x in ['".pth"', '".index"', '".mobile.index"']),
     "Dart native SAF bridge": "pickAndImportFile" in (root / "lib/services/rvc_bridge.dart").read_text(encoding="utf-8"),
     "Model picker uses native SAF": "pickAndImportFile(kind: 'model')" in final_picker and "FilePicker.platform.pickFiles" not in final_picker,
     "PTH support": ".pth" in final_picker,
     "Mobile index support": ".mobile.index" in final_picker,
-    "Index tools clearly disclose the missing FAISS converter": "FAISS-to-mobile converter" in (root / "lib/screens/index_converter_screen.dart").read_text(encoding="utf-8"),
+    "Index tools expose native FAISS conversion": "convertFaissIndex(imported.path)" in (repo_root / "tools/ui/index_converter_screen.dart").read_text(encoding="utf-8") and "FAISS.readIndex" in (repo_root / "tools/native/FaissIndexConverter.kt").read_text(encoding="utf-8"),
     "ZIP archive extractor": "private fun extractModelArchive" in (root / "android/app/src/main/kotlin/com/ultimatervc/mobile/RVCPlugin.kt").read_text(encoding="utf-8") and "extractModelArchive" in (root / "lib/services/rvc_bridge.dart").read_text(encoding="utf-8") and "extractModelArchive(imported.path)" in final_picker,
     "Persistent model storage": workspace.exists() and "File(File(appFilesDir, IMPORTS_DIRECTORY_NAME)" in workspace.read_text(encoding="utf-8") and "File(File(appFilesDir, IMPORTS_DIRECTORY_NAME), REGISTRY_FILE_NAME)" in workspace.read_text(encoding="utf-8") if workspace.exists() else False,
 }

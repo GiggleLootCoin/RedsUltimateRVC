@@ -2,7 +2,7 @@ name: Build Red's Ultimate RVC APK
 
 on:
   push:
-    branches: [main, feature/rvc-dataset-export-zip]
+    branches: [main, feature/rvc-dataset-export-zip, red-rvc-native-pth-verify, red-rvc-native-pth-maven-fix]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -15,7 +15,269 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Build and package the native RVC runtimes for an installable engineering APK.
+  # Full model training uses its separate CPU workflow; physical-device qualification remains outstanding.
+  quality-guard:
+    if: github.ref == 'refs/heads/red-rvc-native-pth-maven-fix' || (github.event_name == 'pull_request' && github.head_ref == 'red-rvc-native-pth-maven-fix')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Red's Ultimate RVC
+        uses: actions/checkout@v5
+      - name: Validate integration tooling and regression tests
+        run: |
+          set -euo pipefail
+          python3 -m py_compile tools/brand.py tools/native/integrate.py tools/native/patch_spartacvc_ort_compat.py tools/native/patch_faiss_mobile.py tools/training/run_rvc_cpu_training.py
+          bash -n tools/tests/check_pth_v2_profile.sh
+          python3 -m pip install --quiet pytest
+          python3 -m pytest -q tools/tests
+
+  pth-backend-probe:
+    if: github.ref == 'refs/heads/red-rvc-native-pth-maven-fix' || (github.event_name == 'pull_request' && github.head_ref == 'red-rvc-native-pth-maven-fix')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Red's Ultimate RVC
+        uses: actions/checkout@v5
+      - name: Checkout pinned Apache-2.0 PTH inference core
+        uses: actions/checkout@v5
+        with:
+          repository: f-cero/Spartacvc
+          ref: c0b000778e5ff680ef0ab5b445d2ac583048d731
+          path: spartacvc
+      - name: Apply checked Spartacvc compatibility fixes for ONNX Runtime 1.28
+        run: python3 tools/native/patch_spartacvc_ort_compat.py spartacvc
+      - name: Cache a public RVC v2 PTH acceptance fixture
+        uses: actions/cache@v4
+        with:
+          path: pth-fixtures
+          key: red-rvc-pth-fixture-636cf49be6cac1e510523a4bff9daf90dc54e2a8a76b8fa1216db8f25332e01b-aether-49d261ca204ceebe19becd0304fb86d549b2f93eef03e222d95e492138823bc6
+      - name: Compile native PTH checkpoint inspector
+        run: |
+          set -euo pipefail
+          cc -std=c99 -O2 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -DM_PI=3.14159265358979323846 -include sys/types.h -include unistd.h \
+            -I spartacvc/src -I tools/native/rvc_pth_android \
+            tools/native/rvc_pth_android/pth_check.c \
+            spartacvc/src/debug.c spartacvc/src/pickle.c spartacvc/src/zip_reader.c \
+            spartacvc/src/pth_loader.c spartacvc/src/rvc.c spartacvc/src/tensor.c \
+            -lm -o pth-check
+
+      - name: Verify standard RVC v2 PTH feature profile
+        run: bash tools/tests/check_pth_v2_profile.sh
+      - name: Install Android NDK for ARM64 PTH runtime
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "ndk;23.1.7779620" "cmake;3.22.1"
+      - name: Fetch matching ONNX Runtime headers and Android library
+        run: |
+          set -euo pipefail
+          mkdir -p ort-headers ort-aar
+          AAR_PATH="com/microsoft/onnxruntime/onnxruntime-android/1.28.0/onnxruntime-android-1.28.0.aar"
+          for MAVEN_BASE in "https://repo1.maven.org/maven2" "https://repo.maven.apache.org/maven2"; do
+            if curl --fail --location --retry 2 --silent --show-error "$MAVEN_BASE/$AAR_PATH" -o onnxruntime-android.aar; then
+              break
+            fi
+            rm -f onnxruntime-android.aar
+          done
+          test -s onnxruntime-android.aar
+          unzip -q onnxruntime-android.aar -d ort-aar
+          # The matching AAR ships its own headers; use them rather than a
+          # separate raw-GitHub download that can fail independently.
+          # ONNX Runtime 1.28's C API header includes the execution-provider
+          # extension header (and may include additional public headers).
+          # Copy the complete header set from this exact matching AAR.
+          test -s ort-aar/headers/onnxruntime_c_api.h
+          test -s ort-aar/headers/onnxruntime_ep_c_api.h
+          cp ort-aar/headers/*.h ort-headers/
+          test -s ort-headers/onnxruntime_c_api.h
+          test -s ort-headers/onnxruntime_ep_c_api.h
+          test -s ort-aar/jni/arm64-v8a/libonnxruntime.so
+      - name: Prove end-to-end PTH conversion with real voice and feature models
+        run: |
+          set -euo pipefail
+          ORT_JAR="onnxruntime-1.28.0.jar"
+          ORT_ROOT="/tmp/onnxruntime-linux-x64-1.28.0"
+          mkdir -p "$ORT_ROOT/lib" /tmp/onnxruntime-java
+          JAR_PATH="com/microsoft/onnxruntime/onnxruntime/1.28.0/$ORT_JAR"
+          downloaded=false
+          for MAVEN_BASE in "https://repo1.maven.org/maven2" "https://repo.maven.apache.org/maven2"; do
+            if curl --fail --location --retry 2 --silent --show-error "$MAVEN_BASE/$JAR_PATH" -o "/tmp/$ORT_JAR"; then
+              downloaded=true
+              break
+            fi
+            rm -f "/tmp/$ORT_JAR"
+          done
+          test "$downloaded" = true
+          unzip -q "/tmp/$ORT_JAR" -d /tmp/onnxruntime-java
+          ORT_LIB="/tmp/onnxruntime-java/ai/onnxruntime/native/linux-x64/libonnxruntime.so"
+          test -s "$ORT_LIB"
+          cp "$ORT_LIB" "$ORT_ROOT/lib/libonnxruntime.so"
+          # Match the SONAME required by the Linux ONNX Runtime shared object.
+          ln -sf libonnxruntime.so "$ORT_ROOT/lib/libonnxruntime.so.1"
+          mkdir -p "$ORT_ROOT/include"
+          cp ort-aar/headers/* "$ORT_ROOT/include/"
+
+          mkdir -p pth-fixtures/upstream-assets pth-fixtures/e2e
+          curl --fail --location --retry 3 --silent --show-error \
+            "https://github.com/Sharl210/ultimate-rvc-mobile/releases/download/v2.0.0/app-release.apk" \
+            -o pth-fixtures/upstream-assets/upstream.apk
+          echo "2821b659bd113a8df7281b5ec2db1cccd3c524fcde68c93a7e46be44dba8e4b6  pth-fixtures/upstream-assets/upstream.apk" | sha256sum --check
+          rm -rf pth-fixtures/upstream-assets/extracted
+          mkdir -p pth-fixtures/upstream-assets/extracted
+          unzip -oq pth-fixtures/upstream-assets/upstream.apk -d pth-fixtures/upstream-assets/extracted
+          HUBERT="$(find pth-fixtures/upstream-assets/extracted -type f -name hubert.onnx -print -quit)"
+          RMVPE="$(find pth-fixtures/upstream-assets/extracted -type f -name rmvpe.onnx -print -quit)"
+          test -s "$HUBERT"
+          test -s "$RMVPE"
+          MODEL="pth-fixtures/aether/aether-rvc-v2.pth"
+          test -s "$MODEL"
+
+          cc -std=c99 -O2 -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -DM_PI=3.14159265358979323846 \
+            -include sys/types.h -include unistd.h \
+            -I spartacvc/src -I tools/native/rvc_pth_android -I "$ORT_ROOT/include" \
+            tools/native/rvc_pth_android/pth_convert_probe.c \
+            tools/native/rvc_pth_android/pth_pipeline.c \
+            tools/native/rvc_pth_android/threads_android.c \
+            spartacvc/src/debug.c spartacvc/src/pickle.c spartacvc/src/zip_reader.c \
+            spartacvc/src/pth_loader.c spartacvc/src/rvc.c spartacvc/src/rvc_infer.c \
+            spartacvc/src/tensor.c spartacvc/src/onnx.c \
+            -L "$ORT_ROOT/lib" -Wl,-rpath,"$ORT_ROOT/lib" -lonnxruntime -lm -pthread \
+            -o pth-e2e-probe
+          ./pth-e2e-probe "$MODEL" "$HUBERT" "$RMVPE" pth-fixtures/e2e
+
+      - name: Cross-compile direct PTH-to-audio runtime for Android ARM64
+        run: |
+          set -euo pipefail
+          NDK="$ANDROID_HOME/ndk/23.1.7779620"
+          cmake -S tools/native/rvc_pth_android -B pth-core-build \
+            -DSPARTACVC_SOURCE_DIR="$GITHUB_WORKSPACE/spartacvc" \
+            -DONNXRUNTIME_INCLUDE_DIR="$GITHUB_WORKSPACE/ort-headers" \
+            -DONNXRUNTIME_LIBRARY="$GITHUB_WORKSPACE/ort-aar/jni/arm64-v8a/libonnxruntime.so" \
+            -DCMAKE_TOOLCHAIN_FILE="$NDK/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-24 \
+            -DCMAKE_BUILD_TYPE=Release
+          cmake --build pth-core-build --parallel 2
+          test -s pth-core-build/libred_rvc_pth.so
+          mkdir -p pth-core-output
+          cp pth-core-build/libred_rvc_pth.so pth-core-output/
+          cp spartacvc/LICENSE pth-core-output/SPARTACVC-LICENSE.txt
+      - name: Upload Android ARM64 PTH conversion runtime
+        uses: actions/upload-artifact@v5
+        with:
+          name: red-rvc-pth-arm64
+          path: pth-core-output/*
+          if-no-files-found: error
+
+  faiss-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout Red's Ultimate RVC
+        uses: actions/checkout@v5
+
+      - name: Set up Android NDK for FAISS
+        uses: android-actions/setup-android@v4
+
+      - name: Restore the pinned FAISS ARM64 AAR cache
+        id: faiss-cache
+        uses: actions/cache@v4
+        with:
+          path: tools/native/faiss/faiss-android.aar
+          key: faiss-android-v1.14.1-arm64-ndk23.1-${{ hashFiles('tools/native/patch_faiss_mobile.py') }}
+
+      - name: Build FAISS Android runtime with mobile-index exporter
+        if: steps.faiss-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          # FAISS/IVF-PQ template compilation crashes in the legacy Clang 12
+          # bundled with NDK 23. Keep the app's upstream NDK pinned separately;
+          # build this standalone ARM64 AAR with the newer Clang toolchain.
+          "$SDKMANAGER" --install "ndk;27.2.12479018" "cmake;3.22.1"
+          git clone --depth 1 --branch v1.14.1 --recurse-submodules \
+            https://github.com/DeveloperMindset-com/faiss-mobile.git /tmp/faiss-mobile
+          python3 tools/native/patch_faiss_mobile.py /tmp/faiss-mobile
+          # Inject a deterministic patch hook into the pinned FAISS build
+          # script. It runs after OpenBLAS is extracted and before CMake.
+          cat > /tmp/faiss-mobile/patch-openblas.py <<'PATCH_OPENBLAS'
+          from pathlib import Path
+          import re
+
+          path = Path("OpenBLAS/ctest/CMakeLists.txt")
+          source = path.read_text(encoding="utf-8")
+          pattern = r"if\s*\(USE_OPENMP\s+AND\s+\(\$\{CMAKE_Fortran_COMPILER_ID\}\s+STREQUAL\s+GNU\)\s+AND\s+\(\$\{CMAKE_C_COMPILER_ID\}\s+STREQUAL\s+Clang\)\)"
+          updated, count = re.subn(pattern, "if (FALSE)", source)
+          if count != 4:
+              raise SystemExit(f"Expected four optional OpenBLAS CTest checks, patched {count}")
+          path.write_text(updated, encoding="utf-8")
+          print(f"Patched {count} optional OpenBLAS CTest checks.")
+          PATCH_OPENBLAS
+          python3 - <<'PY'
+          from pathlib import Path
+
+          script = Path("/tmp/faiss-mobile/faiss-android.sh")
+          source = script.read_text(encoding="utf-8")
+          anchor = '        tar xf openblas.tar.gz --strip-components=1 -C OpenBLAS'
+          injected = anchor + '\n        python3 "$ROOT/patch-openblas.py"'
+          if source.count(anchor) != 1:
+              raise SystemExit("Could not uniquely locate OpenBLAS extraction point in pinned build script")
+          script.write_text(source.replace(anchor, injected, 1), encoding="utf-8")
+          PY
+          python3 - <<'PY'
+          from pathlib import Path
+
+          script = Path("/tmp/faiss-mobile/faiss-android.sh")
+          source = script.read_text(encoding="utf-8")
+          anchor = '        -DCMAKE_BUILD_TYPE=Release \\\n'
+          blocks = source.split(anchor)
+          if len(blocks) != 4:
+              raise SystemExit("Expected three pinned FAISS Release CMake blocks")
+          openblas_flags = anchor + '        -DCMAKE_C_FLAGS_RELEASE=-O0 \\\n        -DCMAKE_CXX_FLAGS_RELEASE=-O0 \\\n'
+          faiss_flags = anchor + '        -DCMAKE_C_FLAGS_RELEASE=-O2 \\\n        -DCMAKE_CXX_FLAGS_RELEASE=-O2 \\\n'
+          source = blocks[0] + openblas_flags + blocks[1] + faiss_flags + blocks[2] + faiss_flags + blocks[3]
+          if source.count("-DBUILD_WITHOUT_LAPACK=OFF") != 1 or source.count("-DC_LAPACK=ON") != 1:
+              raise SystemExit("Could not uniquely locate OpenBLAS LAPACK build flags")
+          # FAISS uses LAPACK routines such as sgeqrf_, dgetrf_ and dgesvd_.
+          # Keep LAPACK enabled; disabling it leaves unresolved symbols in libfaiss_jni.so.
+          print("Keeping OpenBLAS LAPACK enabled for FAISS.")
+          script.write_text(source, encoding="utf-8")
+          PY
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/27.2.12479018"
+          export ANDROID_NDK="$ANDROID_NDK_HOME"
+          # The pinned mobile wrapper builds an older OpenBLAS CMake project.
+          # CMake 4+ requires an explicit minimum policy compatibility version.
+          export CMAKE_POLICY_VERSION_MINIMUM=3.5
+          cd /tmp/faiss-mobile
+          bash faiss-android.sh build --abi=arm64-v8a
+          AAR="dist-android/faiss-android.aar"
+          test -s "$AAR"
+          # FAISS is linked with static libc++/OpenMP in this build. Avoid
+          # duplicate libc++_shared.so packaging against Sherpa-ONNX.
+          zip -d "$AAR" 'jni/*/libc++_shared.so' || true
+          unzip -l "$AAR" | grep -q 'jni/arm64-v8a/libfaiss_jni.so'
+          unzip -l "$AAR" | grep -q 'classes.jar'
+          ! unzip -l "$AAR" | grep -q 'libc++_shared.so'
+          mkdir -p "$GITHUB_WORKSPACE/tools/native/faiss"
+          cp "$AAR" "$GITHUB_WORKSPACE/tools/native/faiss/faiss-android.aar"
+
+      - name: Verify native FAISS converter AAR
+        run: |
+          set -euo pipefail
+          test -s tools/native/faiss/faiss-android.aar
+          unzip -l tools/native/faiss/faiss-android.aar | grep -q 'jni/arm64-v8a/libfaiss_jni.so'
+          unzip -l tools/native/faiss/faiss-android.aar | grep -q 'classes.jar'
+
+      - name: Upload native FAISS Android runtime
+        uses: actions/upload-artifact@v5
+        with:
+          name: red-rvc-faiss-arm64
+          path: tools/native/faiss/faiss-android.aar
+          if-no-files-found: error
+
   build:
+    needs: [quality-guard, pth-backend-probe, faiss-android]
+    if: always() && (needs.quality-guard.result == 'success' || needs.quality-guard.result == 'skipped') && (needs.pth-backend-probe.result == 'success' || needs.pth-backend-probe.result == 'skipped') && needs.faiss-android.result == 'success'
     runs-on: ubuntu-latest
     env:
       RED_RVC_KEYSTORE_BASE64: ${{ secrets.RED_RVC_KEYSTORE_BASE64 }}
@@ -25,6 +287,19 @@ jobs:
     steps:
       - name: Checkout Red's Ultimate RVC
         uses: actions/checkout@v5
+
+      - name: Download native PTH conversion runtime
+        if: github.ref == 'refs/heads/red-rvc-native-pth-maven-fix' || (github.event_name == 'pull_request' && github.head_ref == 'red-rvc-native-pth-maven-fix')
+        uses: actions/download-artifact@v6
+        with:
+          name: red-rvc-pth-arm64
+          path: native-output-pth
+
+      - name: Download native FAISS index converter
+        uses: actions/download-artifact@v6
+        with:
+          name: red-rvc-faiss-arm64
+          path: tools/native/faiss
 
       - name: Checkout local RVC engine
         uses: actions/checkout@v5
@@ -57,7 +332,85 @@ jobs:
       - name: Apply Red's branding
         run: python3 tools/brand.py
 
-      - name: Integrate offline song-cover native bridge
+      - name: Package FAISS and OpenBLAS third-party notices
+        working-directory: buildsrc
+        run: |
+          set -euo pipefail
+          mkdir -p assets
+          cat > "assets/FAISS THIRD-PARTY NOTICES.txt" <<'NOTICE'
+          FAISS
+          Copyright (c) Facebook, Inc. and its affiliates.
+          Licensed under the MIT License.
+
+          MIT License
+
+          Permission is hereby granted, free of charge, to any person obtaining a copy
+          of this software and associated documentation files (the "Software"), to deal
+          in the Software without restriction, including without limitation the rights
+          to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+          copies of the Software, and to permit persons to whom the Software is
+          furnished to do so, subject to the following conditions:
+
+          The above copyright notice and this permission notice shall be included in all
+          copies or substantial portions of the Software.
+
+          THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+          IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+          FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+          AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+          LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+          OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+          SOFTWARE.
+
+          OpenBLAS
+          Copyright (c) 2011-2015, The OpenBLAS Project
+          All rights reserved.
+
+          Redistribution and use in source and binary forms, with or without
+          modification, are permitted provided that the following conditions are met:
+
+          1. Redistributions of source code must retain the above copyright notice,
+             this list of conditions and the following disclaimer.
+          2. Redistributions in binary form must reproduce the above copyright notice,
+             this list of conditions and the following disclaimer in the documentation
+             and/or other materials provided with the distribution.
+          3. Neither the name of the OpenBLAS project nor the names of its contributors
+             may be used to endorse or promote products derived from this software
+             without specific prior written permission.
+
+          THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+          AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+          IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+          ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+          LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+          CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+          SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+          INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+          CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+          ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+          POSSIBILITY OF SUCH DAMAGE.
+
+          Project links:
+          FAISS: https://github.com/facebookresearch/faiss
+          OpenBLAS: https://github.com/OpenMathLib/OpenBLAS
+          NOTICE
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("pubspec.yaml")
+          source = path.read_text(encoding="utf-8")
+          entry = "    - assets/FAISS THIRD-PARTY NOTICES.txt"
+          if entry not in source:
+              anchor = "    - assets/models/"
+              if source.count(anchor) != 1:
+                  raise SystemExit("Could not uniquely locate Flutter assets declaration")
+              source = source.replace(anchor, anchor + "\n" + entry, 1)
+              path.write_text(source, encoding="utf-8")
+          if not Path("assets/FAISS THIRD-PARTY NOTICES.txt").is_file():
+              raise SystemExit("FAISS third-party notice was not created")
+          PY
+
+
+      - name: Integrate offline song-cover and native PTH RVC bridge
         run: python3 tools/native/integrate.py
 
       - name: Set up Java 17 for the upstream Android Gradle build
@@ -116,6 +469,17 @@ jobs:
           cp "$VOCALS" buildsrc/assets/models/separation/vocals.fp16.onnx
           cp "$ACCOMPANIMENT" buildsrc/assets/models/separation/accompaniment.fp16.onnx
           ls -lh buildsrc/assets/models/separation/
+
+      - name: Install native PTH conversion runtime
+        if: github.ref == 'refs/heads/red-rvc-native-pth-maven-fix' || (github.event_name == 'pull_request' && github.head_ref == 'red-rvc-native-pth-maven-fix')
+        run: |
+          set -euo pipefail
+          JNI_LIBS="buildsrc/android/app/src/main/jniLibs/arm64-v8a"
+          mkdir -p "$JNI_LIBS" buildsrc/android/app/src/main/assets/licenses
+          cp native-output-pth/libred_rvc_pth.so "$JNI_LIBS/"
+          cp native-output-pth/SPARTACVC-LICENSE.txt buildsrc/android/app/src/main/assets/licenses/
+          readelf -d "$JNI_LIBS/libred_rvc_pth.so" | grep -q 'libonnxruntime.so'
+          test -s "$JNI_LIBS/libred_rvc_pth.so"
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -182,6 +546,8 @@ jobs:
           sha256sum "release/Red-Ultimate-RVC.apk" > release/SHA256SUMS.txt
 
       - name: Verify APK alignment, signature and packaged size
+        env:
+          RVC_NATIVE_BACKEND_BUILD: ${{ (github.ref == 'refs/heads/red-rvc-native-pth-maven-fix' || (github.event_name == 'pull_request' && github.head_ref == 'red-rvc-native-pth-maven-fix')) && 'true' || 'false' }}
         run: |
           APK="release/Red-Ultimate-RVC.apk"
           ZIPALIGN="$(find "$ANDROID_HOME/build-tools" -type f -name zipalign | sort -V | tail -n 1)"
@@ -193,6 +559,7 @@ jobs:
           python3 - "$APK" <<'PY'
           import sys, zipfile
           from pathlib import Path
+          from urllib.parse import unquote
           apk = Path(sys.argv[1])
           with zipfile.ZipFile(apk) as z:
               files = sorted(((i.file_size, i.filename) for i in z.infolist() if not i.is_dir()), reverse=True)
@@ -205,15 +572,20 @@ jobs:
                   "assets/flutter_assets/assets/models/rmvpe.onnx",
                   "assets/flutter_assets/assets/models/separation/vocals.fp16.onnx",
                   "assets/flutter_assets/assets/models/separation/accompaniment.fp16.onnx",
+                  "assets/flutter_assets/assets/FAISS THIRD-PARTY NOTICES.txt",
               )
               for required in required_assets:
-                  if not any(i.filename.endswith(required) for i in z.infolist()):
+                  if not any(unquote(i.filename).endswith(required) for i in z.infolist()):
                       raise SystemExit(f"Required offline inference asset missing: {required}")
-              required_native = (
+              required_native = [
                   "lib/arm64-v8a/libred_source_separation.so",
                   "lib/arm64-v8a/libsherpa-onnx-c-api.so",
                   "lib/arm64-v8a/libonnxruntime.so",
-              )
+                  "lib/arm64-v8a/libfaiss_jni.so",
+              ]
+              import os
+              if os.environ.get("RVC_NATIVE_BACKEND_BUILD") == "true":
+                  required_native.append("lib/arm64-v8a/libred_rvc_pth.so")
               for required in required_native:
                   matches = [i.filename for i in z.infolist() if i.filename.endswith(required)]
                   if len(matches) != 1:
@@ -226,18 +598,22 @@ jobs:
           name: Red-Ultimate-RVC-APK
           path: release/*
 
+      # Feature-branch builds remain test artifacts. A public release is
+      # deliberately restricted to main after the real-device acceptance gate.
       - name: Publish downloadable GitHub release
-        if: github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v0.2.0-final-${{ github.run_number }}
-          name: Red's Ultimate RVC v0.2.0 Final (${{ github.run_number }})
+          tag_name: v0.2.0-preview-${{ github.run_number }}
+          name: Red's Ultimate RVC v0.2.0 Preview (${{ github.run_number }})
           generate_release_notes: false
           body: |
-            Red's Ultimate RVC — ARM64 Android build.
-            
-            Includes the Red dashboard, model library, local ONNX inference, realtime/voice-changer modules, and an on-phone voice-sample dataset workspace. PTH conversion and neural-network RVC training are not included.
-            
+            Red's Ultimate RVC — ARM64 Android engineering preview.
+
+            Includes the Red dashboard, ONNX RVC inference, offline Spleeter song-cover pipeline, experimental native GGUF inference runner, realtime/voice-changer modules, and the voice-sample dataset workspace.
+
+            Native PTH conversion is included for 768-dimensional, 100-fps RVC v2 checkpoints using bundled feature models; no user-supplied ONNX feature files are required. Standard 768-dimensional FAISS .index files can be converted locally to .mobile.index for compatible ONNX voice models. The direct PTH route does not yet apply retrieval-index blending. Physical Galaxy A12 runtime acceptance testing remains outstanding, so this is an engineering preview rather than a device-certified release.
+
             SHA-256 is provided in SHA256SUMS.txt.
           files: |
             release/Red-Ultimate-RVC.apk

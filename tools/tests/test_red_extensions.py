@@ -9,16 +9,56 @@ WORKFLOW = ROOT / ".github/workflows/build-apk.yml"
 def test_integrated_model_picker_imports_source_models_without_android_extension_filters():
     source = BRAND.read_text(encoding="utf-8")
     assert "type: FileType.any" in source
-    assert "['onnx', 'pth', 'pt', 'zip'].contains(ext)" in source
+    assert "['pth', 'pt', 'zip'].contains(ext)" in source
     assert "_bridge.importPickedFile(kind: 'model', sourcePath: source)" in source
-    assert "PTH/PT/ZIP is stored safely but is not directly runnable" in source
+    assert "bool _runtime(String path) => _ext(path) == 'pth';" in source
+    assert "PT/ZIP files are storage-only; supported RVC v2 PTH checkpoints run natively." in source
+    assert "onPressed: ready && _ext(selected!) == 'pth' ? widget.onContinue : null" in source
+    assert "PTH VOICE — USE SONG COVERS" in source
+    assert "RVC conversion runs locally through the native RVC v2 .pth engine." in source
+    assert "Choose a supported RVC v2 .pth voice model." in source
+    assert "ONNX voice models are directly usable by the Android engine" not in source
+    assert "ONNX is ready for conversion" not in source
+    assert "READY — Native PTH supports RVC v2, 768 dimensions / 100 fps only." in source
 
 
-def test_integrated_index_library_accepts_faiss_and_mobile_indexes_without_fake_conversion():
+def test_model_picker_preserves_original_faiss_and_mobile_index_sibling_paths():
+    brand = BRAND.read_text(encoding="utf-8")
+    assert "Re-importing those paths in MainScreen created duplicate" in brand
+    assert "final importedPath = File(path).absolute.path;" in brand
+    assert "final importedPath = path == null ? null : File(path).absolute.path;" in brand
+    assert "mt = mt.replace(old_index_selection, new_index_selection, 1)" in brand
+    assert "The selected FAISS index is no longer available in private storage." in brand
+    assert "if (!_library.contains(imported.path))" in brand
+    assert "if (!_indexLibrary.contains(imported.path))" in brand
+    assert "if (_library.contains(item.path))" not in brand
+    assert "if (_indexLibrary.contains(item.path))" not in brand
+    assert "if (['pth', 'pt'].contains(itemExt))" in brand
+    assert "if (!['pth', 'pt', 'zip'].contains(ext))" in brand
+    assert "if (!_index(imported.path))" in brand
+    assert "if (itemExt == 'pth' && readyModelPath == null)" in brand
+
+
+def test_integrated_index_library_converts_standard_faiss_and_validates_mobile_indexes():
     source = BRAND.read_text(encoding="utf-8")
     assert "Select an RVC .index or .mobile.index file" in source
-    assert "Standard .index stored in your Index Library" in source
-    assert "does not include FAISS-to-mobile conversion" in source
+    assert "_bridge.convertFaissIndex(imported.path)" in source
+    assert "_bridge.convertFaissIndex(path)" in source
+    assert "Standard FAISS index converted on this phone" in source
+
+
+def test_native_faiss_converter_is_wired_through_android_and_flutter():
+    integration = (ROOT / "tools/native/integrate.py").read_text(encoding="utf-8")
+    converter = (ROOT / "tools/native/FaissIndexConverter.kt").read_text(encoding="utf-8")
+    screen = (ROOT / "tools/ui/index_converter_screen.dart").read_text(encoding="utf-8")
+    assert "FaissIndexConverter.kt" in integration
+    assert "convertFaissIndex(call, result)" in integration
+    assert "FaissIndexConverter.convert(appContext, File(sourcePath))" in integration
+    assert "Future<ImportedFileHandle> convertFaissIndex(String sourcePath)" in integration
+    assert "implementation files('libs/faiss-android.aar')" in integration
+    assert "FAISS.readIndex(source.absolutePath)" in converter
+    assert "exportMobileIndex" in converter
+    assert "convertFaissIndex(imported.path)" in screen
 
 
 def test_dashboard_and_full_engine_open_the_integrated_model_picker():
@@ -46,13 +86,16 @@ def test_dashboard_discloses_song_cover_and_realtime_limits():
     assert "SongCoverScreen(" in brand
     assert "modelPath: modelPath" in brand
     assert "indexPath: _selectedIndexPath" in brand
+    assert "initialSongPath: _selectedSongPath" in brand
     assert "onSongCovers: _openAudioConversion" not in brand
+    assert "modelPath == null || modelPath.isEmpty || !modelPath.toLowerCase().endsWith('.pth')" in brand
+    assert "Choose your supported RVC v2 .pth voice model" in brand
     full_engine = (ROOT / "tools/ui/full_rvc_screen.dart").read_text(encoding="utf-8")
     assert "Song Covers is available from the main dashboard" in full_engine
     assert "bundled offline vocal separation" in full_engine
-    assert "neural-network training are not included" in full_engine
+    assert "Voice Dataset Lab records, imports and prepares samples privately" in full_engine
     source = BRAND.read_text(encoding="utf-8")
-    assert "Separate vocals, convert your voice, and mix the cover" in (ROOT / "tools/ui/red_home_screen.dart").read_text(encoding="utf-8")
+    assert "Separate vocals, convert with your PTH voice, then mix the full song" in (ROOT / "tools/ui/red_home_screen.dart").read_text(encoding="utf-8")
     assert "REALTIME RVC — EXPERIMENTAL" in source
     assert "Limited Android support; may stutter" in source
 
@@ -64,10 +107,13 @@ def test_gradle_can_use_a_private_persistent_release_keystore():
     assert "signingConfigs.debug" in source
 
 
-def test_index_tools_discloses_faiss_conversion_is_not_on_device():
+def test_index_tools_performs_local_faiss_conversion_for_supported_indexes():
     source = INDEX_TOOLS.read_text(encoding="utf-8")
-    assert "Standard RVC/FAISS .index files are not converted by this Android app yet" in source
-    assert "Importing or renaming one does not make it compatible" in source
+    assert "convertFaissIndex(imported.path)" in source
+    assert "pickAndImportFile(kind:" in source
+    assert "768-dimensional RVC v2 FAISS indexes" in source
+    assert "conversion runs locally" in source
+    assert "original matching FAISS .index for retrieval blending" in source
 
 
 def test_workflow_runs_tests_and_supports_private_persistent_signing():
@@ -83,7 +129,7 @@ def test_workflow_runs_tests_and_supports_private_persistent_signing():
     ):
         assert secret in source
     assert "temporary GitHub runner debug key" in source
-    assert "if: github.event_name != 'pull_request'" in source
+    assert "if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'" in source
 
 
 def test_upstream_song_picker_is_translated_to_english_before_build():
@@ -109,12 +155,14 @@ def test_upstream_song_picker_is_translated_to_english_before_build():
 
 def test_dataset_lab_is_phone_local_and_does_not_advertise_cloud_training():
     training = (ROOT / "tools/ui/training_screen.dart").read_text(encoding="utf-8")
-    assert "ON-PHONE DATASET WORKSPACE" in training
-    assert "This phone prepares and exports your voice dataset locally" in training
-    assert "It does not train an RVC neural network" in training
-    assert "Kaggle" not in training
-    assert "Colab" not in training
-    assert "url_launcher/url_launcher.dart" not in training
+    assert "VOICE DATASET LAB" in training
+    assert "Your samples are prepared and stored on this phone" in training
+    assert "This app does not offer remote training that requires uploading the exported ZIP" in training
+    assert "pickAndImportAudioFiles()" in training
+    assert "releaseImportedFile(path)" in training
+    assert "CHECK ON-DEVICE TRAINING CAPABILITY" in training
+    assert "_openTrainingWorkflow" not in training
+    assert "package:url_launcher/url_launcher.dart" not in training
 
 
 def test_dataset_export_creates_a_single_zip_for_android_sharing():
@@ -135,8 +183,13 @@ def test_offline_song_cover_native_pipeline_is_wired_into_android_build():
     workflow = WORKFLOW.read_text(encoding="utf-8")
     assert "separateSongVocals" in integration
     assert "mixSongCover" in integration
+    assert "s = s.replace(anchor, methods + anchor, 1)" in integration
+    assert "private fun separateSongVocals(call: MethodCall, result: Result)" in integration
+    assert "private fun mixSongCover(call: MethodCall, result: Result)" in integration
+    assert "private fun convertPth(call: MethodCall, result: Result)" in integration
+    assert "private fun validateVoiceModel(call: MethodCall, result: Result)" in integration
     assert "endsWith('.onnx')" in integration
-    assert "endsWith('.mobile.index')" in integration
+    assert 'endsWith(".mobile.index", ignoreCase = true)' in integration
     assert "SherpaOnnxCreateOfflineSourceSeparation" in native
     assert "SherpaOnnxOfflineSourceSeparationProcess" in native
     assert "Pcm16WaveReader" in native
@@ -156,6 +209,11 @@ def test_offline_song_cover_native_pipeline_is_wired_into_android_build():
     assert "withContext(Dispatchers.Main) { result.success(output.absolutePath) }" in integration
     assert "await _bridge.separateSongVocals" in screen
     assert "await _bridge.infer" in screen
+    assert "await _bridge.convertPth" in screen
+    assert "final String? initialSongPath;" in screen
+    assert "final void Function(String outputPath, Duration duration)? onCoverComplete;" in screen
+    assert "widget.onCoverComplete?.call(mixed, stopwatch.elapsed);" in screen
+    assert "final isPth = widget.modelPath.toLowerCase().endsWith('.pth')" in screen
     assert "await _bridge.mixSongCover" in screen
     assert ".clamp(0.0, 1.0).toDouble()" in screen
     assert "k2-fsa/sherpa-onnx" in workflow
@@ -186,7 +244,10 @@ def test_song_cover_uses_android_media_codec_to_prepare_common_audio_formats():
     assert "decodeAudioSegment(source, 0L, durationUs)" not in integration
     assert "writeDecodedAudioWav(File(outputPath), decoded)" not in integration
     assert "Android decodes it locally to PCM WAV" in screen
-    assert "type: FileType.audio" in screen
+    assert "_getOrCreateStems" in screen
+    assert "rvc_song_stems_" in screen
+    assert "pickAndImportAudioFiles" in screen
+    assert "FilePicker.platform.pickFiles" not in screen
 
 
 def test_sherpa_runtime_diagnostic_matches_the_pinned_onnx_runtime_version():
@@ -211,3 +272,23 @@ def test_onnx_voice_models_are_opened_and_checked_for_the_exact_rvc_v2_inputs_be
     assert 'await _bridge.validateVoiceModel(path)' in integration
     assert 'MODEL NOT COMPATIBLE' in integration
     assert 'Future<void> validateVoiceModel(String modelPath)' in integration
+
+
+def test_native_pth_converter_applies_real_faiss_retrieval_blending():
+    patch = (ROOT / "tools/native/patch_faiss_mobile.py").read_text(encoding="utf-8")
+    integration = (ROOT / "tools/native/integrate.py").read_text(encoding="utf-8")
+    jni = (ROOT / "tools/native/rvc_pth_android/pth_jni.cpp").read_text(encoding="utf-8")
+    pipeline = (ROOT / "tools/native/rvc_pth_android/pth_pipeline.c").read_text(encoding="utf-8")
+    bridge = (ROOT / "tools/native/RvcPthNative.kt").read_text(encoding="utf-8")
+    screen = (ROOT / "tools/ui/song_cover_screen.dart").read_text(encoding="utf-8")
+    assert "nativeSearchAndBlend" in patch
+    assert "faiss_Index_search" in patch
+    assert "faiss_Index_reconstruct" in patch
+    assert "nativePrepareForRvc" in patch
+    assert "FAISS.readIndex(sourceIndex.absolutePath)" in integration
+    assert "opened.prepareForRvc()" in integration
+    assert "searchAndBlend" in jni
+    assert "blend_index(index_context, phone, segment_frames, index_rate)" in pipeline
+    assert "retrievalIndex: FAISS.Index?" in bridge
+    assert "indexPath: widget.indexPath" in screen
+    assert "RETRIEVAL STRENGTH" in screen
