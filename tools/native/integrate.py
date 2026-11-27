@@ -419,7 +419,7 @@ if "if (path.toLowerCase().endsWith('.onnx')) await _bridge.validateVoiceModel(p
 # The branded picker already validates .onnx/.pth via _runtime() and
 # uses Android SAF without restrictive extension filters. Older upstream
 # picker variants use the lowerPath predicate below; support both safely.
-if "bool _runtime(String path) => ['onnx', 'pth'].contains(_ext(path));" not in ps and "return lowerPath.endsWith('.onnx') || lowerPath.endsWith('.pth');" not in ps:
+if "bool _runtime(String path) => _ext(path) == 'pth';" not in ps and "bool _runtime(String path) => ['onnx', 'pth'].contains(_ext(path));" not in ps and "return lowerPath.endsWith('.onnx') || lowerPath.endsWith('.pth');" not in ps:
     old_model_filter = "return lowerPath.endsWith('.onnx');"
     if old_model_filter not in ps:
         raise RuntimeError('Model picker has neither the branded ONNX/PTH runtime predicate nor the expected upstream ONNX filter')
