@@ -2177,10 +2177,7 @@ if "Future<List<ImportedFileHandle>> extractModelArchive" not in bt:
 bridge.write_text(bt, encoding="utf-8")
 
 pt = picker.read_text(encoding="utf-8")
-zip_anchor = """      final ext = _ext(imported.path);
-      if (!_library.contains(imported.path)) {
-        _library.insert(0, imported.path);
-      }"""
+zip_anchor = """      final ext = _ext(imported.path);"""
 zip_handler = """      final ext = _ext(imported.path);
       if (ext == 'zip') {
         List<ImportedFileHandle> unpacked;
@@ -2226,8 +2223,7 @@ zip_handler = """      final ext = _ext(imported.path);
           SnackBar(content: Text('ZIP unpacked: ' + unpacked.length.toString() + ' model/index file(s) imported. Supported .pth models can be used for native conversion; .pt source files remain stored for later processing.')),
         );
         return;
-      }
-      if (!_library.contains(imported.path)) _library.insert(0, imported.path);"""
+      }"""
 if zip_anchor in pt:
     if "extractModelArchive(imported.path)" not in pt:
         pt = pt.replace(zip_anchor, zip_handler, 1)
