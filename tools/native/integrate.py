@@ -630,7 +630,14 @@ helper = '''
   }
 '''
 if 'void _continueToPthConversion()' not in ms:
-    ms = ms.replace(new_conversion, new_conversion + chr(10) + helper, 1)
+    # Insert against a stable method declaration, not the whole replacement
+    # block: upstream formatting changes must never silently drop this method.
+    anchor = '  void _openAudioConversion() {'
+    if ms.count(anchor) != 1:
+        raise RuntimeError('Could not uniquely locate _openAudioConversion for PTH navigation helper')
+    ms = ms.replace(anchor, helper + chr(10) + anchor, 1)
+if 'void _continueToPthConversion()' not in ms:
+    raise RuntimeError('PTH conversion navigation helper was not inserted')
 main.write_text(ms, encoding='utf-8')
 
 
