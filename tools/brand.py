@@ -445,6 +445,8 @@ class _ModelPickerScreenState extends State<ModelPickerScreen> {
 
   bool _runtime(String path) => _ext(path) == 'pth';
 
+  bool _index(String path) => ['index', 'mobile.index'].contains(_ext(path));
+
   bool _sourceModel(String path) => ['pt', 'zip'].contains(_ext(path));
 
 
