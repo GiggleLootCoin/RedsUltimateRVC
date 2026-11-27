@@ -2228,10 +2228,11 @@ zip_handler = """      final ext = _ext(imported.path);
         return;
       }
       if (!_library.contains(imported.path)) _library.insert(0, imported.path);"""
-if zip_anchor not in pt:
-    raise RuntimeError("ZIP model callback insertion point missing")
-if "extractModelArchive(imported.path)" not in pt:
-    pt = pt.replace(zip_anchor, zip_handler, 1)
+if zip_anchor in pt:
+    if "extractModelArchive(imported.path)" not in pt:
+        pt = pt.replace(zip_anchor, zip_handler, 1)
+elif "extractModelArchive(imported.path)" not in pt:
+    raise RuntimeError("ZIP model callback is neither present nor safely patchable")
 picker.write_text(pt,encoding="utf-8");
 
 if "private fun extractModelArchive" not in kt or "extractModelArchive" not in bt or "extractModelArchive(imported.path)" not in pt:
